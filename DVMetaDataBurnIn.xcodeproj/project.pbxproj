@@ -26,7 +26,6 @@
 		92908F922ED9603D00A9A38A /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 92908F802ED9603D00A9A38A /* README.md */; };
 		92908F992ED967E000A9A38A /* dvmetaburn.zsh in Resources */ = {isa = PBXBuildFile; fileRef = 92908F982ED967E000A9A38A /* dvmetaburn.zsh */; };
 		92908F9B2ED9743300A9A38A /* ffmpeg in Resources */ = {isa = PBXBuildFile; fileRef = 92908F9A2ED9743300A9A38A /* ffmpeg */; };
-		92908F9D2ED97D5D00A9A38A /* SplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92908F9C2ED97D5D00A9A38A /* SplashView.swift */; };
 		92908F9F2ED987C700A9A38A /* SplashContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92908F9E2ED987C700A9A38A /* SplashContentView.swift */; };
 		92908FA32EDA720800A9A38A /* readme.md in Resources */ = {isa = PBXBuildFile; fileRef = 92908FA22EDA720800A9A38A /* readme.md */; };
 /* End PBXBuildFile section */
@@ -53,7 +52,6 @@
 		92908F802ED9603D00A9A38A /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		92908F982ED967E000A9A38A /* dvmetaburn.zsh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = dvmetaburn.zsh; sourceTree = "<group>"; };
 		92908F9A2ED9743300A9A38A /* ffmpeg */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = ffmpeg; sourceTree = "<group>"; };
-		92908F9C2ED97D5D00A9A38A /* SplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashView.swift; sourceTree = "<group>"; };
 		92908F9E2ED987C700A9A38A /* SplashContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashContentView.swift; sourceTree = "<group>"; };
 		92908FA22EDA720800A9A38A /* readme.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = readme.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -94,7 +92,6 @@
 				921798DC2ED94A7A00913D40 /* Products */,
 				921798DE2ED94A7B00913D40 /* DVMetaDataBurnInApp.swift */,
 				921798E02ED94A7B00913D40 /* ContentView.swift */,
-				92908F9C2ED97D5D00A9A38A /* SplashView.swift */,
 				921798E42ED94A7C00913D40 /* Assets.xcassets */,
 				921798E62ED94A7C00913D40 /* DVMetaDataBurnIn.entitlements */,
 				9217993F2ED9567D00913D40 /* AboutView.swift */,
@@ -245,7 +242,6 @@
 				921798E12ED94A7B00913D40 /* ContentView.swift in Sources */,
 				921798DF2ED94A7B00913D40 /* DVMetaDataBurnInApp.swift in Sources */,
 				92908F9F2ED987C700A9A38A /* SplashContentView.swift in Sources */,
-				92908F9D2ED97D5D00A9A38A /* SplashView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -371,6 +367,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = DVMetaDataBurnIn/DVMetaDataBurnIn.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
@@ -392,8 +389,8 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 17.5;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.0;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.SML.DVMetaDataBurnIn;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -409,6 +406,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = DVMetaDataBurnIn/DVMetaDataBurnIn.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
@@ -430,8 +428,8 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 17.5;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.0;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.SML.DVMetaDataBurnIn;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
