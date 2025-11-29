@@ -7,10 +7,11 @@
 - No log output sometimes - possibly due to file size or the time it takes for dvrescue to read the metadata
 - No progress bar (just says running)
 - No way to tell it where to save the file (it saves in the same location as the original file)
-- No way to know if its hung or crashed - and it seems to crash on LARGE files
 - May make splash screen shorter, I just wanted one like the old Sony software had
 - Still trying to figure out if large files hang this or not
 - File chooser doesn't limit to file types
+- Having SOME issues with large files and dvrescue but working on it
+- Clips that have muliple date/times for start stop only count forward from the first read timecode as of right now. So if you have a video clip manually captured that was 5 minutes at 2pm, and 5 minutes at 3pm, the timecode will run from 2:00 - 2:10 not 2:00-2:05 then jump to 3:00 to 3:05 in the burn. Will fix later.
 
 ---
 

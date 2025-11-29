@@ -9,7 +9,8 @@ struct ContentView: View {
     @State private var logText: String = ""
     @State private var isRunning: Bool = false
     @State private var showingAbout: Bool = false
-
+    @State private var currentProcess: Process?
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("DV Metadata Date/Time Burn-In")
@@ -116,33 +117,63 @@ struct ContentView: View {
     // MARK: - Run script
 
     private func runBurn() {
+        // extra safety: don't even try if there's no input
+        guard !inputPath.isEmpty else {
+            logText = "Please choose an input file or folder first."
+            return
+        }
+
         logText = ""
         isRunning = true
 
         DispatchQueue.global(qos: .userInitiated).async {
             do {
-                let output = try self.invokeScript()
+                let (process, pipe) = try self.makeProcess()
+
                 DispatchQueue.main.async {
-                    self.logText = output
-                    self.isRunning = false
+                    self.currentProcess = process
                 }
+
+                let handle = pipe.fileHandleForReading
+
+                handle.readabilityHandler = { fh in
+                    let data = fh.availableData
+                    if data.isEmpty {
+                        fh.readabilityHandler = nil
+                        return
+                    }
+                    if let chunk = String(data: data, encoding: .utf8) {
+                        DispatchQueue.main.async {
+                            self.logText.append(chunk)
+                        }
+                    }
+                }
+
+                try process.run()
+                process.waitUntilExit()
+                let status = process.terminationStatus
+
+                DispatchQueue.main.async {
+                    self.isRunning = false
+                    self.logText.append("\n\n[process exit status: \(status)]")
+                    handle.readabilityHandler = nil
+                    self.currentProcess = nil
+                }
+
             } catch {
                 DispatchQueue.main.async {
                     self.logText = "Error: \(error.localizedDescription)"
                     self.isRunning = false
+                    self.currentProcess = nil
                 }
             }
         }
     }
 
-    private func invokeScript() throws -> String {
-        guard !inputPath.isEmpty else {
-            return "No input path set."
-        }
+    private func makeProcess() throws -> (Process, Pipe) {
+        // Use resourceURL if available, otherwise fall back to bundleURL
+        let bundleRoot = Bundle.main.resourceURL ?? Bundle.main.bundleURL
 
-        guard let bundleRoot = Bundle.main.resourceURL else {
-            return "Could not locate app resources (Bundle.main.resourceURL is nil)."
-        }
 
         let fm = FileManager.default
 
@@ -170,19 +201,24 @@ struct ContentView: View {
         }
 
         guard let bundledScriptURL = findScriptURL() else {
-            return "ERROR: Could not find dvmetaburn(.zsh) in app bundle (root: \(bundleRoot.path))."
+            throw NSError(domain: "DVMeta", code: 3,
+                          userInfo: [NSLocalizedDescriptionKey:
+                                     "ERROR: Could not find dvmetaburn(.zsh) in app bundle (root: \(bundleRoot.path))."])
         }
 
         guard let ffmpegURL = findResource(named: "ffmpeg") else {
-            return "ERROR: Could not find ffmpeg in app bundle."
+            throw NSError(domain: "DVMeta", code: 4,
+                          userInfo: [NSLocalizedDescriptionKey: "ERROR: Could not find ffmpeg in app bundle."])
         }
 
         guard let dvrescueURL = findResource(named: "dvrescue") else {
-            return "ERROR: Could not find dvrescue in app bundle."
+            throw NSError(domain: "DVMeta", code: 5,
+                          userInfo: [NSLocalizedDescriptionKey: "ERROR: Could not find dvrescue in app bundle."])
         }
 
         guard let fontURL = findResource(named: "UAV-OSD-Mono.ttf") else {
-            return "ERROR: Could not find UAV-OSD-Mono.ttf in app bundle."
+            throw NSError(domain: "DVMeta", code: 6,
+                          userInfo: [NSLocalizedDescriptionKey: "ERROR: Could not find UAV-OSD-Mono.ttf in app bundle."])
         }
 
         // --- Copy script to a writable temp location ---
@@ -198,7 +234,7 @@ struct ContentView: View {
             .posixPermissions: NSNumber(value: Int16(0o755))
         ]
         try fm.setAttributes(attrs, ofItemAtPath: tempScriptURL.path)
-        
+
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/zsh")
 
@@ -214,7 +250,6 @@ struct ContentView: View {
             inputPath
         ]
 
-        // Use the same temp dir for the child
         var env = ProcessInfo.processInfo.environment
         env["TMPDIR"] = tempDir.path
         process.environment = env
@@ -224,17 +259,6 @@ struct ContentView: View {
         process.standardOutput = pipe
         process.standardError = pipe
 
-        try process.run()
-        process.waitUntilExit()
-
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        let text = String(data: data, encoding: .utf8) ?? ""
-        let status = process.terminationStatus
-        let combined = text + "\n\n[process exit status: \(status)]"
-        return combined
-        
+        return (process, pipe)
     }
-
-
 }
-

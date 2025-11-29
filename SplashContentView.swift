@@ -26,7 +26,7 @@ struct SplashContentView: View {
 
                     HStack(spacing: 16) {
                         Text("© 2025 The Polish")
-                        Text("Version 0.1A")
+                        Text("Version 0.2A")
                     }
                     .font(.footnote)
                     .foregroundStyle(.secondary)
