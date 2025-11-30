@@ -1,4 +1,23 @@
 import SwiftUI
+import UniformTypeIdentifiers   // for logoutput to txt
+// MARK: - Mode enums
+
+enum BurnMode: String, CaseIterable, Identifiable {
+    case burnin
+    case passthrough
+
+    var id: String { rawValue }
+}
+
+enum MissingMetaMode: String, CaseIterable, Identifiable {
+    case error              // stop on missing metadata
+    case skipBurninConvert  // still convert file, no burn-in
+    case skipFile           // skip that file, continue batch
+
+    var id: String { rawValue }
+}
+
+// MARK: - Main view
 
 struct ContentView: View {
     // UI state
@@ -10,7 +29,11 @@ struct ContentView: View {
     @State private var isRunning: Bool = false
     @State private var showingAbout: Bool = false
     @State private var currentProcess: Process?
-    
+
+    // NEW OPTIONS
+    @State private var burnMode: BurnMode = .burnin
+    @State private var missingMetaMode: MissingMetaMode = .skipBurninConvert
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("DV Metadata Date/Time Burn-In")
@@ -55,20 +78,63 @@ struct ContentView: View {
                 Text("Format:")
                 Picker("", selection: $format) {
                     Text("MOV (DV, recommended)").tag("mov")
-                    Text("MP4 (H.264)").tag("mp4")
+                    Text("MP4 (MPEG-4)").tag("mp4")
                 }
                 .pickerStyle(SegmentedPickerStyle())
                 .frame(width: 320)
             }
 
-            // Run button
+            // NEW: Output mode (burn-in vs convert only)
             HStack {
+                Text("Output:")
+                Picker("", selection: $burnMode) {
+                    Text("Burn in metadata").tag(BurnMode.burnin)
+                    Text("Convert only (no burn-in)").tag(BurnMode.passthrough)
+                }
+                .pickerStyle(SegmentedPickerStyle())
+                .frame(width: 320)
+            }
+
+            // NEW: Missing metadata behavior
+            VStack(alignment: .leading) {
+                Text("If DV date/time is missing:")
+                Picker("", selection: $missingMetaMode) {
+                    Text("Stop with error").tag(MissingMetaMode.error)
+                    Text("Convert without burn-in").tag(MissingMetaMode.skipBurninConvert)
+                    Text("Skip file").tag(MissingMetaMode.skipFile)
+                }
+                .pickerStyle(SegmentedPickerStyle())
+                .frame(width: 420)
+            }
+
+            // Run + dvrescue debug + Stop + Clear / Save buttons
+            HStack {
+                Button("Clear Log") {
+                    logText = ""
+                }
+
+                Button("Save Log…") {
+                    saveLogToFile()
+                }
+
                 Spacer()
+
+                Button("dvrescue debug only") {
+                    runDVRescueDebug()
+                }
+                .disabled(isRunning)
+
+                Button("Stop") {
+                    stopCurrentProcess()
+                }
+                .disabled(!isRunning || currentProcess == nil)
+
                 Button(isRunning ? "Running…" : "Run Burn-In") {
                     runBurn()
                 }
                 .disabled(isRunning || inputPath.isEmpty)
             }
+
 
             // Log output
             Text("Log:")
@@ -78,6 +144,7 @@ struct ContentView: View {
                 Text(logText)
                     .font(.system(.footnote, design: .monospaced))
                     .frame(maxWidth: .infinity, alignment: .topLeading)
+                    .textSelection(.enabled)   // allow copy/paste
             }
             .border(Color.gray.opacity(0.4))
 
@@ -93,6 +160,24 @@ struct ContentView: View {
         .frame(minWidth: 640, minHeight: 480)
         .sheet(isPresented: $showingAbout) {
             AboutView()
+        }
+    }   // <-- this closes var body
+    
+    // MARK: - Save log
+
+    private func saveLogToFile() {
+        let panel = NSSavePanel()
+        panel.title = "Save Log"
+        panel.nameFieldStringValue = "DVMetaLog.txt"
+        panel.canCreateDirectories = true
+        panel.allowedContentTypes = [.plainText]   // modern API
+
+        if panel.runModal() == .OK, let url = panel.url {
+            do {
+                try logText.data(using: .utf8)?.write(to: url)
+            } catch {
+                logText.append("\n\n[ERROR saving log: \(error.localizedDescription)]")
+            }
         }
     }
 
@@ -114,10 +199,116 @@ struct ContentView: View {
         }
     }
 
+    // MARK: - dvrescue debug only
+
+    private func runDVRescueDebug() {
+        // 1) If we already have a single input file selected, use that.
+        let fm = FileManager.default
+        var debugURL: URL?
+
+        if !inputPath.isEmpty,
+           mode == "single",
+           fm.fileExists(atPath: inputPath) {
+            debugURL = URL(fileURLWithPath: inputPath)
+        } else {
+            // 2) Fallback: ask the user to pick a file
+            let panel = NSOpenPanel()
+            panel.canChooseFiles = true
+            panel.canChooseDirectories = false
+            panel.allowsMultipleSelection = false
+
+            if panel.runModal() == .OK, let url = panel.url {
+                debugURL = url
+            }
+        }
+
+        guard let url = debugURL else { return }
+
+        logText = ""
+        isRunning = true
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                // Find dvrescue in the app bundle
+                let bundleRoot = Bundle.main.resourceURL ?? Bundle.main.bundleURL
+                let fm = FileManager.default
+
+                var dvrescueURL: URL? = nil
+                if let enumerator = fm.enumerator(at: bundleRoot, includingPropertiesForKeys: nil) {
+                    for case let candidate as URL in enumerator {
+                        if candidate.lastPathComponent == "dvrescue" {
+                            dvrescueURL = candidate
+                            break
+                        }
+                    }
+                }
+
+                guard let dvURL = dvrescueURL else {
+                    throw NSError(domain: "DVMeta", code: 7,
+                                  userInfo: [NSLocalizedDescriptionKey:
+                                             "ERROR: Could not find dvrescue in app bundle for debug run."])
+                }
+
+                let process = Process()
+                process.executableURL = dvURL
+                process.arguments = [url.path]
+
+                let pipe = Pipe()
+                process.standardOutput = pipe
+                process.standardError = pipe
+
+                let handle = pipe.fileHandleForReading
+                handle.readabilityHandler = { fh in
+                    let data = fh.availableData
+                    if data.isEmpty {
+                        fh.readabilityHandler = nil
+                        return
+                    }
+                    if let chunk = String(data: data, encoding: .utf8) {
+                        DispatchQueue.main.async {
+                            self.logText.append(chunk)
+                        }
+                    }
+                }
+
+                DispatchQueue.main.async {
+                    self.currentProcess = process
+                }
+
+                try process.run()
+                process.waitUntilExit()
+                let status = process.terminationStatus
+
+                DispatchQueue.main.async {
+                    self.isRunning = false
+                    self.logText.append("\n\n[dvrescue debug exit status: \(status)]")
+                    handle.readabilityHandler = nil
+                    self.currentProcess = nil
+                }
+
+            } catch {
+                DispatchQueue.main.async {
+                    self.isRunning = false
+                    self.logText.append("\n\nERROR running dvrescue debug: \(error.localizedDescription)")
+                    self.currentProcess = nil
+                }
+            }
+        }
+    }
+
+    // MARK: - Stop current process
+
+    private func stopCurrentProcess() {
+        if let proc = currentProcess {
+            proc.terminate()
+            logText.append("\n\n[process terminated by user]")
+            currentProcess = nil
+        }
+        isRunning = false
+    }
     // MARK: - Run script
 
     private func runBurn() {
-        // extra safety: don't even try if there's no input
         guard !inputPath.isEmpty else {
             logText = "Please choose an input file or folder first."
             return
@@ -170,10 +361,11 @@ struct ContentView: View {
         }
     }
 
+    // MARK: - Process builder
+
     private func makeProcess() throws -> (Process, Pipe) {
         // Use resourceURL if available, otherwise fall back to bundleURL
         let bundleRoot = Bundle.main.resourceURL ?? Bundle.main.bundleURL
-
 
         let fm = FileManager.default
 
@@ -238,11 +430,24 @@ struct ContentView: View {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/zsh")
 
+        // Map MissingMetaMode to the strings the script expects
+        let missingMetaArg: String
+        switch missingMetaMode {
+        case .error:
+            missingMetaArg = "error"
+        case .skipBurninConvert:
+            missingMetaArg = "skip_burnin_convert"
+        case .skipFile:
+            missingMetaArg = "skip_file"
+        }
+
         process.arguments = [
             tempScriptURL.path,
             "--mode=\(mode)",
             "--layout=\(layout)",
             "--format=\(format)",
+            "--burn-mode=\(burnMode.rawValue)",   // "burnin" or "passthrough"
+            "--missing-meta=\(missingMetaArg)",   // error / skip_burnin_convert / skip_file
             "--fontfile=\(fontURL.path)",
             "--ffmpeg=\(ffmpegURL.path)",
             "--dvrescue=\(dvrescueURL.path)",

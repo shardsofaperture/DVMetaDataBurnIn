@@ -12,8 +12,29 @@
 - File chooser doesn't limit to file types
 - Having SOME issues with large files and dvrescue but working on it
 - Clips that have muliple date/times for start stop only count forward from the first read timecode as of right now. So if you have a video clip manually captured that was 5 minutes at 2pm, and 5 minutes at 3pm, the timecode will run from 2:00 - 2:10 not 2:00-2:05 then jump to 3:00 to 3:05 in the burn. Will fix later.
+- Unknown issue - will this work on M series macs? IDK Using an intel mac.
 
 ---
+
+## Change Log
+
+--- 11/30/25
+* Added passthrough (convert-only) mode alongside burn-in mode.
+
+* Added missing-metadata behavior options: stop with error, convert without burn-in, or skip file.
+
+* Updated dvmetaburn.zsh to: Parse full dvrescue JSON instead of only the first frame, detect the first valid rdt anywhere in the file and fall back based on --missing-meta= instead of crashing.
+
+* Support --burn-mode=passthrough for no-metadata conversions.
+
+* Added added BurnMode and MissingMetaMode with UI controls for so its now possible to burn-in  text OR convert-only, and changed how missing-metadata behavior is handled (i.e. hopefully won't just crash now)
+
+* Made log selectablew
+
+* Added DVRESCUE debug function (to check to see if metadata is missing or any other issues)
+
+* Added stop and clear log button, as well as made log copyable instead of view only and some other debug stuff
+
 
 ## Features (work in progress but already functional)
 
@@ -39,6 +60,7 @@
 
 1. **Download** the app (no releases yet — still iterating).  
 2. **Launch** it.  
+2a. Tell apple you don't care about security becuase you got this from the internet.'
 3. **Select** a file or an entire folder of DV/Digital8 clips.  
 4. Pick your **layout** and **output format**.  
 5. Hit **Run Burn-In** and let it cook.
