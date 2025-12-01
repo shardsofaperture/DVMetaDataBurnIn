@@ -1,0 +1,33 @@
+## Change Log
+
+--- 12/1/25
+--- Calling this 1.0 Beta!
+
+--- Now have actual RDT being read - no more trickery reading the first timestamp.
+
+
+
+--- 11/30/25
+* Added passthrough (convert-only) mode alongside burn-in mode.
+
+* Added missing-metadata behavior options: stop with error, convert without burn-in, or skip file.
+
+* Updated dvmetaburn.zsh to: Parse full dvrescue JSON instead of only the first frame, detect the first valid rdt anywhere in the file and fall back based on --missing-meta= instead of crashing.
+
+* Support --burn-mode=passthrough for no-metadata conversions.
+
+* Added added BurnMode and MissingMetaMode with UI controls for so its now possible to burn-in  text OR convert-only, and changed how missing-metadata behavior is handled (i.e. hopefully won't just crash now)
+
+* Made log selectablew
+
+* Added DVRESCUE debug function (to check to see if metadata is missing or any other issues)
+
+* Added stop and clear log button, as well as made log copyable instead of view only and some other debug stuff
+
+* Fixed MP4 codec from mpeg4 SP to h265 which was the original intent for the conversion.
+
+* Reduced splash screen time to 3 seconds
+
+* Adjusted log behavior to prevent hanging due to wayyyy to many lines spit out by ffmpeg causing a not responding even if comppleted succesfully
+
+* Adjusted log behavior for dvrescue which was also cauing a not responding when debugging due to a large amount of data being pushed though to the log window (xml vomit)

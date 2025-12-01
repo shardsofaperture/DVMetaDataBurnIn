@@ -11,6 +11,7 @@
 		921798E12ED94A7B00913D40 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 921798E02ED94A7B00913D40 /* ContentView.swift */; };
 		921798E52ED94A7C00913D40 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 921798E42ED94A7C00913D40 /* Assets.xcassets */; };
 		921799402ED9567D00913D40 /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9217993F2ED9567D00913D40 /* AboutView.swift */; };
+		9226A4E12EDE59CA0041247E /* Change Log.txt in Resources */ = {isa = PBXBuildFile; fileRef = 9226A4E02EDE59CA0041247E /* Change Log.txt */; };
 		9260F2D92EDA9AFC00285ABB /* DVProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9260F2D82EDA9AFC00285ABB /* DVProcessor.swift */; };
 		92908F852ED9603D00A9A38A /* dvrescue in Resources */ = {isa = PBXBuildFile; fileRef = 92908F712ED9603D00A9A38A /* dvrescue */; };
 		92908F872ED9603D00A9A38A /* UAV-OSD-Mono.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 92908F742ED9603D00A9A38A /* UAV-OSD-Mono.ttf */; };
@@ -38,6 +39,7 @@
 		921798E42ED94A7C00913D40 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		921798E62ED94A7C00913D40 /* DVMetaDataBurnIn.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DVMetaDataBurnIn.entitlements; sourceTree = "<group>"; };
 		9217993F2ED9567D00913D40 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
+		9226A4E02EDE59CA0041247E /* Change Log.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Change Log.txt"; sourceTree = "<group>"; };
 		9260F2D82EDA9AFC00285ABB /* DVProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DVProcessor.swift; sourceTree = "<group>"; };
 		92908F712ED9603D00A9A38A /* dvrescue */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = dvrescue; sourceTree = "<group>"; };
 		92908F742ED9603D00A9A38A /* UAV-OSD-Mono.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "UAV-OSD-Mono.ttf"; sourceTree = "<group>"; };
@@ -72,6 +74,7 @@
 		921798D22ED94A7A00913D40 = {
 			isa = PBXGroup;
 			children = (
+				9226A4E02EDE59CA0041247E /* Change Log.txt */,
 				9260F2D82EDA9AFC00285ABB /* DVProcessor.swift */,
 				92908FA22EDA720800A9A38A /* readme.md */,
 				92908F9E2ED987C700A9A38A /* SplashContentView.swift */,
@@ -230,6 +233,7 @@
 				92908F852ED9603D00A9A38A /* dvrescue in Resources */,
 				921798E52ED94A7C00913D40 /* Assets.xcassets in Resources */,
 				92908FA32EDA720800A9A38A /* readme.md in Resources */,
+				9226A4E12EDE59CA0041247E /* Change Log.txt in Resources */,
 				92908F872ED9603D00A9A38A /* UAV-OSD-Mono.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
