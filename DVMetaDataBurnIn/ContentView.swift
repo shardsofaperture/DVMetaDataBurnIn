@@ -29,6 +29,7 @@ struct ContentView: View {
     @State private var isRunning: Bool = false
     @State private var showingAbout: Bool = false
     @State private var currentProcess: Process?
+    @State private var fullLogText: String = ""
 
     // NEW OPTIONS
     @State private var burnMode: BurnMode = .burnin
@@ -111,6 +112,7 @@ struct ContentView: View {
             HStack {
                 Button("Clear Log") {
                     logText = ""
+                    fullLogText = ""
                 }
 
                 Button("Save Log…") {
@@ -174,9 +176,9 @@ struct ContentView: View {
 
         if panel.runModal() == .OK, let url = panel.url {
             do {
-                try logText.data(using: .utf8)?.write(to: url)
+                try fullLogText.data(using: .utf8)?.write(to: url)
             } catch {
-                logText.append("\n\n[ERROR saving log: \(error.localizedDescription)]")
+                appendToLog("\n\n[ERROR saving log: \(error.localizedDescription)]\n", capped: true)
             }
         }
     }
@@ -202,16 +204,20 @@ struct ContentView: View {
     // MARK: - dvrescue debug only
 
     private func runDVRescueDebug() {
-        // 1) If we already have a single input file selected, use that.
         let fm = FileManager.default
         var debugURL: URL?
 
-        if !inputPath.isEmpty,
-           mode == "single",
+        if !inputPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
            fm.fileExists(atPath: inputPath) {
-            debugURL = URL(fileURLWithPath: inputPath)
-        } else {
-            // 2) Fallback: ask the user to pick a file
+            let url = URL(fileURLWithPath: inputPath)
+            if !url.hasDirectoryPath {
+                // Use the already-selected file in the top bar
+                debugURL = url
+            }
+        }
+
+        // If we still don't have a file (no input or it was a folder) → ask the user
+        if debugURL == nil {
             let panel = NSOpenPanel()
             panel.canChooseFiles = true
             panel.canChooseDirectories = false
@@ -219,17 +225,20 @@ struct ContentView: View {
 
             if panel.runModal() == .OK, let url = panel.url {
                 debugURL = url
+                // also reflect it in the UI input field
+                inputPath = url.path
+                mode = "single"
             }
         }
 
         guard let url = debugURL else { return }
 
         logText = ""
+        fullLogText = ""
         isRunning = true
 
         DispatchQueue.global(qos: .userInitiated).async {
             do {
-                // Find dvrescue in the app bundle
                 let bundleRoot = Bundle.main.resourceURL ?? Bundle.main.bundleURL
                 let fm = FileManager.default
 
@@ -244,9 +253,12 @@ struct ContentView: View {
                 }
 
                 guard let dvURL = dvrescueURL else {
-                    throw NSError(domain: "DVMeta", code: 7,
-                                  userInfo: [NSLocalizedDescriptionKey:
-                                             "ERROR: Could not find dvrescue in app bundle for debug run."])
+                    throw NSError(
+                        domain: "DVMeta",
+                        code: 7,
+                        userInfo: [NSLocalizedDescriptionKey:
+                                   "ERROR: Could not find dvrescue in app bundle for debug run."]
+                    )
                 }
 
                 let process = Process()
@@ -266,7 +278,7 @@ struct ContentView: View {
                     }
                     if let chunk = String(data: data, encoding: .utf8) {
                         DispatchQueue.main.async {
-                            self.logText.append(chunk)
+                            self.appendToLog(chunk, capped: false)
                         }
                     }
                 }
@@ -281,21 +293,45 @@ struct ContentView: View {
 
                 DispatchQueue.main.async {
                     self.isRunning = false
-                    self.logText.append("\n\n[dvrescue debug exit status: \(status)]")
-                    handle.readabilityHandler = nil
+                    self.appendToLog("\n\n[dvrescue debug exit status: \(status)]")
                     self.currentProcess = nil
                 }
 
             } catch {
                 DispatchQueue.main.async {
                     self.isRunning = false
-                    self.logText.append("\n\nERROR running dvrescue debug: \(error.localizedDescription)")
+                    self.appendToLog(
+                        "\n\nERROR running dvrescue debug: \(error.localizedDescription)\n",
+                        capped: false
+                    )
                     self.currentProcess = nil
                 }
             }
         }
     }
 
+    // MARK: - Log helper
+
+    private func appendToLog(_ chunk: String, capped: Bool = true) {
+        // Always keep the full log
+        fullLogText.append(chunk)
+
+        // If we don't want capping (dvrescue debug), just mirror fullLogText
+        guard capped else {
+            logText = fullLogText
+            return
+        }
+
+        // Normal path: append & cap what the UI shows
+        logText.append(chunk)
+
+        let maxChars = 50_000  // tweak if you want
+        if logText.count > maxChars {
+            let overflow = logText.count - maxChars
+            let idx = logText.index(logText.startIndex, offsetBy: overflow)
+            logText.removeSubrange(logText.startIndex..<idx)
+        }
+    }
     // MARK: - Stop current process
 
     private func stopCurrentProcess() {
@@ -315,6 +351,7 @@ struct ContentView: View {
         }
 
         logText = ""
+        fullLogText = ""
         isRunning = true
 
         DispatchQueue.global(qos: .userInitiated).async {
@@ -335,7 +372,7 @@ struct ContentView: View {
                     }
                     if let chunk = String(data: data, encoding: .utf8) {
                         DispatchQueue.main.async {
-                            self.logText.append(chunk)
+                            self.appendToLog(chunk)
                         }
                     }
                 }
@@ -346,7 +383,7 @@ struct ContentView: View {
 
                 DispatchQueue.main.async {
                     self.isRunning = false
-                    self.logText.append("\n\n[process exit status: \(status)]")
+                    self.appendToLog("\n\n[process exit status: \(status)]")
                     handle.readabilityHandler = nil
                     self.currentProcess = nil
                 }

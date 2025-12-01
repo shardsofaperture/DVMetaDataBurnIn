@@ -1,22 +1,25 @@
 # DVMetaDataBurnIn
 
-**DVMetaDataBurnIn** is a free, open source macOS utility for burning original DV/Digital8 camcorder date/time metadata directly into your video files. It’s powered by `dvrescue` and `ffmpeg`, which prior to this involvd me banging my head running temrinal scripts to get the same result. I wanted a beter way for myself outside of apple script. This is my attempt to make DV timestamp burning actually useable for batchwork. 
+**DVMetaDataBurnIn** is a free, open source macOS utility for burning original DV/Digital8 camcorder date/time metadata directly into video files. It’s powered by `dvrescue` and `ffmpeg`, which prior to this involved me banging my head running terminal scripts to get the same result. I wanted a beter way for myself outside of apple script. This is my attempt to make DV timestamp burning actually useable for batchwork. 
 ---
 
 ## Known Issues
-- No log output sometimes - possibly due to file size or the time it takes for dvrescue to read the metadata
 - No progress bar (just says running)
 - No way to tell it where to save the file (it saves in the same location as the original file)
 - May make splash screen shorter, I just wanted one like the old Sony software had
-- Still trying to figure out if large files hang this or not
 - File chooser doesn't limit to file types
-- Having SOME issues with large files and dvrescue but working on it
-- Clips that have muliple date/times for start stop only count forward from the first read timecode as of right now. So if you have a video clip manually captured that was 5 minutes at 2pm, and 5 minutes at 3pm, the timecode will run from 2:00 - 2:10 not 2:00-2:05 then jump to 3:00 to 3:05 in the burn. Will fix later.
-- Unknown issue - will this work on M series macs? IDK Using an intel mac.
+- Unknown issue if this will this work on m series mac. Was built / works on an intel mac.
 
 ---
 
 ## Change Log
+
+--- 12/1/25
+--- Calling this 1.0 Beta! 
+
+--- Now have actual RDT being read - no more trickery reading the first timestamp.
+
+
 
 --- 11/30/25
 * Added passthrough (convert-only) mode alongside burn-in mode.
@@ -35,6 +38,15 @@
 
 * Added stop and clear log button, as well as made log copyable instead of view only and some other debug stuff
 
+* Fixed MP4 codec from mpeg4 SP to h265 which was the original intent for the conversion.
+
+* Reduced splash screen time to 3 seconds
+
+* Adjusted log behavior to prevent hanging due to wayyyy to many lines spit out by ffmpeg causing a not responding even if comppleted succesfully
+
+* Adjusted log behavior for dvrescue which was also cauing a not responding when debugging due to a large amount of data being pushed though to the log window (xml vomit)
+
+* 
 
 ## Features (work in progress but already functional)
 
