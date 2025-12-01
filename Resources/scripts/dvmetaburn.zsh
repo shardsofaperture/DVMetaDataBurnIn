@@ -44,6 +44,67 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+make_timestamp_cmd() {
+  local in="$1"
+  local cmdfile="$2"
+
+  "$dvrescue_bin" "$in" 2>/dev/null | \
+  awk '
+    /<frame / && /pts="/ && /rdt="/ {
+      line = $0
+
+      # Extract pts="..."
+      pts = line
+      sub(/.*pts="/, "", pts)
+      sub(/".*/, "", pts)
+
+      # Extract rdt="YYYY-MM-DD HH:MM:SS"
+      rdt = line
+      sub(/.*rdt="/, "", rdt)
+      sub(/".*/, "", rdt)
+
+      print pts, rdt
+    }
+  ' | \
+  awk '
+    function tosec(pts,   parts,h,m,s) {
+      split(pts, parts, ":")
+      h = parts[1] + 0
+      m = parts[2] + 0
+      s = parts[3] + 0
+      return h*3600 + m*60 + s
+    }
+
+    {
+      pts  = $1
+      date = $2
+      time = $3
+      dt   = date " " time
+
+      if (dt != prev) {
+        sec = tosec(pts)
+
+        # Escape colons in time for drawtext (HH\:MM\:SS)
+        t = time
+        gsub(":", "\\\\:", t)
+
+        # Two commands, no quotes:
+        # 0.000000 drawtext@dvdate reinit text=YYYY-MM-DD;
+        # 0.000000 drawtext@dvtime reinit text=HH\:MM\:SS;
+        printf("%f drawtext@dvdate reinit text=%s;\n", sec, date)
+        printf("%f drawtext@dvtime reinit text=%s;\n", sec, t)
+
+        prev = dt
+      }
+    }
+  ' > "$cmdfile"
+}
+
+
+
+
+
+
 process_file() {
   local in="$1"
 
@@ -58,8 +119,22 @@ process_file() {
   # --- codec args used for both burn-in and passthrough ---
   local -a codec_args
   case "$format" in
-    mov) codec_args=(-c:v dvvideo -c:a copy) ;;
-    mp4) codec_args=(-c:v mpeg4 -qscale:v 2 -c:a aac -b:a 192k) ;;
+    mov)
+      # DV in MOV container, audio copied 1:1
+      codec_args=(-c:v dvvideo -c:a copy)
+      ;;
+    mp4)
+      # Web-ready H.264 MP4, close to DV (720x480, interlaced, AAC)
+      codec_args=(
+        -c:v libx264
+        -preset slow
+        -crf 18
+        -pix_fmt yuv420p
+        -flags +ildct+ilme
+        -c:a aac
+        -b:a 192k
+      )
+      ;;
     *)
       echo "Unknown format: $format" >&2
       return 1
@@ -71,10 +146,17 @@ process_file() {
   #####################################
   if [[ "$burn_mode" == "passthrough" ]]; then
     echo "[INFO] Passthrough only (no burn-in) for: $in"
-    "$ffmpeg_bin" -y -i "$in" \
-      "${codec_args[@]}" \
-      "${base}_conv.${out_ext}"
-    local ec=$?
+
+    local ec
+    {
+      "$ffmpeg_bin" -hide_banner -loglevel info -y -i "$in" \
+        "${codec_args[@]}" \
+        "${base}_conv.${out_ext}" 2>&1 \
+        | grep -v 'Concealing bitstream errors' || true
+
+      ec=${pipestatus[1]}
+    }
+
     echo "ffmpeg exit code: $ec"
     return $ec
   fi
@@ -84,8 +166,11 @@ process_file() {
   ###############################################
 
   local rdt=""
-  local json
-  json="$(mktemp "${TMPDIR}/dvmeta-XXXXXX.json")"
+  local json_base json
+
+  # mktemp template must end with XXXXXX – no suffix after it
+  json_base="$(mktemp "${TMPDIR}/dvmeta-XXXXXX")"
+  json="${json_base}.json"
 
   # Try JSON mode first; ignore dvrescue exit code
   "$dvrescue_bin" "$in" -json "$json" >/dev/null 2>&1 || true
@@ -125,10 +210,17 @@ process_file() {
         ;;
       skip_burnin_convert)
         echo "[INFO] Converting WITHOUT burn-in (no metadata)."
-        "$ffmpeg_bin" -y -i "$in" \
-          "${codec_args[@]}" \
-          "${base}_conv.${out_ext}"
-        local ec=$?
+
+        local ec
+        {
+          "$ffmpeg_bin" -hide_banner -loglevel info -y -i "$in" \
+            "${codec_args[@]}" \
+            "${base}_conv.${out_ext}" 2>&1 \
+            | grep -v 'Concealing bitstream errors' || true
+
+          ec=${pipestatus[1]}
+        }
+
         echo "ffmpeg exit code: $ec"
         return $ec
         ;;
@@ -140,24 +232,68 @@ process_file() {
   fi
 
   echo "Using recording datetime: $rdt"
+  ###############################################################
+  # 2 Build per-clip sendcmd file with frame-accurate DV date/time #
+  ###############################################################
+  local ts_cmd_base ts_cmd_file
+  ts_cmd_base="$(mktemp "${TMPDIR}/dvts-XXXXXX")"
+  ts_cmd_file="${ts_cmd_base}.cmd"
 
+  make_timestamp_cmd "$in" "$ts_cmd_file"
+
+  if [[ ! -s "$ts_cmd_file" ]]; then
+    echo "[WARN] Timestamp command file is empty – treating as missing metadata."
+
+    case "$missing_meta" in
+      error)
+        echo "[ERROR] Stopping because metadata missing."
+        rm -f "$ts_cmd_file"
+        return 1
+        ;;
+      skip_file)
+        echo "[INFO] Skipping file due to missing metadata."
+        rm -f "$ts_cmd_file"
+        return 0
+        ;;
+      skip_burnin_convert)
+        echo "[INFO] Converting WITHOUT burn-in (no metadata)."
+
+        local ec
+        {
+          "$ffmpeg_bin" -hide_banner -loglevel info -y -i "$in" \
+            "${codec_args[@]}" \
+            "${base}_conv.${out_ext}" 2>&1 \
+            | grep -v 'Concealing bitstream errors' || true
+
+          ec=${pipestatus[1]}
+        }
+
+        echo "ffmpeg exit code: $ec"
+        rm -f "$ts_cmd_file"
+        return $ec
+        ;;
+    esac
+  fi
+
+  
   ###############################################
   # 2) Build date label + offset from midnight  #
   ###############################################
-
-  local date_label
-  date_label=$(date -j -f "%Y-%m-%d %H:%M:%S" "$rdt" "+%b %d %Y")
-
-  local hms hh mm ss
-  hms="${rdt#* }"
-  IFS=':' read -r hh mm ss <<< "$hms"
-
-  local offset
-  offset=$((10#$hh * 3600 + 10#$mm * 60 + 10#$ss))
-
-  echo "Date label: $date_label"
-  echo "Seconds since midnight: $offset"
-
+ # ###Commenting out while working on actual RDT ####
+ #
+ # local date_label
+ # date_label=$(date -j -f "%Y-%m-%d %H:%M:%S" "$rdt" "+%b %d %Y")
+ #
+  #local hms hh mm ss
+  #hms="${rdt#* }"
+  #IFS=':' read -r hh mm ss <<< "$hms"
+ #
+ # local offset
+ # offset=$((10#$hh * 3600 + 10#$mm * 60 + 10#$ss))
+ #
+ # echo "Date label: $date_label"
+ # echo "Seconds since midnight: $offset"
+#
   ###############################################
   # 3) Build ffmpeg drawtext filter             #
   ###############################################
@@ -172,29 +308,57 @@ process_file() {
   local vf
   case "$layout" in
     stacked)
-      vf="drawtext=fontfile='${font}':text='${date_label}':fontcolor=white:fontsize=24:x=w-tw-20:y=h-60,\
-drawtext=fontfile='${font}':text='%{pts\:gmtime\:${offset}\:%r}':fontcolor=white:fontsize=24:x=w-tw-20:y=h-30"
+      # Bottom-right, date over time (DV-style)
+      vf="sendcmd=f='${ts_cmd_file}',"\
+"drawtext@dvdate=fontfile='${font}':"\
+"text='0000-00-00':"\
+"fontcolor=white:fontsize=24:"\
+"x=w-tw-20:y=h-60,"\
+"drawtext@dvtime=fontfile='${font}':"\
+"text='000000':"\
+"fontcolor=white:fontsize=24:"\
+"x=w-tw-20:y=h-30"
       ;;
     single)
-      vf="drawtext=fontfile='${font}':text='${date_label}':fontcolor=white:fontsize=24:x=40:y=h-30,\
-drawtext=fontfile='${font}':text='%{pts\:gmtime\:${offset}\:%r}':fontcolor=white:fontsize=24:x=w-tw-40:y=h-30"
+      # Bottom bar: date left, time right
+      vf="sendcmd=f='${ts_cmd_file}',"\
+"drawtext@dvdate=fontfile='${font}':"\
+"text='0000-00-00':"\
+"fontcolor=white:fontsize=24:"\
+"x=40:y=h-30,"\
+"drawtext@dvtime=fontfile='${font}':"\
+"text='000000':"\
+"fontcolor=white:fontsize=24:"\
+"x=w-tw-20:y=h-30"
       ;;
     *)
       echo "Unknown layout: $layout" >&2
+      rm -f "$ts_cmd_file"
       return 1
       ;;
   esac
+
+
+
+
+
 
   ###############################################
   # 4) Final ffmpeg call with burn-in           #
   ###############################################
 
-  "$ffmpeg_bin" -y -i "$in" \
-    -vf "$vf" \
-    "${codec_args[@]}" \
-    "${base}_dateburn.${out_ext}"
+  # FIX 2: actually use -vf "$vf" and name output _dateburn
+ local ec
+  {
+    "$ffmpeg_bin" -hide_banner -loglevel info -y -i "$in" \
+      -vf "$vf" \
+      "${codec_args[@]}" \
+      "${base}_dateburn.${out_ext}" 2>&1 \
+      | grep -v 'Concealing bitstream errors' || true
 
-  local ec=$?
+    ec=${pipestatus[1]}
+  }
+
   echo "ffmpeg exit code: $ec"
   return $ec
 }

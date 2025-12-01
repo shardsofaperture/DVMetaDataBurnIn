@@ -45,7 +45,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         splashWindow = window
 
         // Fade out after 5s
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
             self?.hideSplash()
         }
     }
