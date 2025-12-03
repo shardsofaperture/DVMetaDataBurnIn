@@ -545,7 +545,7 @@ process_file() {
   cmdfile="$(mktemp "${TMPDIR}/dvts-XXXXXX.cmd")"
   local ts_status=0
   if ! make_timestamp_cmd "$in" "$cmdfile"; then
-    ts_status=${PIPESTATUS[0]:-1}
+    ts_status=$?
   fi
   if (( ts_status != 0 )); then
 
@@ -643,7 +643,7 @@ if [[ "$mode" == "batch" ]]; then
     exit 1
   fi
 
-  local folder="$1"
+  folder="$1"
 
   if [[ ! -d "$folder" ]]; then
     echo "ERROR: $folder is not a folder" >&2
@@ -651,7 +651,6 @@ if [[ "$mode" == "batch" ]]; then
   fi
 
   echo "Batch mode: scanning $folder"
-  local f
   for f in "$folder"/*.{avi,AVI,dv,DV}; do
     [[ -f "$f" ]] || continue
     echo "Processing $f"
