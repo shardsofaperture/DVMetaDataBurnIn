@@ -19,6 +19,7 @@ mode="single"        # "single" or "batch"
 layout="stacked"     # "stacked" or "single"
 format="mov"         # "mov" or "mp4"
 burn_mode="burnin"   # "burnin" or "passthrough"
+missing_meta="skip_burnin_convert"  # behavior when metadata is missing
 fontfile=""
 ffmpeg_bin="ffmpeg"
 dvrescue_bin="dvrescue"
@@ -223,7 +224,7 @@ make_timestamp_cmd() {
   if [[ ! -s "$json_file" ]]; then
     echo "[WARN] Timestamp JSON missing for $in" >&2
     rm -f "$json_file"
-    return 1
+    return 2
   fi
 
   local -F prev_pts=-1 prev_mono=0 offset=0 last_delta=0
@@ -542,7 +543,32 @@ process_file() {
 
   local cmdfile
   cmdfile="$(mktemp "${TMPDIR}/dvts-XXXXXX.cmd")"
+  local ts_status=0
   if ! make_timestamp_cmd "$in" "$cmdfile"; then
+    ts_status=$?
+
+    # Exit code 2 = missing metadata
+    if (( ts_status == 2 )); then
+      case "$missing_meta" in
+        skip_burnin_convert)
+          echo "[WARN] Missing timestamp metadata for $in; converting without burn-in." >&2
+          local out_passthrough="${base}_conv.${out_ext}"
+          "$ffmpeg_bin" -y -i "$in" \
+            "${codec_args[@]}" \
+            "$out_passthrough"
+          rm -f "$cmdfile"
+          return $?
+          ;;
+        skip_file)
+          echo "[WARN] Missing timestamp metadata for $in; skipping file." >&2
+          rm -f "$cmdfile"
+          return 0
+          ;;
+        *)
+          ;;
+      esac
+    fi
+
     echo "[ERROR] Failed to build timestamp command file for $in" >&2
     rm -f "$cmdfile"
     return 1
