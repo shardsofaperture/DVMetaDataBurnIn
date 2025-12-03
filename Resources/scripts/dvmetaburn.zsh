@@ -357,6 +357,13 @@ make_ass_subs() {
 
   : > "$ass_out"
 
+  # Prevent command substitution or other expansions when injecting the user-selected
+  # font name into the ASS header.
+  local subtitle_font_safe
+  subtitle_font_safe=${subtitle_font_name//\\/\\\\}
+  subtitle_font_safe=${subtitle_font_safe//\$/\\\$}
+  subtitle_font_safe=${subtitle_font_safe//\`/\\\`}
+
   cat >> "$ass_out" <<EOF
 [Script Info]
 Title: DV Metadata Burn-In
@@ -370,7 +377,7 @@ Timer: 100.0000
 ; Style: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,
 ;        Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,
 ;        Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding
-Style: DVOSD,${subtitle_font_name},24,&H00FFFFFF,&H00000000,&H00000000,&H64000000,-1,0,0,0,100,100,0,0,1,1,0,2,20,20,20,1
+Style: DVOSD,${subtitle_font_safe},24,&H00FFFFFF,&H00000000,&H00000000,&H64000000,-1,0,0,0,100,100,0,0,1,1,0,2,20,20,20,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
