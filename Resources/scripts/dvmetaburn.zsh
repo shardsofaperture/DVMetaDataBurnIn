@@ -544,8 +544,9 @@ process_file() {
   local cmdfile
   cmdfile="$(mktemp "${TMPDIR}/dvts-XXXXXX.cmd")"
   local ts_status=0
-  if ! make_timestamp_cmd "$in" "$cmdfile"; then
-    ts_status=$?
+  make_timestamp_cmd "$in" "$cmdfile"
+  ts_status=$?
+  if (( ts_status != 0 )); then
 
     # Exit code 2 = missing metadata
     if (( ts_status == 2 )); then
