@@ -18,9 +18,10 @@ export TMPDIR TMPPREFIX
 mode="single"        # "single" or "batch"
 layout="stacked"     # "stacked" or "single"
 format="mov"         # "mov" or "mp4"
-burn_mode="burnin"   # "burnin" or "passthrough"
+burn_mode="burnin"   # "burnin" or "passthrough" or "subtitleTrack"
 missing_meta="skip_burnin_convert"  # behavior when metadata is missing
 fontfile=""
+fontname="UAV-OSD-Mono"
 ffmpeg_bin="ffmpeg"
 dvrescue_bin="dvrescue"
 
@@ -56,6 +57,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --fontfile=*)
       fontfile="${1#*=}"
+      shift
+      ;;
+    --fontname=*)
+      fontname="${1#*=}"
       shift
       ;;
     --ffmpeg=*)
@@ -184,6 +189,9 @@ find_font() {
 
   return 1
 }
+
+# Keep a global friendly font name for ASS style
+subtitle_font_name="$fontname"
 
 ########################################################
 # Helper: seconds (float) -> ASS time H:MM:SS.cc
@@ -349,7 +357,7 @@ make_ass_subs() {
 
   : > "$ass_out"
 
-  cat >> "$ass_out" << 'EOF'
+  cat >> "$ass_out" <<EOF
 [Script Info]
 Title: DV Metadata Burn-In
 ScriptType: v4.00+
@@ -362,7 +370,7 @@ Timer: 100.0000
 ; Style: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,
 ;        Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,
 ;        Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding
-Style: DVOSD,UAV-OSD-Mono,24,&H00FFFFFF,&H00000000,&H00000000,&H64000000,-1,0,0,0,100,100,0,0,1,1,0,2,20,20,20,1
+Style: DVOSD,${subtitle_font_name},24,&H00FFFFFF,&H00000000,&H00000000,&H64000000,-1,0,0,0,100,100,0,0,1,1,0,2,20,20,20,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -539,6 +547,60 @@ process_file() {
     return $?
   fi
 
+  # Locate font early for both burn-in and subtitle modes
+  local font
+  if ! font="$(find_font)"; then
+    echo "[ERROR] Unable to locate a usable font. Provide --fontfile, set DVMETABURN_FONTFILE, or place a supported font in Resources/fonts/." >&2
+    return 1
+  fi
+
+  if [[ -z "$subtitle_font_name" ]]; then
+    subtitle_font_name="${font:t:r}"
+  fi
+  subtitle_font_name="${subtitle_font_name//,/ }"
+
+  # Handle subtitle-track-only export
+  if [[ "$burn_mode" == "subtitleTrack" || "$burn_mode" == "subtitle_track" || "$burn_mode" == "subtitle" ]]; then
+    local ass_out="${base}_dvmeta_${layout}.ass"
+    local sub_status=0
+    if ! make_ass_subs "$in" "$layout" "$ass_out"; then
+      sub_status=$?
+      if (( sub_status == 2 )); then
+        case "$missing_meta" in
+          skip_burnin_convert)
+            echo "[WARN] Missing timestamp metadata for $in; converting without subtitle track." >&2
+            local out_passthrough="${base}_conv.${out_ext}"
+            "$ffmpeg_bin" -y -i "$in" \
+              "${codec_args[@]}" \
+              "$out_passthrough"
+            return $?
+            ;;
+          skip_file)
+            echo "[WARN] Missing timestamp metadata for $in; skipping file." >&2
+            return 0
+            ;;
+          *)
+            ;;
+        esac
+      fi
+
+      echo "[ERROR] Failed to build subtitles for $in" >&2
+      return 1
+    fi
+
+    local out_subbed="${base}_dvsub.${out_ext}"
+    local subtitle_codec="mov_text"
+
+    echo "[INFO] Adding DV metadata subtitle track to: $out_subbed"
+    "$ffmpeg_bin" -y -i "$in" -i "$ass_out" \
+      -map 0 -map 1 \
+      -c:s "$subtitle_codec" \
+      "${codec_args[@]}" \
+      "$out_subbed"
+
+    return $?
+  fi
+
   # Otherwise: full burn-in + subtitle generation
 
   local cmdfile
@@ -582,13 +644,6 @@ process_file() {
     echo "[INFO] Wrote subtitles: $ass_out"
   fi
 
-  local font
-  if ! font="$(find_font)"; then
-    echo "[ERROR] Unable to locate a usable font. Provide --fontfile, set DVMETABURN_FONTFILE, or place a supported font in Resources/fonts/." >&2
-    rm -f "$cmdfile"
-    return 1
-  fi
-
   local vf
   case "$layout" in
     stacked)
@@ -628,7 +683,7 @@ drawtext=fontfile='${font}':text='':fontcolor=white:fontsize=24:x=w-tw-40:y=h-30
 
 if [[ "$mode" == "single" ]]; then
   if [[ $# -ne 1 ]]; then
-    echo "Usage: $0 [--mode=single] [--layout=stacked|single] [--format=mov|mp4] [--burn-mode=burnin|passthrough] /path/to/clip.avi" >&2
+    echo "Usage: $0 [--mode=single] [--layout=stacked|single] [--format=mov|mp4] [--burn-mode=burnin|passthrough|subtitleTrack] /path/to/clip.avi" >&2
     exit 1
   fi
   process_file "$1"
@@ -637,11 +692,11 @@ fi
 
 if [[ "$mode" == "batch" ]]; then
   if [[ $# -ne 1 ]]; then
-    echo "Usage: $0 --mode=batch [--layout=stacked|single] [--format=mov|mp4] [--burn-mode=burnin|passthrough] /path/to/folder" >&2
+    echo "Usage: $0 --mode=batch [--layout=stacked|single] [--format=mov|mp4] [--burn-mode=burnin|passthrough|subtitleTrack] /path/to/folder" >&2
     exit 1
   fi
 
-  local folder="$1"
+  folder="$1"
 
   if [[ ! -d "$folder" ]]; then
     echo "ERROR: $folder is not a folder" >&2
@@ -649,7 +704,6 @@ if [[ "$mode" == "batch" ]]; then
   fi
 
   echo "Batch mode: scanning $folder"
-  local f
   for f in "$folder"/*.{avi,AVI,dv,DV}; do
     [[ -f "$f" ]] || continue
     echo "Processing $f"

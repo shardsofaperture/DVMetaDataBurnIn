@@ -1,10 +1,12 @@
 import SwiftUI
 import UniformTypeIdentifiers   // for logoutput to txt
+import CoreText
 // MARK: - Mode enums
 
 enum BurnMode: String, CaseIterable, Identifiable {
     case burnin
     case passthrough
+    case subtitleTrack
 
     var id: String { rawValue }
 }
@@ -34,6 +36,8 @@ struct ContentView: View {
     // NEW OPTIONS
     @State private var burnMode: BurnMode = .burnin
     @State private var missingMetaMode: MissingMetaMode = .skipBurninConvert
+    @State private var availableFonts: [SubtitleFontOption] = []
+    @State private var selectedFontPath: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -91,9 +95,32 @@ struct ContentView: View {
                 Picker("", selection: $burnMode) {
                     Text("Burn in metadata").tag(BurnMode.burnin)
                     Text("Convert only (no burn-in)").tag(BurnMode.passthrough)
+                    Text("Embed subtitle track (soft subs)").tag(BurnMode.subtitleTrack)
                 }
                 .pickerStyle(SegmentedPickerStyle())
                 .frame(width: 320)
+            }
+
+            // Subtitle font selector
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Subtitle font:")
+                Picker("Subtitle font", selection: Binding(
+                    get: { selectedFontPath ?? availableFonts.first?.path ?? "" },
+                    set: { selectedFontPath = $0.isEmpty ? nil : $0 }
+                )) {
+                    ForEach(availableFonts) { option in
+                        Text(option.displayName).tag(option.path)
+                    }
+                }
+                .pickerStyle(MenuPickerStyle())
+                .frame(maxWidth: 320)
+                .disabled(availableFonts.isEmpty)
+
+                if availableFonts.isEmpty {
+                    Text("No subtitle fonts found in app bundle or system.")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                }
             }
 
             // NEW: Missing metadata behavior
@@ -163,6 +190,7 @@ struct ContentView: View {
         .sheet(isPresented: $showingAbout) {
             AboutView()
         }
+        .onAppear(perform: loadAvailableFonts)
     }   // <-- this closes var body
     
     // MARK: - Save log
@@ -454,6 +482,7 @@ struct ContentView: View {
             throw NSError(domain: "DVMeta", code: 6,
                           userInfo: [NSLocalizedDescriptionKey: "ERROR: Could not find UAV-OSD-Mono.ttf in app bundle."])
         }
+        _ = fontURL
 
         // --- Copy script to a writable temp location ---
         let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
@@ -488,9 +517,10 @@ struct ContentView: View {
             "--mode=\(mode)",
             "--layout=\(layout)",
             "--format=\(format)",
-            "--burn-mode=\(burnMode.rawValue)",   // "burnin" or "passthrough"
+            "--burn-mode=\(burnMode.rawValue)",   // burnin / passthrough / subtitleTrack
             "--missing-meta=\(missingMetaArg)",   // error / skip_burnin_convert / skip_file
-            "--fontfile=\(fontURL.path)",
+            "--fontfile=\(resolvedFontPath())",
+            "--fontname=\(resolvedFontName())",
             "--ffmpeg=\(ffmpegURL.path)",
             "--dvrescue=\(dvrescueURL.path)",
             "--",
@@ -508,5 +538,79 @@ struct ContentView: View {
         process.standardError = pipe
 
         return (process, pipe)
+    }
+
+    // MARK: - Font discovery
+
+    private struct SubtitleFontOption: Identifiable {
+        let id = UUID()
+        let displayName: String
+        let path: String
+    }
+
+    private func loadAvailableFonts() {
+        var results: [SubtitleFontOption] = []
+        let fm = FileManager.default
+        let resourceRoot = Bundle.main.resourceURL ?? Bundle.main.bundleURL
+
+        let bundleFontDirs = [
+            resourceRoot.appendingPathComponent("fonts"),
+            resourceRoot.appendingPathComponent("scripts/fonts")
+        ]
+
+        let systemFontDirs = [
+            URL(fileURLWithPath: "/System/Library/Fonts"),
+            URL(fileURLWithPath: "/Library/Fonts"),
+            URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Fonts"),
+            URL(fileURLWithPath: "/usr/share/fonts"),
+            URL(fileURLWithPath: "/usr/local/share/fonts")
+        ]
+
+        let searchDirs = bundleFontDirs + systemFontDirs
+        let extensions = ["ttf", "otf", "ttc"]
+
+        for dir in searchDirs {
+            guard let contents = try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { continue }
+            for file in contents where extensions.contains(file.pathExtension.lowercased()) {
+                let descriptors = CTFontManagerCreateFontDescriptorsFromURL(file as CFURL) as? [CTFontDescriptor]
+                let descriptor = descriptors?.first
+                let displayName = (descriptor.flatMap { CTFontDescriptorCopyAttribute($0, kCTFontDisplayNameAttribute) as? String })
+                    ?? file.deletingPathExtension().lastPathComponent
+
+                if !results.contains(where: { $0.path == file.path }) {
+                    results.append(SubtitleFontOption(displayName: displayName, path: file.path))
+                }
+            }
+        }
+
+        results.sort { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
+
+        availableFonts = results
+        if selectedFontPath == nil {
+            if let uavFont = results.first(where: { $0.path.localizedCaseInsensitiveContains("uav-osd-mono") }) {
+                selectedFontPath = uavFont.path
+            } else {
+                selectedFontPath = results.first?.path
+            }
+        }
+    }
+
+    private func resolvedFontPath() -> String {
+        let fm = FileManager.default
+        if let selected = selectedFontPath, fm.fileExists(atPath: selected) {
+            return selected
+        }
+
+        // Fallback to bundled font
+        let bundleRoot = Bundle.main.resourceURL ?? Bundle.main.bundleURL
+        let bundledFont = bundleRoot.appendingPathComponent("fonts/UAV-OSD-Mono.ttf")
+        return bundledFont.path
+    }
+
+    private func resolvedFontName() -> String {
+        if let match = availableFonts.first(where: { $0.path == selectedFontPath }) {
+            return match.displayName
+        }
+        return "UAV-OSD-Mono"
     }
 }
