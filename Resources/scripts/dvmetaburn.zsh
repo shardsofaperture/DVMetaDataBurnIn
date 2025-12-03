@@ -90,9 +90,18 @@ find_jq() {
     return 0
   fi
 
-  # 2) Bundled jq next: ../bin/jq relative to this script
+  # 2) Bundled jq next: first alongside the script (for .app bundle), then ../bin
   local script_dir jq_candidate
   script_dir="${0:A:h}"
+
+  # Same directory as the script (e.g., Contents/Resources/jq inside the .app)
+  jq_candidate="${script_dir}/jq"
+  if [[ -x "$jq_candidate" ]]; then
+    echo "$jq_candidate"
+    return 0
+  fi
+
+  # Next to Resources/scripts (development tree path)
   jq_candidate="${script_dir}/../bin/jq"
   if [[ -x "$jq_candidate" ]]; then
     echo "$jq_candidate"
