@@ -64,15 +64,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         })
     }
 
-    // MARK: - SwiftUI app entry
-    
-    @main
-    struct DVMetaDataBurnInApp: App {
-        @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-        var body: some Scene {
-            WindowGroup {
-                ContentView()   // NOT SplashView anymore?()
-            }
+}
+
+// MARK: - SwiftUI app entry
+
+@main
+struct DVMetaDataBurnInApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
+    var body: some Scene {
+        WindowGroup {
+            ContentView()   // NOT SplashView anymore?()
         }
     }
 }
