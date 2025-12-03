@@ -15,11 +15,10 @@ export TMPDIR TMPPREFIX
 # Defaults / configuration
 ########################################################
 
-mode="single"              # "single" or "batch"
-layout="stacked"           # "stacked" or "single"
-format="mov"               # "mov" or "mp4"
-burn_mode="burnin"         # "burnin" or "passthrough"
-missing_meta="error"       # "error" | "skip_file" | "skip_burnin_convert"
+mode="single"        # "single" or "batch"
+layout="stacked"     # "stacked" or "single"
+format="mov"         # "mov" or "mp4"
+burn_mode="burnin"   # "burnin" or "passthrough"
 fontfile=""
 ffmpeg_bin="ffmpeg"
 dvrescue_bin="dvrescue"
@@ -158,13 +157,14 @@ find_font() {
     "/usr/local/share/fonts"
   )
 
-  local dir candidate
+  local dir
   for dir in "${system_dirs[@]}"; do
     for fname in "${font_names[@]}"; do
       candidates+=("${dir%/}/${fname}")
     done
   done
 
+  local candidate
   for candidate in "${candidates[@]}"; do
     if [[ -f "$candidate" ]]; then
       echo "$candidate"
@@ -474,7 +474,7 @@ EOF
     ' "$json_file"
   )
 
-  if (( prev_mono >= 0 && had_lines == 1 )); then
+  if (( prev_mono >= 0 )); then
     local -F end_sec
     end_sec=$((prev_mono + 1.0))
     write_dialog "$prev_mono" "$end_sec" "$prev_date" "$prev_time" "$layout"
@@ -519,9 +519,7 @@ process_file() {
       ;;
   esac
 
-  ######################################################
-  # Passthrough mode: convert only, no burn-in, no subs
-  ######################################################
+  # Passthrough = convert only, no burn-in, no subs
   if [[ "$burn_mode" == "passthrough" ]]; then
     local out_passthrough="${base}_conv.${out_ext}"
     echo "[INFO] Passthrough conversion (no burn-in) to: $out_passthrough"
@@ -531,40 +529,14 @@ process_file() {
     return $?
   fi
 
-  ######################################################
-  # Burn-in mode: build timeline; handle missing-meta
-  ######################################################
+  # Otherwise: full burn-in + subtitle generation
+
   local cmdfile
   cmdfile="$(mktemp "${TMPDIR}/dvts-XXXXXX.cmd")"
-  local mt_ec=0
   if ! make_timestamp_cmd "$in" "$cmdfile"; then
-    mt_ec=$?
+    echo "[ERROR] Failed to build timestamp command file for $in" >&2
     rm -f "$cmdfile"
-
-    echo "[WARN] No usable RDT timeline for $in (code $mt_ec)."
-
-    case "$missing_meta" in
-      error)
-        echo "[ERROR] Stopping because metadata missing." >&2
-        return 1
-        ;;
-      skip_file)
-        echo "[INFO] Skipping file due to missing metadata."
-        return 0
-        ;;
-      skip_burnin_convert)
-        echo "[INFO] Converting WITHOUT burn-in (no metadata)."
-        local out_nometa="${base}_conv.${out_ext}"
-        "$ffmpeg_bin" -y -i "$in" \
-          "${codec_args[@]}" \
-          "$out_nometa"
-        return $?
-        ;;
-      *)
-        echo "[ERROR] Unknown missing_meta mode: $missing_meta" >&2
-        return 1
-        ;;
-    esac
+    return 1
   fi
 
   # ASS subtitles: non-fatal if missing
@@ -621,7 +593,7 @@ drawtext=fontfile='${font}':text='':fontcolor=white:fontsize=24:x=w-tw-40:y=h-30
 
 if [[ "$mode" == "single" ]]; then
   if [[ $# -ne 1 ]]; then
-    echo "Usage: $0 [--mode=single] [--layout=stacked|single] [--format=mov|mp4] [--burn-mode=burnin|passthrough] [--missing-meta=error|skip_file|skip_burnin_convert] /path/to/clip.avi" >&2
+    echo "Usage: $0 [--mode=single] [--layout=stacked|single] [--format=mov|mp4] [--burn-mode=burnin|passthrough] /path/to/clip.avi" >&2
     exit 1
   fi
   process_file "$1"
@@ -630,7 +602,7 @@ fi
 
 if [[ "$mode" == "batch" ]]; then
   if [[ $# -ne 1 ]]; then
-    echo "Usage: $0 --mode=batch [--layout=stacked|single] [--format=mov|mp4] [--burn-mode=burnin|passthrough] [--missing-meta=error|skip_file|skip_burnin_convert] /path/to/folder" >&2
+    echo "Usage: $0 --mode=batch [--layout=stacked|single] [--format=mov|mp4] [--burn-mode=burnin|passthrough] /path/to/folder" >&2
     exit 1
   fi
 
