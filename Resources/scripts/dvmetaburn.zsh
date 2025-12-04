@@ -587,7 +587,7 @@ make_timestamp_cmd() {
     esc_date="${date_part//\\/\\\\}"
     esc_date="${esc_date//:/\\\\:}"
     esc_time="${time_part//\\/\\\\}"
-    esc_time="${esc_time//:/\\\\:}"
+    esc_time="${esc_time//:/\\:}"
     local dt_key="${date_part} ${time_part}"
 
     if [[ "$dt_key" != "$prev_dt" ]]; then
