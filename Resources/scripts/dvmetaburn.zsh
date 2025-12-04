@@ -33,6 +33,9 @@ artifact_root="${HOME}/Library/Logs/DVMeta"
 # Opt-in verbose logging for troubleshooting
 debug_mode=0
 
+# Shared header for frame timeline artifacts
+typeset -gr timeline_header=$'frame_index\traw_pts\tt_sec\traw_rdt\tdate_part\ttime_part\tdt_key\tsegment_change'
+
 # Optional environment overrides
 : "${DVMETABURN_FONTFILE:=}"   # override font path
 : "${DVMETABURN_JQ:=}"         # override jq path (e.g. bundled jq)
@@ -593,7 +596,7 @@ make_timestamp_cmd() {
 
   local dv_status=0
   if [[ ! -s "$timeline_debug" ]]; then
-    echo $'frame_index\traw_pts\tmono_time\traw_rdt\tdate_part\ttime_part\tdt_key\tsegment_change' >> "$timeline_debug"
+    echo "$timeline_header" >> "$timeline_debug"
   fi
 
   : > "$cmdfile"
@@ -690,7 +693,7 @@ make_timestamp_cmd() {
     cp "$cmd_backup" "$cmdfile" 2>/dev/null || : > "$cmdfile"
 
     if [[ ! -s "$timeline_debug" ]]; then
-      echo $'frame_index\traw_pts\tmono_time\traw_rdt\tdate_part\ttime_part\tdt_key\tsegment_change' >> "$timeline_debug"
+      echo "$timeline_header" >> "$timeline_debug"
     fi
 
     local prev_dt=""
@@ -709,10 +712,10 @@ make_timestamp_cmd() {
         fi
       fi
 
-      local -F mono
-      mono=$((loop_index * frame_step))
+      local -F t_sec
+      t_sec=$((loop_index * frame_step))
 
-      local date_part="" time_part="" dt_key="" esc_date esc_time
+      local date_part="" time_part="" dt_key=""
       local -i segment_change=0
 
       if [[ -z "$raw_rdt" || "$raw_rdt" != *" "* ]]; then
@@ -724,14 +727,6 @@ make_timestamp_cmd() {
         dt_key="${date_part} ${time_part}"
 
         (( valid_rows++ ))
-
-        esc_date="${date_part//\\/\\\\}"
-        esc_date="${esc_date//:/\\\\:}"
-        esc_time="${time_part//\\/\\\\}"
-        esc_time="${esc_time//:/\:}"
-
-        printf "%0.6f drawtext@dvdate reinit text='%s';\n" "$mono" "$esc_date" >> "$cmdfile"
-        printf "%0.6f drawtext@dvtime reinit text='%s';\n" "$mono" "$esc_time" >> "$cmdfile"
 
         if [[ "$dt_key" != "$prev_dt" ]]; then
           (( segment_count++ ))
@@ -746,7 +741,7 @@ make_timestamp_cmd() {
       fi
 
       printf "%d\t%s\t%0.6f\t%s\t%s\t%s\t%s\t%d\n" \
-        "$loop_index" "${raw_pts:-}" "$mono" "$raw_rdt" "$date_part" "$time_part" "$dt_key" "$segment_change" >> "$timeline_debug"
+        "$loop_index" "${raw_pts:-}" "$t_sec" "$raw_rdt" "$date_part" "$time_part" "$dt_key" "$segment_change" >> "$timeline_debug"
       (( frame_index++ ))
     done < <(
       if [[ "$frame_source" == "json" ]]; then
@@ -777,6 +772,23 @@ make_timestamp_cmd() {
       break
     fi
   done
+
+  if (( parse_success == 0 )); then
+    : > "$cmdfile"
+
+    while IFS=$'\t' read -r frame_idx raw_pts t_sec raw_rdt date_part time_part dt_key segment_change; do
+      if [[ "$frame_idx" == "frame_index" ]]; then
+        continue
+      fi
+
+      local esc_dt_key
+      esc_dt_key="${dt_key//\\/\\\\}"
+      esc_dt_key="${esc_dt_key//:/\:}"
+      esc_dt_key="${esc_dt_key//\'/\\\'}"
+
+      printf "%0.6f drawtext@dvmeta reinit text='%s';\n" "$t_sec" "$esc_dt_key" >> "$cmdfile"
+    done < "$timeline_debug"
+  fi
 
   local selected_frame_source="${frame_source:-unknown}"
   if (( parse_success == 0 )); then
@@ -821,7 +833,7 @@ make_ass_subs() {
   local dv_status=0
 
   if [[ ! -s "$timeline_debug" ]]; then
-    echo $'frame_index\traw_pts\tmono_time\traw_rdt\tdate_part\ttime_part\tdt_key\tsegment_change' >> "$timeline_debug"
+    echo "$timeline_header" >> "$timeline_debug"
   fi
 
   if [[ -s "$json_file" ]]; then
@@ -887,7 +899,7 @@ make_ass_subs() {
     cp "$timeline_backup" "$timeline_debug" 2>/dev/null || : > "$timeline_debug"
 
     if [[ ! -s "$timeline_debug" ]]; then
-      echo $'frame_index\traw_pts\tmono_time\traw_rdt\tdate_part\ttime_part\tdt_key\tsegment_change' >> "$timeline_debug"
+      echo "$timeline_header" >> "$timeline_debug"
     fi
 
     : > "$ass_out"
@@ -964,8 +976,8 @@ EOF
         fi
       fi
 
-      local -F mono
-      mono=$((loop_index * frame_step))
+      local -F t_sec
+      t_sec=$((loop_index * frame_step))
 
       local date_part="" time_part="" dt_key=""
       local -i segment_change=0
@@ -982,7 +994,7 @@ EOF
 
         if [[ "$dt_key" != "$prev_dt" ]]; then
           if (( loop_index > 0 )); then
-            write_dialog "$prev_mono" "$mono" "$prev_date" "$prev_time" "$layout"
+            write_dialog "$prev_mono" "$t_sec" "$prev_date" "$prev_time" "$layout"
             (( dialogue_count++ ))
             if [[ -n "$prev_dt" && -z "${dt_keys_seen[$prev_dt]:-}" ]]; then
               dt_keys_seen[$prev_dt]=1
@@ -992,7 +1004,7 @@ EOF
           prev_dt="$dt_key"
           prev_date="$date_part"
           prev_time="$time_part"
-          prev_mono="$mono"
+          prev_mono="$t_sec"
           segment_change=1
           if [[ -z "${dt_keys_seen[$dt_key]:-}" ]]; then
             dt_keys_seen[$dt_key]=1
@@ -1003,7 +1015,7 @@ EOF
       fi
 
       printf "%d\t%s\t%0.6f\t%s\t%s\t%s\t%s\t%d\n" \
-        "$loop_index" "${raw_pts:-}" "$mono" "$raw_rdt" "$date_part" "$time_part" "$dt_key" "$segment_change" >> "$timeline_debug"
+        "$loop_index" "${raw_pts:-}" "$t_sec" "$raw_rdt" "$date_part" "$time_part" "$dt_key" "$segment_change" >> "$timeline_debug"
       (( frame_index++ ))
     done < <(
       if [[ "$frame_source" == "json" ]]; then
@@ -1260,9 +1272,9 @@ process_file() {
   fi
 
   local -i cmd_lines=0
-  cmd_lines=$( (grep -c 'drawtext@' "$cmdfile" 2>/dev/null) || echo 0 )
+  cmd_lines=$( (grep -c 'drawtext@dvmeta' "$cmdfile" 2>/dev/null) || echo 0 )
 
-  if (( cmd_lines < 4 )); then
+  if (( cmd_lines < 2 )); then
     echo "[WARN] Timestamp command file for $in has too few drawtext updates ($cmd_lines); overlay would be static" >&2
     case "$missing_meta" in
       skip_burnin_convert)
@@ -1298,13 +1310,11 @@ process_file() {
   case "$layout" in
     stacked)
       vf="sendcmd=f='${cmdfile}',\
-drawtext@dvdate=fontfile='${font}':text='':fontcolor=white:fontsize=24:x=w-tw-20:y=h-60,\
-drawtext@dvtime=fontfile='${font}':text='':fontcolor=white:fontsize=24:x=w-tw-20:y=h-30"
+drawtext@dvmeta=fontfile='${font}':text='':fontcolor=white:fontsize=24:x=w-tw-20:y=h-45"
       ;;
     single)
       vf="sendcmd=f='${cmdfile}',\
-drawtext@dvdate=fontfile='${font}':text='':fontcolor=white:fontsize=24:x=40:y=h-30,\
-drawtext@dvtime=fontfile='${font}':text='':fontcolor=white:fontsize=24:x=w-tw-40:y=h-30"
+drawtext@dvmeta=fontfile='${font}':text='':fontcolor=white:fontsize=24:x=w-tw-40:y=h-30"
       ;;
     *)
       echo "Unknown layout: $layout" >&2
