@@ -34,11 +34,10 @@ artifact_root="${HOME}/Library/Logs/DVMeta"
 debug_mode=0
 
 # Shared header for frame timeline artifacts
-typeset -gr timeline_header=$'frame_index\traw_pts\tt_sec\traw_rdt\tdate_part\ttime_part\tdt_key\tsegment_change'
+typeset -gr timeline_header=$'frame_index\tt_sec\tdate_part\ttime_part\tdt_key\tsegment_change'
 
 # Optional environment overrides
 : "${DVMETABURN_FONTFILE:=}"   # override font path
-: "${DVMETABURN_JQ:=}"         # override jq path (e.g. bundled jq)
 
 ########################################################
 # CLI flag parsing
@@ -146,47 +145,6 @@ if [[ $# -gt 0 ]]; then
   fi
 fi
 
-########################################################
-# Helper: locate jq (bundled or system)
-########################################################
-
-find_jq() {
-  # 1) Explicit env override
-  if [[ -n "$DVMETABURN_JQ" && -x "$DVMETABURN_JQ" ]]; then
-    echo "$DVMETABURN_JQ"
-    return 0
-  fi
-
-  # 2) Bundled jq next: first alongside the script (for .app bundle), then ../bin
-  local script_dir jq_candidate
-  script_dir="${0:A:h}"
-
-  # Same directory as the script (e.g., Contents/Resources/jq inside the .app)
-  jq_candidate="${script_dir}/jq"
-  if [[ -x "$jq_candidate" ]]; then
-    echo "$jq_candidate"
-    return 0
-  fi
-
-  # Next to Resources/scripts (development tree path)
-  jq_candidate="${script_dir}/../bin/jq"
-  if [[ -x "$jq_candidate" ]]; then
-    echo "$jq_candidate"
-    return 0
-  fi
-
-  # 3) Fallback to jq in PATH
-  if command -v jq >/dev/null 2>&1; then
-    echo "jq"
-    return 0
-  fi
-
-  echo "[ERROR] jq not found. Set DVMETABURN_JQ, bundle jq in Resources/bin, or install jq in PATH." >&2
-  return 1
-}
-
-jq_bin="$(find_jq)"
-
 # Track parse stats for manifest writing
 typeset -g last_parse_raw_rows=0
 typeset -g last_parse_valid_rows=0
@@ -237,69 +195,69 @@ debug_log() {
   fi
 }
 
-# Prefer an existing dvrescue XML artifact, falling back to a companion file
-# with a .xml extension alongside the log or JSON paths.
-find_dvrescue_xml_file() {
-  local dv_log="$1"
-  local json_file="$2"
+########################################################
+# Helper: detect FPS using ffmpeg probe output
+########################################################
 
-  local -a candidates=()
+detect_fps() {
+  local src="$1"
+  local fps
 
-  if [[ -n "$json_file" ]]; then
-    candidates+=("${json_file%.*}.xml")
+  fps="$("$ffmpeg_bin" -hide_banner -i "$src" 2>&1 | awk '/Video:/ && /fps/ { for (i=1;i<=NF;i++) if ($i ~ /fps/) {print $(i-1); exit}}')"
+
+  if [[ "$fps" == */* ]]; then
+    fps=$(awk -v v="$fps" 'BEGIN{split(v,a,"/"); if (a[2]==0) {exit 1} printf "%.6f", a[1]/a[2]}') || fps=""
   fi
 
-  if [[ -n "$dv_log" ]]; then
-    candidates+=("${dv_log%.*}.xml")
-  fi
-
-  local candidate
-  for candidate in "${candidates[@]}"; do
-    if [[ -n "$candidate" && -s "$candidate" ]]; then
-      echo "$candidate"
-      return 0
-    fi
-  done
-
-  return 1
-}
-
-# Quick check for XML content beginning with the XML declaration in a log file.
-xml_section_present() {
-  local log_path="$1"
-
-  if [[ -z "$log_path" || ! -s "$log_path" ]]; then
+  if [[ -z "$fps" ]]; then
+    echo "[ERROR] Unable to detect FPS for $src" >&2
     return 1
   fi
 
-  awk 'BEGIN{found=0} /^<\?xml/{found=1; exit} END{exit found?0:1}' "$log_path"
+  echo "$fps"
 }
 
-# Emit TSV rows ("\tPTS\tRDT\n") for each <frame ...> element from either an
-# XML file or the XML section of a dvrescue log.
-stream_xml_frame_rows() {
-  local xml_file="$1"
-  local log_path="$2"
 
-  local xml_stream_source=()
+########################################################
+# XML helpers
+########################################################
 
-  if [[ -n "$xml_file" && -s "$xml_file" ]]; then
-    xml_stream_source=(cat "$xml_file")
-  elif xml_section_present "$log_path"; then
-    xml_stream_source=(awk 'found{print} /^<\?xml/{found=1; print}' "$log_path")
-  else
+extract_rdt_from_xml() {
+  local xml_path="$1"
+
+  if [[ -z "$xml_path" || ! -s "$xml_path" ]]; then
+    echo "[ERROR] XML payload missing or empty: $xml_path" >&2
     return 1
   fi
 
-  "${xml_stream_source[@]}" | perl -0777 -ne '
-    while (/<frame\b([^>]*)>/g) {
-      my $attrs = $1;
-      my ($pts) = $attrs =~ /\bpts_time="([^"]+)"/;
-      $pts //= ($attrs =~ /\bpts="([^"]+)"/)[0];
-      my ($rdt) = $attrs =~ /\brdt="([^"]+)"/;
+  perl -0777 -ne '
+    my $idx = 0;
+    while (/<frame\b[^>]*\brdt=\"([^\"]+)\"[^>]*>/g) {
+      my $rdt = $1;
+      my ($date, $time) = split(/\\s+/, $rdt, 2);
+      next unless defined $date && defined $time;
+      $time =~ s/^\\s+|\\s+$//g;
+      printf "%d %s %s\\n", $idx, $date, $time;
+      $idx++;
+    }
+  ' "$xml_path"
+}
 
-      next unless defined $pts && defined $rdt;
-      print "\t$pts\t$rdt\n";
+build_sendcmd_from_rdt() {
+  local fps="$1"
+  awk -v fps="$fps" '
+    {
+      frame = $1
+      date  = $2
+      time  = $3
+
+      ts = date " " time
+
+      if (NR == 1 || ts != prev_ts) {
+        t = frame / fps
+        printf "%.6f %s\\n", t, ts
+        prev_ts = ts
+      }
     }
   '
 }
@@ -488,12 +446,6 @@ write_versions_file() {
       echo "dvrescue: unavailable"
     fi
 
-    if command -v "$jq_bin" >/dev/null 2>&1; then
-      "$jq_bin" --version 2>/dev/null
-    else
-      echo "jq: unavailable"
-    fi
-
     echo "frame_source: $last_parse_frame_source"
     echo "parse_stats: raw=${last_parse_raw_rows}, valid=${last_parse_valid_rows}, skipped=${last_parse_skipped_rows}, timeline=${last_parse_timeline_entries}"
   } > "$path" 2>/dev/null || true
@@ -506,7 +458,7 @@ write_run_manifest() {
   local status_label="$2"
   local input_path="$3"
   local artifact_dir="$4"
-  local json_path="$5"
+  local xml_path="$5"
   local log_path="$6"
   local timeline_path="$7"
   local sendcmd_path="$8"
@@ -525,7 +477,7 @@ write_run_manifest() {
   "layout": "$layout",
   "format": "$format",
   "artifacts": {
-    "dvrescue_json": "$json_path",
+    "dvrescue_xml": "$xml_path",
     "dvrescue_log": "$log_path",
     "timeline_debug": "$timeline_path",
     "sendcmd_file": "$sendcmd_path",
@@ -627,7 +579,6 @@ debug_log "Missing meta handling: $missing_meta"
 debug_log "Requested font name: ${subtitle_font_name:-<auto>}"
 debug_log "ffmpeg path: $ffmpeg_bin"
 debug_log "dvrescue path: $dvrescue_bin"
-debug_log "jq path: $jq_bin"
 
 ########################################################
 # Helper: seconds (float) -> ASS time H:MM:SS.cc
@@ -657,249 +608,101 @@ seconds_to_ass_time() {
 make_timestamp_cmd() {
   local in="$1"
   local cmdfile="$2"
-  local json_file="$3"
+  local xml_file="$3"
   local dv_log="$4"
   local timeline_debug="$5"
-
-  local dv_status=0
-  if [[ ! -s "$timeline_debug" ]]; then
-    echo "$timeline_header" >> "$timeline_debug"
-  fi
+  local fps="$6"
 
   : > "$cmdfile"
 
-  if [[ -s "$json_file" ]]; then
-    debug_log "Reusing existing dvrescue JSON: $json_file"
-  else
-    debug_log "Extracting timestamp timeline via dvrescue -> $json_file (log: $dv_log)"
-    debug_log "Command: $dvrescue_bin \"$in\" -json $json_file"
-    if ! "$dvrescue_bin" "$in" -json "$json_file" >"$dv_log" 2>&1; then
-      dv_status=$?
-    fi
+  if [[ -z "$xml_file" || ! -s "$xml_file" ]]; then
+    echo "[WARN] Missing dvrescue XML for $in (log: $dv_log)" >&2
+    return 2
   fi
 
-  log_artifact_path_and_size "dvrescue JSON" "$json_file"
-  log_artifact_path_and_size "dvrescue log" "$dv_log"
-
-  if [[ -s "$json_file" ]]; then
-    local json_probe
-    if json_probe=$("$jq_bin" -r '
-      def objects: .. | objects;
-      def count(expr): [objects | select((expr) != null)] | length;
-
-      {
-        rdt: count(.rdt?),
-        anc_dvitc_rdt: count(.anc?.dvitc?.rdt?),
-        pts_or_pts_time: count(.pts? // .pts_time?),
-        pts_and_any_rdt: [
-          objects
-          | select((.pts? // .pts_time?) != null)
-          | select((.anc?.dvitc?.rdt? // .rdt? // "") != "")
-        ] | length
-      }
-      | to_entries
-      | map(.key + "=" + (.value | tostring))
-      | join(" ")
-    ' "$json_file" 2>/dev/null); then
-      echo "[INFO] dvrescue JSON probe: ${json_probe}" >&2
-    else
-      echo "[WARN] Failed to probe dvrescue JSON for RDT counts" >&2
-    fi
+  if [[ -z "$fps" ]]; then
+    echo "[ERROR] FPS value missing for $in" >&2
+    return 1
   fi
 
-  local xml_payload_file=""
-  if xml_payload_file=$(find_dvrescue_xml_file "$dv_log" "$json_file" 2>/dev/null); then
-    debug_log "Found dvrescue XML artifact: $xml_payload_file"
-  else
-    xml_payload_file=""
+  local rdt_tmp
+  rdt_tmp=$(make_temp_file dvmeta_rdt ".tsv") || return 1
+
+  if ! extract_rdt_from_xml "$xml_file" > "$rdt_tmp"; then
+    echo "[WARN] Unable to extract per-frame RDT from XML: $xml_file" >&2
+    return 2
   fi
 
-  local -a parse_sources=()
-  local text_rdt_pattern='^[[:space:]]*[0-9]+[[:space:]]+[0-9]{2}:[0-9]{2}:[0-9]{2}[;:][0-9]{2}[[:space:]]+[0-9]{4}-[0-9]{2}-[0-9]{2}[[:space:]]+[0-9]{2}:[0-9]{2}:[0-9]{2}'
-  local -i xml_available=0
+  : > "$timeline_debug"
+  echo "$timeline_header" >> "$timeline_debug"
 
-  if [[ -n "$xml_payload_file" ]]; then
-    xml_available=1
-  elif xml_section_present "$dv_log"; then
-    xml_available=1
-  fi
+  local -i raw_rows=0 valid_rows=0 skipped_rows=0
+  local -i unique_dt_keys=0 segment_count=0
+  local prev_dt=""
+  typeset -A dt_keys_seen=()
+  local -F frame_step
+  frame_step=$((1.0 / fps))
 
-  if [[ -s "$json_file" ]]; then
-    parse_sources=("json")
-  else
-    if [[ -s "$dv_log" ]] && grep -Eq "$text_rdt_pattern" "$dv_log"; then
-      parse_sources+=("text")
-      debug_log "Timestamp JSON missing; using dvrescue per-frame text output"
-      log_file_excerpt "Captured dvrescue timestamp text" "$dv_log" 10
+  while read -r frame_idx date_part time_part; do
+    (( raw_rows++ ))
+
+    if [[ -z "$date_part" || -z "$time_part" ]]; then
+      (( skipped_rows++ ))
+      continue
     fi
 
-    if (( xml_available )); then
-      parse_sources+=("xml")
-      debug_log "Timestamp JSON missing; dvrescue XML available after text fallback"
-      if [[ -z "$xml_payload_file" ]]; then
-        log_file_excerpt "Captured dvrescue XML" "$dv_log" 10
+    local -F t_sec
+    t_sec=$((frame_idx / fps))
+
+    local dt_key
+    dt_key="${date_part} ${time_part}"
+
+    local -i segment_change=0
+    if [[ "$dt_key" != "$prev_dt" ]]; then
+      (( segment_count++ ))
+      if [[ -z "${dt_keys_seen[$dt_key]:-}" ]]; then
+        dt_keys_seen[$dt_key]=1
+        (( unique_dt_keys++ ))
       fi
+      segment_change=1
+      prev_dt="$dt_key"
     fi
 
-    if (( ${#parse_sources[@]} == 0 )); then
-      echo "[WARN] Timestamp JSON missing for $in (dvrescue exit $dv_status)" >&2
-      if (( debug_mode == 1 )); then
-        echo "[DEBUG] dvrescue -json output for $in:" >&2
-        if [[ -s "$dv_log" ]]; then
-          cat "$dv_log" >&2
-        else
-          echo "[DEBUG] (no dvrescue stdout/stderr captured)" >&2
-        fi
-      fi
-      return 2
-    fi
-  fi
+    (( valid_rows++ ))
+    printf "%s\t%0.6f\t%s\t%s\t%s\t%d\n" \
+      "$frame_idx" "$t_sec" "$date_part" "$time_part" "$dt_key" "$segment_change" >> "$timeline_debug"
+  done < "$rdt_tmp"
 
-  last_dvrescue_status=$dv_status
-  local frame_source="${parse_sources[0]:-json}"
-  debug_log "dvrescue -json exit status: $dv_status"
-  debug_log "dvrescue JSON size: $(stat -f %z "$json_file" 2>/dev/null || stat -c %s "$json_file" 2>/dev/null) bytes (source=$frame_source)"
-
-  local timeline_backup cmd_backup
-  timeline_backup=$(make_temp_file dvmeta_timeline ".tsv") || return 1
-  cmd_backup=$(make_temp_file dvmeta_cmd ".cmd") || return 1
-  cp "$timeline_debug" "$timeline_backup" 2>/dev/null || : > "$timeline_backup"
-  cp "$cmdfile" "$cmd_backup" 2>/dev/null || : > "$cmd_backup"
-
-  local -F frame_step=0.0333667
-  local summary_line=""
-
-  local parse_success=1
-
-  for frame_source in "${parse_sources[@]}"; do
-    cp "$timeline_backup" "$timeline_debug" 2>/dev/null || : > "$timeline_debug"
-    cp "$cmd_backup" "$cmdfile" 2>/dev/null || : > "$cmdfile"
-
-    if [[ ! -s "$timeline_debug" ]]; then
-      echo "$timeline_header" >> "$timeline_debug"
-    fi
-
-    local prev_dt=""
-    typeset -A dt_keys_seen=()
-    local -i raw_rows=0 valid_rows=0 skipped_rows=0
-    local -i unique_dt_keys=0 segment_count=0
-    local -i frame_index=0
-
-    while IFS=$'\t' read -r parsed_index raw_pts raw_rdt; do
-      (( raw_rows++ ))
-      local -i loop_index=frame_index
-      if [[ -n "$parsed_index" && "$parsed_index" != "-" ]]; then
-        if [[ "$parsed_index" =~ ^-?[0-9]+$ ]]; then
-          loop_index=$parsed_index
-          frame_index=$parsed_index
-        fi
-      fi
-
-      local -F t_sec
-      t_sec=$((loop_index * frame_step))
-
-      local date_part="" time_part="" dt_key=""
-      local -i segment_change=0
-
-      if [[ -z "$raw_rdt" || "$raw_rdt" != *" "* ]]; then
-        (( skipped_rows++ ))
-      else
-        date_part="${raw_rdt%% *}"
-        time_part="${raw_rdt#* }"
-        time_part="${time_part%%.*}"
-        dt_key="${date_part} ${time_part}"
-
-        (( valid_rows++ ))
-
-        if [[ "$dt_key" != "$prev_dt" ]]; then
-          (( segment_count++ ))
-          if [[ -z "${dt_keys_seen[$dt_key]:-}" ]]; then
-            dt_keys_seen[$dt_key]=1
-            (( unique_dt_keys++ ))
-          fi
-          segment_change=1
-        fi
-
-        prev_dt="$dt_key"
-      fi
-
-      printf "%d\t%s\t%0.6f\t%s\t%s\t%s\t%s\t%d\n" \
-        "$loop_index" "${raw_pts:-}" "$t_sec" "$raw_rdt" "$date_part" "$time_part" "$dt_key" "$segment_change" >> "$timeline_debug"
-      (( frame_index++ ))
-    done < <(
-      if [[ "$frame_source" == "json" ]]; then
-        "$jq_bin" -r '
-          def frames:
-            if type == "object" then
-              (if ((.pts? // .pts_time?) != null and ((.anc?.dvitc?.rdt? // .rdt? // "") != "")) then [.] else [] end)
-              + ([to_entries[]? | .value] | map(frames) | add // [])
-            elif type == "array" then
-              (map(frames) | add // [])
-            else [] end;
-
-          frames[] | ["", (.pts_time // .pts), (.anc?.dvitc?.rdt // .rdt)] | @tsv
-        ' "$json_file"
-      elif [[ "$frame_source" == "text" ]]; then
-        awk '{ gsub(/\r$/, ""); sub(/^[[:space:]]+/, ""); if (NF >= 4 && $1 ~ /^[0-9]+$/ && $2 ~ /^[0-9]{2}:[0-9]{2}:[0-9]{2}[;:][0-9]{2}$/ && $3 ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/ && $4 ~ /^[0-9]{2}:[0-9]{2}:[0-9]{2}$/) printf "%d\t%s\t%s %s\n", $1-1, $2, $3, $4; }' "$dv_log"
-      else
-        stream_xml_frame_rows "$xml_payload_file" "$dv_log"
-      fi
-    )
-
-    summary_line="[INFO] Frame parse summary (source=$frame_source): rows=$raw_rows, valid=$valid_rows, skipped=$skipped_rows, unique_dt_keys=$unique_dt_keys, segment_count=$segment_count"
-    echo "$summary_line" >&2
-    debug_log "$summary_line"
-
-    if (( valid_rows > 0 )); then
-      parse_success=0
-      break
-    fi
-  done
-
-  if (( parse_success == 0 )); then
-    : > "$cmdfile"
-
-    while IFS=$'\t' read -r frame_idx raw_pts t_sec raw_rdt date_part time_part dt_key segment_change; do
-      if [[ "$frame_idx" == "frame_index" ]]; then
-        continue
-      fi
-
-      local esc_dt_key
-      esc_dt_key="${dt_key//\\/\\\\}"
-      esc_dt_key="${esc_dt_key//:/\:}"
-      esc_dt_key="${esc_dt_key//\'/\\\'}"
-
-      printf "%0.6f drawtext@dvmeta reinit text='%s';\n" "$t_sec" "$esc_dt_key" >> "$cmdfile"
-    done < "$timeline_debug"
-  fi
-
-  local selected_frame_source="${frame_source:-unknown}"
-  if (( parse_success == 0 )); then
-    selected_frame_source="$frame_source"
-  fi
-
-  last_parse_frame_source="$selected_frame_source"
+  last_parse_frame_source="xml"
   last_parse_raw_rows=$raw_rows
   last_parse_valid_rows=$valid_rows
   last_parse_skipped_rows=$skipped_rows
   last_parse_timeline_entries=$valid_rows
 
-  if (( parse_success != 0 )); then
-    echo "[WARN] No valid per-frame RDT metadata found for $in after attempting sources: ${parse_sources[*]}" >&2
-    log_file_excerpt "dvrescue log snippet" "$dv_log"
-    log_file_excerpt "dvrescue JSON snippet" "$json_file"
-    return 2   # special code: no/insufficient metadata
+  local summary_line
+  summary_line="[INFO] Frame parse summary (source=xml): rows=$raw_rows, valid=$valid_rows, skipped=$skipped_rows, unique_dt_keys=$unique_dt_keys, segment_count=$segment_count"
+  echo "$summary_line" >&2
+  debug_log "$summary_line"
+
+  if (( valid_rows < 1 )); then
+    echo "[WARN] No valid per-frame RDT metadata found in $xml_file" >&2
+    return 2
   fi
 
-  if (( valid_rows < 2 )); then
-    echo "[WARN] Insufficient per-frame RDT metadata found for $in (valid_rows=$valid_rows; need at least 2). Returning missing metadata status." >&2
-    log_file_excerpt "dvrescue log snippet" "$dv_log"
-    log_file_excerpt "dvrescue JSON snippet" "$json_file"
+  extract_rdt_from_xml "$xml_file" \
+    | build_sendcmd_from_rdt "$fps" \
+    | sed "s/:/\\:/g" \
+    | awk '{ t = $1; $1 = ""; sub(/^ /, "", $0); printf "%.6f drawtext@dvmeta reinit text='\''%s'\'';\n", t, $0 }' \
+    > "$cmdfile"
+
+  if [[ ! -s "$cmdfile" ]]; then
+    echo "[WARN] Empty sendcmd generated for $in" >&2
     return 2
   fi
 
   return 0
 }
+
 
 ########################################################
 # Helper: build ASS subtitles file from same timeline
@@ -909,108 +712,31 @@ make_ass_subs() {
   local in="$1"
   local layout="$2"
   local ass_out="$3"
-  local json_file="$4"
+  local xml_file="$4"
   local dv_log="$5"
   local timeline_debug="$6"
+  local fps="$7"
 
-  local dv_status=0
-
-  if [[ ! -s "$timeline_debug" ]]; then
-    echo "$timeline_header" >> "$timeline_debug"
+  if [[ -z "$xml_file" || ! -s "$xml_file" ]]; then
+    echo "[WARN] Missing dvrescue XML for subtitle build: $xml_file" >&2
+    return 2
   fi
 
-  if [[ -s "$json_file" ]]; then
-    debug_log "Reusing existing dvrescue JSON: $json_file"
-  else
-    debug_log "Extracting subtitle timeline via dvrescue -> $json_file (log: $dv_log)"
-    debug_log "Command: $dvrescue_bin \"$in\" -json $json_file"
-    if ! "$dvrescue_bin" "$in" -json "$json_file" >"$dv_log" 2>&1; then
-      dv_status=$?
-    fi
+  if [[ -z "$fps" ]]; then
+    echo "[ERROR] FPS value missing for subtitle generation" >&2
+    return 1
   fi
 
-  log_artifact_path_and_size "dvrescue JSON" "$json_file"
-  log_artifact_path_and_size "dvrescue log" "$dv_log"
+  : > "$ass_out"
+  : > "$timeline_debug"
+  echo "$timeline_header" >> "$timeline_debug"
 
-  local xml_payload_file=""
-  if xml_payload_file=$(find_dvrescue_xml_file "$dv_log" "$json_file" 2>/dev/null); then
-    debug_log "Found dvrescue XML artifact: $xml_payload_file"
-  else
-    xml_payload_file=""
-  fi
+  local subtitle_font_safe
+  subtitle_font_safe=${subtitle_font_name//\/\\}
+  subtitle_font_safe=${subtitle_font_safe//\$/\\$}
+  subtitle_font_safe=${subtitle_font_safe//\`/\\`}
 
-  local -a parse_sources=()
-  local text_rdt_pattern='^[[:space:]]*[0-9]+[[:space:]]+[0-9]{2}:[0-9]{2}:[0-9]{2}[;:][0-9]{2}[[:space:]]+[0-9]{4}-[0-9]{2}-[0-9]{2}[[:space:]]+[0-9]{2}:[0-9]{2}:[0-9]{2}'
-  local -i xml_available=0
-
-  if [[ -n "$xml_payload_file" ]]; then
-    xml_available=1
-  elif xml_section_present "$dv_log"; then
-    xml_available=1
-  fi
-
-  if [[ -s "$json_file" ]]; then
-    parse_sources=("json")
-  else
-    if [[ -s "$dv_log" ]] && grep -Eq "$text_rdt_pattern" "$dv_log"; then
-      parse_sources+=("text")
-      debug_log "Subtitle JSON missing; using dvrescue per-frame text output"
-      log_file_excerpt "Captured dvrescue timestamp text" "$dv_log" 10
-    fi
-
-    if (( xml_available )); then
-      parse_sources+=("xml")
-      debug_log "Subtitle JSON missing; dvrescue XML available after text fallback"
-      if [[ -z "$xml_payload_file" ]]; then
-        log_file_excerpt "Captured dvrescue XML" "$dv_log" 10
-      fi
-    fi
-
-    if (( ${#parse_sources[@]} == 0 )); then
-      echo "[WARN] Subtitle JSON missing for $in (dvrescue exit $dv_status); treating as missing metadata" >&2
-      if (( debug_mode == 1 )); then
-        echo "[DEBUG] dvrescue -json output for subtitles from $in:" >&2
-        if [[ -s "$dv_log" ]]; then
-          cat "$dv_log" >&2
-        else
-          echo "[DEBUG] (no dvrescue stdout/stderr captured)" >&2
-        fi
-      fi
-      return 2   # special code: no/insufficient metadata
-    fi
-  fi
-
-  debug_log "dvrescue -json exit status: $dv_status"
-  local frame_source="${parse_sources[0]:-json}"
-  debug_log "dvrescue JSON size: $(stat -f %z "$json_file" 2>/dev/null || stat -c %s "$json_file" 2>/dev/null) bytes (source=$frame_source)"
-
-  last_dvrescue_status=$dv_status
-
-  local timeline_backup
-  timeline_backup=$(make_temp_file dvmeta_timeline ".tsv") || return 1
-  cp "$timeline_debug" "$timeline_backup" 2>/dev/null || : > "$timeline_backup"
-
-  local -F frame_step=0.0333667
-  local summary_line=""
-  local parse_success=1
-
-  for frame_source in "${parse_sources[@]}"; do
-    cp "$timeline_backup" "$timeline_debug" 2>/dev/null || : > "$timeline_debug"
-
-    if [[ ! -s "$timeline_debug" ]]; then
-      echo "$timeline_header" >> "$timeline_debug"
-    fi
-
-    : > "$ass_out"
-
-    # Prevent command substitution or other expansions when injecting the user-selected
-    # font name into the ASS header.
-    local subtitle_font_safe
-    subtitle_font_safe=${subtitle_font_name//\\/\\\\}
-    subtitle_font_safe=${subtitle_font_safe//\$/\\\$}
-    subtitle_font_safe=${subtitle_font_safe//\`/\\\`}
-
-    cat >> "$ass_out" <<EOF
+  cat >> "$ass_out" <<EOF
 [Script Info]
 Title: DV Metadata Burn-In
 ScriptType: v4.00+
@@ -1029,161 +755,115 @@ Style: DVOSD,${subtitle_font_safe},24,&H00FFFFFF,&H00000000,&H00000000,&H0000000
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 EOF
 
-    local -F prev_mono=-1
-    local prev_dt="" prev_date="" prev_time=""
-    typeset -A dt_keys_seen=()
-    local -i raw_rows=0 valid_rows=0 skipped_rows=0
-    local -i unique_dt_keys=0 segment_count=0 dialogue_count=0
-    local -i frame_index=0
+  local rdt_tmp
+  rdt_tmp=$(make_temp_file dvmeta_rdt ".tsv") || return 1
 
-    write_dialog() {
-      local start_sec="$1"
-      local end_sec="$2"
-      local date_part="$3"
-      local time_part="$4"
-      local layout="$5"
-
-      local start_str end_str
-      start_str="$(seconds_to_ass_time "$start_sec")"
-      end_str="$(seconds_to_ass_time "$end_sec")"
-
-      local text
-      case "$layout" in
-        stacked)
-          text="${date_part}\\N${time_part}"
-          ;;
-        single)
-          text="${date_part}  ${time_part}"
-          ;;
-        *)
-          text="${date_part}\\N${time_part}"
-          ;;
-      esac
-
-      printf "Dialogue: 0,%s,%s,DVOSD,,0,0,20,,%s\n" \
-        "$start_str" "$end_str" "$text" >> "$ass_out"
-    }
-
-    while IFS=$'\t' read -r parsed_index raw_pts raw_rdt; do
-      (( raw_rows++ ))
-
-      local -i loop_index=frame_index
-      if [[ -n "$parsed_index" && "$parsed_index" != "-" ]]; then
-        if [[ "$parsed_index" =~ ^-?[0-9]+$ ]]; then
-          loop_index=$parsed_index
-          frame_index=$parsed_index
-        fi
-      fi
-
-      local -F t_sec
-      t_sec=$((loop_index * frame_step))
-
-      local date_part="" time_part="" dt_key=""
-      local -i segment_change=0
-
-      if [[ -z "$raw_rdt" || "$raw_rdt" != *" "* ]]; then
-        (( skipped_rows++ ))
-      else
-        date_part="${raw_rdt%% *}"
-        time_part="${raw_rdt#* }"
-        time_part="${time_part%%.*}"
-        dt_key="${date_part} ${time_part}"
-
-        (( valid_rows++ ))
-
-        if [[ "$dt_key" != "$prev_dt" ]]; then
-          if (( loop_index > 0 )); then
-            write_dialog "$prev_mono" "$t_sec" "$prev_date" "$prev_time" "$layout"
-            (( dialogue_count++ ))
-            if [[ -n "$prev_dt" && -z "${dt_keys_seen[$prev_dt]:-}" ]]; then
-              dt_keys_seen[$prev_dt]=1
-              (( unique_dt_keys++ ))
-            fi
-          fi
-          prev_dt="$dt_key"
-          prev_date="$date_part"
-          prev_time="$time_part"
-          prev_mono="$t_sec"
-          segment_change=1
-          if [[ -z "${dt_keys_seen[$dt_key]:-}" ]]; then
-            dt_keys_seen[$dt_key]=1
-            (( unique_dt_keys++ ))
-          fi
-          (( segment_count++ ))
-        fi
-      fi
-
-      printf "%d\t%s\t%0.6f\t%s\t%s\t%s\t%s\t%d\n" \
-        "$loop_index" "${raw_pts:-}" "$t_sec" "$raw_rdt" "$date_part" "$time_part" "$dt_key" "$segment_change" >> "$timeline_debug"
-      (( frame_index++ ))
-    done < <(
-      if [[ "$frame_source" == "json" ]]; then
-        "$jq_bin" -r '
-          def frames:
-            if type == "object" then
-              (if ((.pts? // .pts_time?) != null and (.rdt? // "") != "")) then [.] else [] end)
-              + ([to_entries[]? | .value] | map(frames) | add // [])
-            elif type == "array" then
-              (map(frames) | add // [])
-            else [] end;
-
-          frames[] | ["", (.pts_time // .pts), .rdt] | @tsv
-        ' "$json_file"
-      elif [[ "$frame_source" == "text" ]]; then
-        awk '{ gsub(/\r$/, ""); sub(/^[[:space:]]+/, ""); if (NF >= 4 && $1 ~ /^[0-9]+$/ && $2 ~ /^[0-9]{2}:[0-9]{2}:[0-9]{2}[;:][0-9]{2}$/ && $3 ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/ && $4 ~ /^[0-9]{2}:[0-9]{2}:[0-9]{2}$/) printf "%d\t%s\t%s %s\n", $1-1, $2, $3, $4; }' "$dv_log"
-      else
-        stream_xml_frame_rows "$xml_payload_file" "$dv_log"
-      fi
-    )
-
-    if (( prev_dt != "" )); then
-      local -F end_sec
-      end_sec=$((prev_mono + frame_step))
-      write_dialog "$prev_mono" "$end_sec" "$prev_date" "$prev_time" "$layout"
-      (( dialogue_count++ ))
-      if [[ -n "$prev_dt" && -z "${dt_keys_seen[$prev_dt]:-}" ]]; then
-        dt_keys_seen[$prev_dt]=1
-        (( unique_dt_keys++ ))
-      fi
-    fi
-
-    summary_line="[INFO] Frame parse summary (source=$frame_source): rows=$raw_rows, valid=$valid_rows, skipped=$skipped_rows, unique_dt_keys=$unique_dt_keys, segment_count=$segment_count, dialogue_count=$dialogue_count"
-    echo "$summary_line" >&2
-    debug_log "$summary_line"
-
-    if (( valid_rows > 0 )); then
-      parse_success=0
-      break
-    fi
-  done
-
-  local selected_frame_source="${frame_source:-unknown}"
-  if (( parse_success == 0 )); then
-    selected_frame_source="$frame_source"
+  if ! extract_rdt_from_xml "$xml_file" > "$rdt_tmp"; then
+    echo "[WARN] Unable to extract per-frame RDT from XML: $xml_file" >&2
+    return 2
   fi
 
-  last_parse_frame_source="$selected_frame_source"
+  local -i raw_rows=0 valid_rows=0 skipped_rows=0
+  local -i unique_dt_keys=0 segment_count=0 dialogue_count=0
+  local -F frame_step
+  frame_step=$((1.0 / fps))
+
+  local prev_dt="" prev_date="" prev_time="" prev_mono=0
+  typeset -A dt_keys_seen=()
+
+  write_dialog() {
+    local start_sec="$1"
+    local end_sec="$2"
+    local date_part="$3"
+    local time_part="$4"
+    local layout="$5"
+
+    local start_str end_str
+    start_str="$(seconds_to_ass_time "$start_sec")"
+    end_str="$(seconds_to_ass_time "$end_sec")"
+
+    local text
+    case "$layout" in
+      stacked)
+        text="${date_part}\\N${time_part}"
+        ;;
+      single)
+        text="${date_part}  ${time_part}"
+        ;;
+      *)
+        text="${date_part}\\N${time_part}"
+        ;;
+    esac
+
+    printf "Dialogue: 0,%s,%s,DVOSD,,0,0,20,,%s\n" \
+      "$start_str" "$end_str" "$text" >> "$ass_out"
+  }
+
+  while read -r frame_idx date_part time_part; do
+    (( raw_rows++ ))
+
+    if [[ -z "$date_part" || -z "$time_part" ]]; then
+      (( skipped_rows++ ))
+      continue
+    fi
+
+    local -F t_sec
+    t_sec=$((frame_idx / fps))
+
+    local dt_key
+    dt_key="${date_part} ${time_part}"
+
+    local -i segment_change=0
+    if [[ "$dt_key" != "$prev_dt" ]]; then
+      segment_change=1
+      if [[ -n "$prev_dt" ]]; then
+        write_dialog "$prev_mono" "$t_sec" "$prev_date" "$prev_time" "$layout"
+        (( dialogue_count++ ))
+      fi
+
+      prev_dt="$dt_key"
+      prev_date="$date_part"
+      prev_time="$time_part"
+      prev_mono=$t_sec
+
+      if [[ -z "${dt_keys_seen[$dt_key]:-}" ]]; then
+        dt_keys_seen[$dt_key]=1
+        (( unique_dt_keys++ ))
+      fi
+      (( segment_count++ ))
+    fi
+
+    (( valid_rows++ ))
+    printf "%s\t%0.6f\t%s\t%s\t%s\t%d\n" \
+      "$frame_idx" "$t_sec" "$date_part" "$time_part" "$dt_key" "$segment_change" >> "$timeline_debug"
+  done < "$rdt_tmp"
+
+  if [[ -n "$prev_dt" ]]; then
+    local -F end_sec
+    end_sec=$((prev_mono + frame_step))
+    write_dialog "$prev_mono" "$end_sec" "$prev_date" "$prev_time" "$layout"
+    (( dialogue_count++ ))
+  fi
+
+  last_parse_frame_source="xml"
   last_parse_raw_rows=$raw_rows
   last_parse_valid_rows=$valid_rows
   last_parse_skipped_rows=$skipped_rows
   last_parse_timeline_entries=$valid_rows
 
-  if (( parse_success != 0 )); then
-    echo "[WARN] No valid per-frame RDT metadata found for subtitles for $in after attempting sources: ${parse_sources[*]}" >&2
-    log_file_excerpt "dvrescue log snippet" "$dv_log"
-    log_file_excerpt "dvrescue JSON snippet" "$json_file"
-    return 2
-  fi
+  local summary_line
+  summary_line="[INFO] Subtitle parse summary (source=xml): rows=$raw_rows, valid=$valid_rows, skipped=$skipped_rows, unique_dt_keys=$unique_dt_keys, segment_count=$segment_count, dialogue_count=$dialogue_count"
+  echo "$summary_line" >&2
+  debug_log "$summary_line"
 
-  if (( dialogue_count < 2 )); then
-    echo "[WARN] Insufficient per-frame RDT metadata found for subtitles for $in (dialogues=$dialogue_count; need at least 2). Returning missing metadata status." >&2
-    log_file_excerpt "dvrescue log snippet" "$dv_log"
-    log_file_excerpt "dvrescue JSON snippet" "$json_file"
+  if (( valid_rows < 1 )); then
+    echo "[WARN] No valid subtitle timestamps found in XML: $xml_file" >&2
     return 2
   fi
 
   return 0
 }
+
 
 ########################################################
 # Main per-file processing
@@ -1201,7 +881,7 @@ process_file() {
 
   local base="${in%.*}"
   local out_ext="$format"
-  local artifact_dir dvrescue_json dvrescue_log cmdfile timeline_debug ass_artifact run_manifest versions_file
+  local artifact_dir dvrescue_xml dvrescue_log cmdfile timeline_debug ass_artifact run_manifest versions_file
   local burn_output="" subtitle_output="" passthrough_output=""
   local exit_status=0 manifest_status="pending"
 
@@ -1209,7 +889,7 @@ process_file() {
     return 1
   fi
 
-  dvrescue_json="${artifact_dir}/dvrescue.json"
+  dvrescue_xml="${artifact_dir}/dvrescue.xml"
   dvrescue_log="${artifact_dir}/dvrescue.log"
   cmdfile="${artifact_dir}/timestamp.cmd"
   timeline_debug="${artifact_dir}/timeline.debug.tsv"
@@ -1217,13 +897,13 @@ process_file() {
   run_manifest="${artifact_dir}/run_manifest.json"
   versions_file="${artifact_dir}/versions.txt"
 
-  [[ -e "$dvrescue_json" ]] || : > "$dvrescue_json"
-  [[ -e "$dvrescue_log" ]] || : > "$dvrescue_log"
+  : > "$dvrescue_xml"
+  : > "$dvrescue_log"
   : > "$cmdfile"
   : > "$timeline_debug"
   : > "$ass_artifact"
 
-  log_artifact_path_and_size "dvrescue JSON" "$dvrescue_json"
+  log_artifact_path_and_size "dvrescue XML" "$dvrescue_xml"
   log_artifact_path_and_size "dvrescue log" "$dvrescue_log"
   echo "[INFO] sendcmd path: $cmdfile" >&2
   echo "[INFO] ASS output path: $ass_artifact" >&2
@@ -1243,7 +923,23 @@ process_file() {
       ;;
   esac
 
-  # Passthrough = convert only, no burn-in, no subs
+  local fps
+  if ! fps="$(detect_fps "$in")"; then
+    write_versions_file "$versions_file"
+    write_run_manifest "$run_manifest" "error" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+    return 1
+  fi
+  debug_log "Detected FPS: $fps"
+
+  local dv_status=0
+  debug_log "Extracting dvrescue XML -> $dvrescue_xml (log: $dvrescue_log)"
+  if ! "$dvrescue_bin" "$in" -xml "$dvrescue_xml" >"$dvrescue_log" 2>&1; then
+    dv_status=$?
+  fi
+  last_dvrescue_status=$dv_status
+  log_artifact_path_and_size "dvrescue XML" "$dvrescue_xml"
+  log_artifact_path_and_size "dvrescue log" "$dvrescue_log"
+
   if [[ "$burn_mode" == "passthrough" ]]; then
     local out_passthrough="${base}_conv.${out_ext}"
     echo "[INFO] Passthrough conversion (no burn-in) to: $out_passthrough"
@@ -1255,11 +951,10 @@ process_file() {
     manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
     passthrough_output="$out_passthrough"
     write_versions_file "$versions_file"
-    write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_json" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+    write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
     return $exit_status
   fi
 
-  # Locate font early for both burn-in and subtitle modes
   local font
   if ! font="$(find_font)"; then
     echo "[ERROR] Unable to locate a usable font. Provide --fontfile, set DVMETABURN_FONTFILE, or place a supported font in Resources/fonts/." >&2
@@ -1273,11 +968,10 @@ process_file() {
   fi
   subtitle_font_name="${subtitle_font_name//,/ }"
 
-  # Handle subtitle-track-only export
   if [[ "$burn_mode" == "subtitleTrack" || "$burn_mode" == "subtitle_track" || "$burn_mode" == "subtitle" ]]; then
     local ass_out="${base}_dvmeta_${layout}.ass"
     local sub_status=0
-    if ! make_ass_subs "$in" "$layout" "$ass_artifact" "$dvrescue_json" "$dvrescue_log" "$timeline_debug"; then
+    if ! make_ass_subs "$in" "$layout" "$ass_artifact" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$fps"; then
       sub_status=$?
       if (( sub_status == 2 )); then
         case "$missing_meta" in
@@ -1291,14 +985,14 @@ process_file() {
             manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
             passthrough_output="$out_passthrough"
             write_versions_file "$versions_file"
-            write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_json" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+            write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
             return $exit_status
             ;;
           skip_file)
             echo "[WARN] Missing timestamp metadata for $in; skipping file." >&2
             manifest_status="skipped"
             write_versions_file "$versions_file"
-            write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_json" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+            write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
             return 0
             ;;
           *)
@@ -1308,7 +1002,7 @@ process_file() {
 
       echo "[ERROR] Failed to build subtitles for $in" >&2
       write_versions_file "$versions_file"
-      write_run_manifest "$run_manifest" "error" "$in" "$artifact_dir" "$dvrescue_json" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+      write_run_manifest "$run_manifest" "error" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
       return 1
     fi
 
@@ -1318,25 +1012,21 @@ process_file() {
     echo "[INFO] Adding DV metadata subtitle track to: $out_subbed"
     debug_log "Merging subtitle track with codec: $subtitle_codec"
     "$ffmpeg_bin" -y -i "$in" -i "$ass_artifact" \
-      -map 0 -map 1 \
-      -c:s "$subtitle_codec" \
-      "${codec_args[@]}" \
+      -c:v copy -c:a copy -c:s "$subtitle_codec" -map 0 -map 1 \
+      -metadata:s:s:0 language=eng \
       "$out_subbed"
-    cp "$ass_artifact" "$ass_out"
+
     exit_status=$?
     manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
     subtitle_output="$out_subbed"
     write_versions_file "$versions_file"
-    write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_json" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+    write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
     return $exit_status
   fi
 
-  # Otherwise: full burn-in + subtitle generation
   local ts_status=0
-  if ! make_timestamp_cmd "$in" "$cmdfile" "$dvrescue_json" "$dvrescue_log" "$timeline_debug"; then
+  if ! make_timestamp_cmd "$in" "$cmdfile" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$fps"; then
     ts_status=$?
-
-    # Exit code 2 = missing metadata
     if (( ts_status == 2 )); then
       case "$missing_meta" in
         skip_burnin_convert)
@@ -1349,14 +1039,14 @@ process_file() {
           manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
           passthrough_output="$out_passthrough"
           write_versions_file "$versions_file"
-          write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_json" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+          write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
           return $exit_status
           ;;
         skip_file)
           echo "[WARN] Missing timestamp metadata for $in; skipping file." >&2
           manifest_status="skipped"
           write_versions_file "$versions_file"
-          write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_json" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+          write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
           return 0
           ;;
         *)
@@ -1366,7 +1056,7 @@ process_file() {
 
     echo "[ERROR] Failed to build timestamp command file for $in" >&2
     write_versions_file "$versions_file"
-    write_run_manifest "$run_manifest" "error" "$in" "$artifact_dir" "$dvrescue_json" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+    write_run_manifest "$run_manifest" "error" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
     return 1
   fi
 
@@ -1386,14 +1076,14 @@ process_file() {
         manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
         passthrough_output="$out_passthrough"
         write_versions_file "$versions_file"
-        write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_json" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+        write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
         return $exit_status
         ;;
       skip_file)
         echo "[WARN] Skipping $in due to insufficient timestamp metadata." >&2
         manifest_status="skipped"
         write_versions_file "$versions_file"
-        write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_json" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+        write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
         return 0
         ;;
       *)
@@ -1401,7 +1091,7 @@ process_file() {
     esac
 
     write_versions_file "$versions_file"
-    write_run_manifest "$run_manifest" "error" "$in" "$artifact_dir" "$dvrescue_json" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+    write_run_manifest "$run_manifest" "error" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
     return 1
   fi
 
@@ -1435,9 +1125,10 @@ drawtext@dvmeta=fontfile='${font}':text='':fontcolor=white:fontsize=24:x=w-tw-40
   burn_output="$out"
   echo "ffmpeg exit code: $exit_status"
   write_versions_file "$versions_file"
-  write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_json" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+  write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
   return $exit_status
 }
+
 
 ########################################################
 # Mode routing
