@@ -590,6 +590,32 @@ make_timestamp_cmd() {
     fi
   fi
 
+  if [[ -s "$json_file" ]]; then
+    local json_probe
+    if json_probe=$("$jq_bin" -r '
+      def objects: .. | objects;
+      def count(expr): [objects | select((expr) != null)] | length;
+
+      {
+        rdt: count(.rdt?),
+        anc_dvitc_rdt: count(.anc?.dvitc?.rdt?),
+        pts_or_pts_time: count(.pts? // .pts_time?),
+        pts_and_any_rdt: [
+          objects
+          | select((.pts? // .pts_time?) != null)
+          | select((.anc?.dvitc?.rdt? // .rdt? // "") != "")
+        ] | length
+      }
+      | to_entries
+      | map(.key + "=" + (.value | tostring))
+      | join(" ")
+    ' "$json_file" 2>/dev/null); then
+      echo "[INFO] dvrescue JSON probe: ${json_probe}" >&2
+    else
+      echo "[WARN] Failed to probe dvrescue JSON for RDT counts" >&2
+    fi
+  fi
+
   local frame_source="json"
 
   if [[ ! -s "$json_file" ]]; then
@@ -715,13 +741,13 @@ make_timestamp_cmd() {
       "$jq_bin" -r '
         def frames:
           if type == "object" then
-            (if ((.pts? // .pts_time?) != null and (.rdt? // "") != "") then [.] else [] end)
+            (if ((.pts? // .pts_time?) != null and ((.anc?.dvitc?.rdt? // .rdt? // "") != "")) then [.] else [] end)
             + ([to_entries[]? | .value] | map(frames) | add // [])
           elif type == "array" then
             (map(frames) | add // [])
           else [] end;
 
-        frames[] | [.pts_time // .pts, .rdt] | @tsv
+        frames[] | [.pts_time // .pts, (.anc?.dvitc?.rdt // .rdt)] | @tsv
       ' "$json_file"
     else
       awk 'BEGIN{FS="\""} /<frame /{pts="";rdt=""; for(i=1;i<NF;i++){if($i~/(^| )pts_time=/||$i~/(^| )pts=/)pts=$(i+1); if($i~/(^| )rdt=/)rdt=$(i+1)} if(pts!="" && rdt!="") printf "%s\t%s\n", pts, rdt}' "$dv_log"
