@@ -296,25 +296,31 @@ make_timestamp_cmd() {
     dv_status=$?
   fi
 
+  local frame_source="json"
   : > "$cmdfile"
 
   if [[ ! -s "$json_file" ]]; then
-    echo "[WARN] Timestamp JSON missing for $in (dvrescue exit $dv_status)" >&2
-    if (( debug_mode == 1 )); then
-      echo "[DEBUG] dvrescue -json output for $in:" >&2
-      if [[ -s "$dv_log" ]]; then
-        cat "$dv_log" >&2
-      else
-        echo "[DEBUG] (no dvrescue stdout/stderr captured)" >&2
+    if [[ -s "$dv_log" ]] && grep -q "<dvrescue" "$dv_log"; then
+      frame_source="xml"
+      debug_log "Timestamp JSON missing; falling back to dvrescue XML output"
+    else
+      echo "[WARN] Timestamp JSON missing for $in (dvrescue exit $dv_status)" >&2
+      if (( debug_mode == 1 )); then
+        echo "[DEBUG] dvrescue -json output for $in:" >&2
+        if [[ -s "$dv_log" ]]; then
+          cat "$dv_log" >&2
+        else
+          echo "[DEBUG] (no dvrescue stdout/stderr captured)" >&2
+        fi
       fi
+      rm -f "$json_file"
+      rm -f "$dv_log"
+      return 2
     fi
-    rm -f "$json_file"
-    rm -f "$dv_log"
-    return 2
   fi
 
   debug_log "dvrescue -json exit status: $dv_status"
-  rm -f "$dv_log"
+  [[ "$frame_source" == "json" ]] && rm -f "$dv_log"
 
   local -F prev_pts=-1 prev_mono=0 offset=0 last_delta=0
   local prev_dt=""
@@ -392,20 +398,43 @@ make_timestamp_cmd() {
     prev_pts=$pts_sec
     prev_mono=$mono
   done < <(
-    "$jq_bin" -r '
-      def frames:
-        if type == "object" then
-          (if ((.pts? // .pts_time?) != null and (.rdt? // "") != "") then [.] else [] end)
-          + ([to_entries[]? | .value] | map(frames) | add // [])
-        elif type == "array" then
-          (map(frames) | add // [])
-        else [] end;
+    if [[ "$frame_source" == "json" ]]; then
+      "$jq_bin" -r '
+        def frames:
+          if type == "object" then
+            (if ((.pts? // .pts_time?) != null and (.rdt? // "") != "") then [.] else [] end)
+            + ([to_entries[]? | .value] | map(frames) | add // [])
+          elif type == "array" then
+            (map(frames) | add // [])
+          else [] end;
 
-      frames[] | [.pts_time // .pts, .rdt] | @tsv
-    ' "$json_file"
+        frames[] | [.pts_time // .pts, .rdt] | @tsv
+      ' "$json_file"
+    else
+      python3 - "$dv_log" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+
+path = sys.argv[1]
+ns = {'d': 'https://mediaarea.net/dvrescue'}
+
+try:
+    tree = ET.parse(path)
+except ET.ParseError:
+    sys.exit(0)
+
+for frame in tree.findall('.//d:frame', ns):
+    pts = frame.get('pts_time') or frame.get('pts')
+    rdt = frame.get('rdt')
+    if not pts or not rdt:
+        continue
+    print(f"{pts}\t{rdt}")
+PY
+    fi
   )
 
   rm -f "$json_file"
+  rm -f "$dv_log"
 
   if (( had_lines == 0 )); then
     echo "[WARN] No per-frame RDT metadata found for $in" >&2
@@ -435,23 +464,30 @@ make_ass_subs() {
     dv_status=$?
   fi
 
+  local frame_source="json"
+
   if [[ ! -s "$json_file" ]]; then
-    echo "[WARN] Subtitle JSON missing for $in (dvrescue exit $dv_status)" >&2
-    if (( debug_mode == 1 )); then
-      echo "[DEBUG] dvrescue -json output for subtitles from $in:" >&2
-      if [[ -s "$dv_log" ]]; then
-        cat "$dv_log" >&2
-      else
-        echo "[DEBUG] (no dvrescue stdout/stderr captured)" >&2
+    if [[ -s "$dv_log" ]] && grep -q "<dvrescue" "$dv_log"; then
+      frame_source="xml"
+      debug_log "Subtitle JSON missing; falling back to dvrescue XML output"
+    else
+      echo "[WARN] Subtitle JSON missing for $in (dvrescue exit $dv_status)" >&2
+      if (( debug_mode == 1 )); then
+        echo "[DEBUG] dvrescue -json output for subtitles from $in:" >&2
+        if [[ -s "$dv_log" ]]; then
+          cat "$dv_log" >&2
+        else
+          echo "[DEBUG] (no dvrescue stdout/stderr captured)" >&2
+        fi
       fi
+      rm -f "$json_file"
+      rm -f "$dv_log"
+      return 1
     fi
-    rm -f "$json_file"
-    rm -f "$dv_log"
-    return 1
   fi
 
   debug_log "dvrescue -json exit status: $dv_status"
-  rm -f "$dv_log"
+  [[ "$frame_source" == "json" ]] && rm -f "$dv_log"
 
   : > "$ass_out"
 
@@ -584,17 +620,39 @@ EOF
 
     prev_pts=$pts_sec
   done < <(
-    "$jq_bin" -r '
-      def frames:
-        if type == "object" then
-          (if ((.pts? // .pts_time?) != null and (.rdt? // "") != "") then [.] else [] end)
-          + ([to_entries[]? | .value] | map(frames) | add // [])
-        elif type == "array" then
-          (map(frames) | add // [])
-        else [] end;
+    if [[ "$frame_source" == "json" ]]; then
+      "$jq_bin" -r '
+        def frames:
+          if type == "object" then
+            (if ((.pts? // .pts_time?) != null and (.rdt? // "") != "") then [.] else [] end)
+            + ([to_entries[]? | .value] | map(frames) | add // [])
+          elif type == "array" then
+            (map(frames) | add // [])
+          else [] end;
 
-      frames[] | [.pts_time // .pts, .rdt] | @tsv
-    ' "$json_file"
+        frames[] | [.pts_time // .pts, .rdt] | @tsv
+      ' "$json_file"
+    else
+      python3 - "$dv_log" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+
+path = sys.argv[1]
+ns = {'d': 'https://mediaarea.net/dvrescue'}
+
+try:
+    tree = ET.parse(path)
+except ET.ParseError:
+    sys.exit(0)
+
+for frame in tree.findall('.//d:frame', ns):
+    pts = frame.get('pts_time') or frame.get('pts')
+    rdt = frame.get('rdt')
+    if not pts or not rdt:
+        continue
+    print(f"{pts}\t{rdt}")
+PY
+    fi
   )
 
   if (( prev_mono >= 0 )); then
@@ -604,6 +662,7 @@ EOF
   fi
 
   rm -f "$json_file"
+  rm -f "$dv_log"
 
   if (( had_lines == 0 )); then
     echo "[WARN] No per-frame RDT metadata found for subtitles for $in" >&2
