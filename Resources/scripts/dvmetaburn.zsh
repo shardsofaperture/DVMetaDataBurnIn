@@ -152,6 +152,7 @@ typeset -g last_parse_skipped_rows=0
 typeset -g last_parse_timeline_entries=0
 typeset -g last_parse_frame_source="unknown"
 typeset -g last_dvrescue_status=0
+typeset -g last_detected_fps=""
 
 prepare_artifact_dir() {
   local input_path="$1"
@@ -203,7 +204,12 @@ detect_fps() {
   local src="$1"
   local fps
 
-  fps="$("$ffmpeg_bin" -hide_banner -i "$src" 2>&1 | awk '/Video:/ && /fps/ { for (i=1;i<=NF;i++) if ($i ~ /fps/) {print $(i-1); exit}}')"
+  last_detected_fps=""
+
+  local probe_output
+  probe_output="$("$ffmpeg_bin" -hide_banner -i "$src" 2>&1)"
+
+  fps="$(printf "%s\n" "$probe_output" | awk '/Video:/ && /fps/ { for (i=1;i<=NF;i++) if ($i ~ /fps/) {print $(i-1); exit}}')"
 
   if [[ "$fps" == */* ]]; then
     fps=$(awk -v v="$fps" 'BEGIN{split(v,a,"/"); if (a[2]==0) {exit 1} printf "%.6f", a[1]/a[2]}') || fps=""
@@ -211,9 +217,15 @@ detect_fps() {
 
   if [[ -z "$fps" ]]; then
     echo "[ERROR] Unable to detect FPS for $src" >&2
+    if (( debug_mode == 1 )); then
+      printf "%s\n" "$probe_output" | awk '/Video:/' | while IFS= read -r line; do
+        debug_log "ffmpeg probe Video line: $line"
+      done
+    fi
     return 1
   fi
 
+  last_detected_fps="$fps"
   echo "$fps"
 }
 
@@ -447,6 +459,16 @@ log_file_excerpt() {
   fi
 }
 
+emit_debug_snapshots() {
+  (( debug_mode == 1 )) || return 0
+
+  local timeline_path="$1"
+  local cmd_path="$2"
+
+  log_file_excerpt "timeline debug preview" "$timeline_path" 10
+  log_file_excerpt "timestamp.cmd preview" "$cmd_path" 10
+}
+
 write_versions_file() {
   local path="$1"
 
@@ -463,6 +485,8 @@ write_versions_file() {
       echo "dvrescue: unavailable"
     fi
 
+    echo "fps: ${last_detected_fps:-}"
+    echo "dvrescue_status: $last_dvrescue_status"
     echo "frame_source: $last_parse_frame_source"
     echo "parse_stats: raw=${last_parse_raw_rows}, valid=${last_parse_valid_rows}, skipped=${last_parse_skipped_rows}, timeline=${last_parse_timeline_entries}"
   } > "$path" 2>/dev/null || true
@@ -513,7 +537,8 @@ write_run_manifest() {
     "valid_rows": $last_parse_valid_rows,
     "skipped_rows": $last_parse_skipped_rows,
     "timeline_entries": $last_parse_timeline_entries,
-    "dvrescue_status": $last_dvrescue_status
+    "dvrescue_status": $last_dvrescue_status,
+    "fps": "${last_detected_fps}"
   }
 }
 EOF
@@ -632,8 +657,13 @@ make_timestamp_cmd() {
 
   : > "$cmdfile"
 
-  if [[ -z "$xml_file" || ! -s "$xml_file" ]]; then
-    echo "[WARN] Missing dvrescue XML for $in (log: $dv_log)" >&2
+  if [[ -z "$xml_file" || ! -s "$xml_file" || $last_dvrescue_status -ne 0 ]]; then
+    echo "[WARN] Missing or invalid dvrescue XML for $in (xml: $xml_file, log: $dv_log)" >&2
+    last_parse_frame_source="xml"
+    last_parse_raw_rows=0
+    last_parse_valid_rows=0
+    last_parse_skipped_rows=0
+    last_parse_timeline_entries=0
     return 2
   fi
 
@@ -647,6 +677,11 @@ make_timestamp_cmd() {
 
   if ! extract_rdt_from_xml "$xml_file" > "$rdt_tmp"; then
     echo "[WARN] Unable to extract per-frame RDT from XML: $xml_file" >&2
+    last_parse_frame_source="xml"
+    last_parse_raw_rows=0
+    last_parse_valid_rows=0
+    last_parse_skipped_rows=0
+    last_parse_timeline_entries=0
     return 2
   fi
 
@@ -706,14 +741,17 @@ make_timestamp_cmd() {
     return 2
   fi
 
-  extract_rdt_from_xml "$xml_file" \
+  cat "$rdt_tmp" \
     | build_sendcmd_from_rdt "$fps" \
     | sed 's/:/\\\\:/g' \
     | awk '{ t = $1; $1 = ""; sub(/^ /, "", $0); printf "%.6f drawtext@dvmeta reinit text='\''%s'\'';\n", t, $0 }' \
     > "$cmdfile"
 
-  if [[ ! -s "$cmdfile" ]]; then
-    echo "[WARN] Empty sendcmd generated for $in" >&2
+  local -i cmd_lines=0
+  cmd_lines=$( (grep -c 'drawtext@dvmeta' "$cmdfile" 2>/dev/null) || echo 0 )
+
+  if [[ ! -s "$cmdfile" || $cmd_lines -lt 2 ]]; then
+    echo "[WARN] Empty or insufficient sendcmd generated for $in (lines=$cmd_lines)" >&2
     return 2
   fi
 
@@ -734,8 +772,13 @@ make_ass_subs() {
   local timeline_debug="$6"
   local fps="$7"
 
-  if [[ -z "$xml_file" || ! -s "$xml_file" ]]; then
-    echo "[WARN] Missing dvrescue XML for subtitle build: $xml_file" >&2
+  if [[ -z "$xml_file" || ! -s "$xml_file" || $last_dvrescue_status -ne 0 ]]; then
+    echo "[WARN] Missing or invalid dvrescue XML for subtitle build: $xml_file" >&2
+    last_parse_frame_source="xml"
+    last_parse_raw_rows=0
+    last_parse_valid_rows=0
+    last_parse_skipped_rows=0
+    last_parse_timeline_entries=0
     return 2
   fi
 
@@ -777,6 +820,11 @@ EOF
 
   if ! extract_rdt_from_xml "$xml_file" > "$rdt_tmp"; then
     echo "[WARN] Unable to extract per-frame RDT from XML: $xml_file" >&2
+    last_parse_frame_source="xml"
+    last_parse_raw_rows=0
+    last_parse_valid_rows=0
+    last_parse_skipped_rows=0
+    last_parse_timeline_entries=0
     return 2
   fi
 
@@ -902,6 +950,13 @@ process_file() {
   local burn_output="" subtitle_output="" passthrough_output=""
   local exit_status=0 manifest_status="pending"
 
+  last_parse_raw_rows=0
+  last_parse_valid_rows=0
+  last_parse_skipped_rows=0
+  last_parse_timeline_entries=0
+  last_parse_frame_source="unknown"
+  last_dvrescue_status=0
+
   if ! artifact_dir="$(prepare_artifact_dir "$in")"; then
     return 1
   fi
@@ -936,6 +991,9 @@ process_file() {
       ;;
     *)
       echo "Unknown format: $format" >&2
+      manifest_status="error"
+      write_versions_file "$versions_file"
+      write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
       return 1
       ;;
   esac
@@ -950,9 +1008,8 @@ process_file() {
 
   local dv_status=0
   debug_log "Extracting dvrescue XML -> $dvrescue_xml (log: $dvrescue_log)"
-  if ! "$dvrescue_bin" "$in" -xml "$dvrescue_xml" >"$dvrescue_log" 2>&1; then
-    dv_status=$?
-  fi
+  "$dvrescue_bin" "$in" -xml "$dvrescue_xml" >"$dvrescue_log" 2>&1
+  dv_status=$?
   last_dvrescue_status=$dv_status
   log_artifact_path_and_size "dvrescue XML" "$dvrescue_xml"
   log_artifact_path_and_size "dvrescue log" "$dvrescue_log"
@@ -969,12 +1026,18 @@ process_file() {
     passthrough_output="$out_passthrough"
     write_versions_file "$versions_file"
     write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+    if [[ "$manifest_status" == "success" ]]; then
+      emit_debug_snapshots "$timeline_debug" "$cmdfile"
+    fi
     return $exit_status
   fi
 
   local font
   if ! font="$(find_font)"; then
     echo "[ERROR] Unable to locate a usable font. Provide --fontfile, set DVMETABURN_FONTFILE, or place a supported font in Resources/fonts/." >&2
+    manifest_status="error"
+    write_versions_file "$versions_file"
+    write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
     return 1
   fi
 
@@ -1003,6 +1066,9 @@ process_file() {
             passthrough_output="$out_passthrough"
             write_versions_file "$versions_file"
             write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+            if [[ "$manifest_status" == "success" ]]; then
+              emit_debug_snapshots "$timeline_debug" "$cmdfile"
+            fi
             return $exit_status
             ;;
           skip_file)
@@ -1038,6 +1104,9 @@ process_file() {
     subtitle_output="$out_subbed"
     write_versions_file "$versions_file"
     write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+    if [[ "$manifest_status" == "success" ]]; then
+      emit_debug_snapshots "$timeline_debug" "$cmdfile"
+    fi
     return $exit_status
   fi
 
@@ -1057,6 +1126,9 @@ process_file() {
           passthrough_output="$out_passthrough"
           write_versions_file "$versions_file"
           write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+          if [[ "$manifest_status" == "success" ]]; then
+            emit_debug_snapshots "$timeline_debug" "$cmdfile"
+          fi
           return $exit_status
           ;;
         skip_file)
@@ -1143,6 +1215,9 @@ drawtext@dvmeta=fontfile='${font}':text='':fontcolor=white:fontsize=24:x=w-tw-40
   echo "ffmpeg exit code: $exit_status"
   write_versions_file "$versions_file"
   write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+  if [[ "$manifest_status" == "success" ]]; then
+    emit_debug_snapshots "$timeline_debug" "$cmdfile"
+  fi
   return $exit_status
 }
 
