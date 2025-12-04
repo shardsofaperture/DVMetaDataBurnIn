@@ -638,9 +638,14 @@ make_timestamp_cmd() {
   fi
 
   local frame_source="json"
+  local text_rdt_pattern='^[[:space:]]*[0-9]{2}:[0-9]{2}:[0-9]{2}[;:][0-9]{2} [0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}'
 
   if [[ ! -s "$json_file" ]]; then
-    if [[ -s "$dv_log" ]] && grep -q "<dvrescue" "$dv_log"; then
+    if [[ -s "$dv_log" ]] && grep -Eq "$text_rdt_pattern" "$dv_log"; then
+      frame_source="text"
+      debug_log "Timestamp JSON missing; using dvrescue per-frame text output"
+      log_file_excerpt "Captured dvrescue timestamp text" "$dv_log" 10
+    elif [[ -s "$dv_log" ]] && grep -q "<dvrescue" "$dv_log"; then
       frame_source="xml"
       debug_log "Timestamp JSON missing; falling back to dvrescue XML output"
       log_file_excerpt "Captured dvrescue XML" "$dv_log" 10
@@ -723,6 +728,8 @@ make_timestamp_cmd() {
 
         frames[] | [.pts_time // .pts, (.anc?.dvitc?.rdt // .rdt)] | @tsv
       ' "$json_file"
+    elif [[ "$frame_source" == "text" ]]; then
+      awk '{ gsub(/\r$/, ""); count=split($0, parts, /[[:space:]]+/); if (count >= 3 && parts[1] ~ /^[0-9]{2}:[0-9]{2}:[0-9]{2}[;:][0-9]{2}$/ && parts[2] ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/ && parts[3] ~ /^[0-9]{2}:[0-9]{2}:[0-9]{2}$/) printf "%s\t%s %s\n", parts[1], parts[2], parts[3]; }' "$dv_log"
     else
       awk 'BEGIN{FS="\""} /<frame /{pts="";rdt=""; for(i=1;i<NF;i++){if($i~/(^| )pts_time=/||$i~/(^| )pts=/)pts=$(i+1); if($i~/(^| )rdt=/)rdt=$(i+1)} if(pts!="" && rdt!="") printf "%s\t%s\n", pts, rdt}' "$dv_log"
     fi
@@ -779,9 +786,14 @@ make_ass_subs() {
   log_artifact_path_and_size "dvrescue log" "$dv_log"
 
   local frame_source="json"
+  local text_rdt_pattern='^[[:space:]]*[0-9]{2}:[0-9]{2}:[0-9]{2}[;:][0-9]{2} [0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}'
 
   if [[ ! -s "$json_file" ]]; then
-    if [[ -s "$dv_log" ]] && grep -q "<dvrescue" "$dv_log"; then
+    if [[ -s "$dv_log" ]] && grep -Eq "$text_rdt_pattern" "$dv_log"; then
+      frame_source="text"
+      debug_log "Subtitle JSON missing; using dvrescue per-frame text output"
+      log_file_excerpt "Captured dvrescue timestamp text" "$dv_log" 10
+    elif [[ -s "$dv_log" ]] && grep -q "<dvrescue" "$dv_log"; then
       frame_source="xml"
       debug_log "Subtitle JSON missing; falling back to dvrescue XML output"
       log_file_excerpt "Captured dvrescue XML" "$dv_log" 10
@@ -925,6 +937,8 @@ EOF
 
         frames[] | [.pts_time // .pts, .rdt] | @tsv
       ' "$json_file"
+    elif [[ "$frame_source" == "text" ]]; then
+      awk '{ gsub(/\r$/, ""); count=split($0, parts, /[[:space:]]+/); if (count >= 3 && parts[1] ~ /^[0-9]{2}:[0-9]{2}:[0-9]{2}[;:][0-9]{2}$/ && parts[2] ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/ && parts[3] ~ /^[0-9]{2}:[0-9]{2}:[0-9]{2}$/) printf "%s\t%s %s\n", parts[1], parts[2], parts[3]; }' "$dv_log"
     else
       awk 'BEGIN{FS="\""} /<frame /{pts="";rdt=""; for(i=1;i<NF;i++){if($i~/(^| )pts_time=/||$i~/(^| )pts=/)pts=$(i+1); if($i~/(^| )rdt=/)rdt=$(i+1)} if(pts!="" && rdt!="") printf "%s\t%s\n", pts, rdt}' "$dv_log"
     fi
