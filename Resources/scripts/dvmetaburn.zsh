@@ -211,6 +211,22 @@ prepare_artifact_dir() {
   echo "$dir_name"
 }
 
+stat_size_bytes() {
+  local path="$1"
+  stat -f %z "$path" 2>/dev/null || stat -c %s "$path" 2>/dev/null || echo "unknown"
+}
+
+log_artifact_path_and_size() {
+  local label="$1"
+  local path="$2"
+
+  if [[ -e "$path" ]]; then
+    echo "[INFO] ${label}: ${path} (size: $(stat_size_bytes "$path") bytes)" >&2
+  else
+    echo "[INFO] ${label}: ${path} (missing)" >&2
+  fi
+}
+
 # Lightweight helper for conditional debug output
 debug_log() {
   if (( debug_mode == 1 )); then
@@ -590,6 +606,9 @@ make_timestamp_cmd() {
     fi
   fi
 
+  log_artifact_path_and_size "dvrescue JSON" "$json_file"
+  log_artifact_path_and_size "dvrescue log" "$dv_log"
+
   local frame_source="json"
 
   if [[ ! -s "$json_file" ]]; then
@@ -769,6 +788,9 @@ make_ass_subs() {
       dv_status=$?
     fi
   fi
+
+  log_artifact_path_and_size "dvrescue JSON" "$json_file"
+  log_artifact_path_and_size "dvrescue log" "$dv_log"
 
   local frame_source="json"
 
@@ -1019,14 +1041,14 @@ process_file() {
   run_manifest="${artifact_dir}/run_manifest.json"
   versions_file="${artifact_dir}/versions.txt"
 
-  : > "$dvrescue_json"
-  : > "$dvrescue_log"
+  [[ -e "$dvrescue_json" ]] || : > "$dvrescue_json"
+  [[ -e "$dvrescue_log" ]] || : > "$dvrescue_log"
   : > "$cmdfile"
   : > "$timeline_debug"
   : > "$ass_artifact"
 
-  echo "[INFO] dvrescue JSON path: $dvrescue_json" >&2
-  echo "[INFO] dvrescue log path: $dvrescue_log" >&2
+  log_artifact_path_and_size "dvrescue JSON" "$dvrescue_json"
+  log_artifact_path_and_size "dvrescue log" "$dvrescue_log"
   echo "[INFO] sendcmd path: $cmdfile" >&2
   echo "[INFO] ASS output path: $ass_artifact" >&2
   echo "[INFO] timeline debug path: $timeline_debug" >&2
