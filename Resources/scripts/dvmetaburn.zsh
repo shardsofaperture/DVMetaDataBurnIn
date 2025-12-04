@@ -697,7 +697,7 @@ make_timestamp_cmd() {
       esc_date="${date_part//\\/\\\\}"
       esc_date="${esc_date//:/\\\\:}"
       esc_time="${time_part//\\/\\\\}"
-      esc_time="${esc_time//:/\\\\:}"
+      esc_time="${esc_time//:/\:}"
 
       if [[ "$dt_key" != "$prev_dt" ]]; then
         printf "%0.6f drawtext@dvdate reinit text='%s';\n" "$mono" "$esc_date" >> "$cmdfile"
