@@ -185,6 +185,64 @@ debug_log() {
   fi
 }
 
+# Emit a short, prefixed excerpt from a file for troubleshooting
+log_file_excerpt() {
+  (( debug_mode == 1 )) || return 0
+
+  local label="$1"
+  local path="$2"
+  local -i max_lines=${3:-20}
+
+  if [[ -s "$path" ]]; then
+    local size
+    size=$(stat -f %z "$path" 2>/dev/null || stat -c %s "$path" 2>/dev/null)
+    if [[ -z "$size" ]]; then
+      size=$(ls -ln "$path" 2>/dev/null | awk '{print $5}')
+    fi
+
+    local -i lines_total=0
+    while IFS= read -r _; do
+      (( lines_total++ ))
+    done <"$path"
+
+    debug_log "$label (path: $path, size: ${size:-unknown} bytes):"
+    local -i count=0
+    while IFS= read -r line && (( count < max_lines )); do
+      debug_log "  $line"
+      (( count++ ))
+    done <"$path"
+
+    if (( lines_total > max_lines )); then
+      debug_log "  ... (truncated after $max_lines lines)"
+    fi
+  else
+    debug_log "$label missing or empty (path: $path)"
+  fi
+}
+
+# Cross-platform temporary file helper with optional suffix
+make_temp_file() {
+  local prefix="$1"
+  local suffix="$2"
+
+  local tmp base
+  if tmp=$(mktemp -t "$prefix" 2>/dev/null); then
+    :
+  elif tmp=$(mktemp "${TMPDIR}/${prefix}.XXXXXX" 2>/dev/null); then
+    :
+  else
+    return 1
+  fi
+
+  if [[ -n "$suffix" ]]; then
+    base="$tmp"
+    tmp="${tmp}${suffix}"
+    mv "$base" "$tmp" || return 1
+  fi
+
+  echo "$tmp"
+}
+
 ########################################################
 # Helper: locate a font file
 ########################################################
@@ -290,12 +348,20 @@ make_timestamp_cmd() {
   local in="$1"
   local cmdfile="$2"
 
-  local json_base json_file
-  json_base="$(mktemp "${TMPDIR}/dvts-XXXXXX")"
-  json_file="${json_base}.json"
+  local json_file dv_log dv_status=0
+  if ! json_file="$(make_temp_file dvts .json)"; then
+    echo "[ERROR] Unable to allocate temporary JSON file" >&2
+    return 1
+  fi
 
-  local dv_log dv_status=0
-  dv_log="$(mktemp "${TMPDIR}/dvrs-XXXXXX.log")"
+  if ! dv_log="$(make_temp_file dvrs .log)"; then
+    echo "[ERROR] Unable to allocate temporary dvrescue log file" >&2
+    rm -f "$json_file"
+    return 1
+  fi
+
+  debug_log "Extracting timestamp timeline via dvrescue -> $json_file (log: $dv_log)"
+  debug_log "Command: $dvrescue_bin \"$in\" -json $json_file"
 
   if ! "$dvrescue_bin" "$in" -json "$json_file" >"$dv_log" 2>&1; then
     dv_status=$?
@@ -308,6 +374,7 @@ make_timestamp_cmd() {
     if [[ -s "$dv_log" ]] && grep -q "<dvrescue" "$dv_log"; then
       frame_source="xml"
       debug_log "Timestamp JSON missing; falling back to dvrescue XML output"
+      log_file_excerpt "Captured dvrescue XML" "$dv_log" 10
     else
       echo "[WARN] Timestamp JSON missing for $in (dvrescue exit $dv_status)" >&2
       if (( debug_mode == 1 )); then
@@ -325,14 +392,21 @@ make_timestamp_cmd() {
   fi
 
   debug_log "dvrescue -json exit status: $dv_status"
+  debug_log "dvrescue JSON size: $(stat -f %z "$json_file" 2>/dev/null || stat -c %s "$json_file" 2>/dev/null) bytes (source=$frame_source)"
   [[ "$frame_source" == "json" ]] && rm -f "$dv_log"
 
   local -F prev_pts=-1 prev_mono=0 offset=0 last_delta=0
   local prev_dt=""
   local had_lines=0
+  local -i raw_rows=0 valid_rows=0 skipped_rows=0
 
   while IFS=$'\t' read -r raw_pts raw_rdt; do
-    [[ -z "$raw_pts" || -z "$raw_rdt" ]] && continue
+    (( raw_rows++ ))
+    if [[ -z "$raw_pts" || -z "$raw_rdt" ]]; then
+      (( skipped_rows++ ))
+      continue
+    fi
+    (( valid_rows++ ))
 
     # Convert pts to floating seconds
     local -F pts_sec base_seconds=0
@@ -416,35 +490,26 @@ make_timestamp_cmd() {
         frames[] | [.pts_time // .pts, .rdt] | @tsv
       ' "$json_file"
     else
-      python3 - "$dv_log" <<'PY'
-import sys
-import xml.etree.ElementTree as ET
-
-path = sys.argv[1]
-ns = {'d': 'https://mediaarea.net/dvrescue'}
-
-try:
-    tree = ET.parse(path)
-except ET.ParseError:
-    sys.exit(0)
-
-for frame in tree.findall('.//d:frame', ns):
-    pts = frame.get('pts_time') or frame.get('pts')
-    rdt = frame.get('rdt')
-    if not pts or not rdt:
-        continue
-    print(f"{pts}\t{rdt}")
-PY
+      awk 'BEGIN{FS="\""} /<frame /{pts="";rdt=""; for(i=1;i<NF;i++){if($i~/(^| )pts_time=/||$i~/(^| )pts=/)pts=$(i+1); if($i~/(^| )rdt=/)rdt=$(i+1)} if(pts!="" && rdt!="") printf "%s\t%s\n", pts, rdt}' "$dv_log"
     fi
   )
 
-  rm -f "$json_file"
-  rm -f "$dv_log"
+  if (( debug_mode == 0 )); then
+    rm -f "$json_file"
+    rm -f "$dv_log"
+  else
+    debug_log "Preserving dvrescue artifacts for inspection: json=$json_file log=$dv_log"
+  fi
 
   if (( had_lines == 0 )); then
     echo "[WARN] No per-frame RDT metadata found for $in" >&2
+    debug_log "Frame parse summary (source=$frame_source): rows=$raw_rows, valid=$valid_rows, skipped=$skipped_rows, timeline entries=$had_lines"
+    log_file_excerpt "dvrescue log snippet" "$dv_log"
+    log_file_excerpt "dvrescue JSON snippet" "$json_file"
     return 2   # special code: no metadata
   fi
+
+  debug_log "Frame parse summary (source=$frame_source): rows=$raw_rows, valid=$valid_rows, skipped=$skipped_rows, timeline entries=$had_lines"
 
   return 0
 }
@@ -458,12 +523,20 @@ make_ass_subs() {
   local layout="$2"
   local ass_out="$3"
 
-  local json_base json_file
-  json_base="$(mktemp "${TMPDIR}/dvts-XXXXXX")"
-  json_file="${json_base}.json"
+  local json_file dv_log dv_status=0
+  if ! json_file="$(make_temp_file dvts .json)"; then
+    echo "[ERROR] Unable to allocate temporary JSON file" >&2
+    return 1
+  fi
 
-  local dv_log dv_status=0
-  dv_log="$(mktemp "${TMPDIR}/dvrs-XXXXXX.log")"
+  if ! dv_log="$(make_temp_file dvrs .log)"; then
+    echo "[ERROR] Unable to allocate temporary dvrescue log file" >&2
+    rm -f "$json_file"
+    return 1
+  fi
+
+  debug_log "Extracting subtitle timeline via dvrescue -> $json_file (log: $dv_log)"
+  debug_log "Command: $dvrescue_bin \"$in\" -json $json_file"
 
   if ! "$dvrescue_bin" "$in" -json "$json_file" >"$dv_log" 2>&1; then
     dv_status=$?
@@ -475,6 +548,7 @@ make_ass_subs() {
     if [[ -s "$dv_log" ]] && grep -q "<dvrescue" "$dv_log"; then
       frame_source="xml"
       debug_log "Subtitle JSON missing; falling back to dvrescue XML output"
+      log_file_excerpt "Captured dvrescue XML" "$dv_log" 10
     else
       echo "[WARN] Subtitle JSON missing for $in (dvrescue exit $dv_status)" >&2
       if (( debug_mode == 1 )); then
@@ -492,6 +566,7 @@ make_ass_subs() {
   fi
 
   debug_log "dvrescue -json exit status: $dv_status"
+  debug_log "dvrescue JSON size: $(stat -f %z "$json_file" 2>/dev/null || stat -c %s "$json_file" 2>/dev/null) bytes (source=$frame_source)"
   [[ "$frame_source" == "json" ]] && rm -f "$dv_log"
 
   : > "$ass_out"
@@ -525,6 +600,7 @@ EOF
   local -F prev_pts=-1 prev_mono=-1 offset=0 last_delta=0
   local prev_dt="" prev_date="" prev_time=""
   local had_lines=0
+  local -i raw_rows=0 valid_rows=0 skipped_rows=0
 
   write_dialog() {
     local start_sec="$1"
@@ -555,7 +631,12 @@ EOF
   }
 
   while IFS=$'\t' read -r raw_pts raw_rdt; do
-    [[ -z "$raw_pts" || -z "$raw_rdt" ]] && continue
+    (( raw_rows++ ))
+    if [[ -z "$raw_pts" || -z "$raw_rdt" ]]; then
+      (( skipped_rows++ ))
+      continue
+    fi
+    (( valid_rows++ ))
 
     local -F pts_sec base_seconds=0
     if [[ "$raw_pts" == *:* ]]; then
@@ -638,25 +719,7 @@ EOF
         frames[] | [.pts_time // .pts, .rdt] | @tsv
       ' "$json_file"
     else
-      python3 - "$dv_log" <<'PY'
-import sys
-import xml.etree.ElementTree as ET
-
-path = sys.argv[1]
-ns = {'d': 'https://mediaarea.net/dvrescue'}
-
-try:
-    tree = ET.parse(path)
-except ET.ParseError:
-    sys.exit(0)
-
-for frame in tree.findall('.//d:frame', ns):
-    pts = frame.get('pts_time') or frame.get('pts')
-    rdt = frame.get('rdt')
-    if not pts or not rdt:
-        continue
-    print(f"{pts}\t{rdt}")
-PY
+      awk 'BEGIN{FS="\""} /<frame /{pts="";rdt=""; for(i=1;i<NF;i++){if($i~/(^| )pts_time=/||$i~/(^| )pts=/)pts=$(i+1); if($i~/(^| )rdt=/)rdt=$(i+1)} if(pts!="" && rdt!="") printf "%s\t%s\n", pts, rdt}' "$dv_log"
     fi
   )
 
@@ -666,13 +729,22 @@ PY
     write_dialog "$prev_mono" "$end_sec" "$prev_date" "$prev_time" "$layout"
   fi
 
-  rm -f "$json_file"
-  rm -f "$dv_log"
+  if (( debug_mode == 0 )); then
+    rm -f "$json_file"
+    rm -f "$dv_log"
+  else
+    debug_log "Preserving dvrescue artifacts for inspection: json=$json_file log=$dv_log"
+  fi
 
   if (( had_lines == 0 )); then
     echo "[WARN] No per-frame RDT metadata found for subtitles for $in" >&2
+    debug_log "Frame parse summary (source=$frame_source): rows=$raw_rows, valid=$valid_rows, skipped=$skipped_rows, dialogue lines=$had_lines"
+    log_file_excerpt "dvrescue log snippet" "$dv_log"
+    log_file_excerpt "dvrescue JSON snippet" "$json_file"
     return 2
   fi
+
+  debug_log "Frame parse summary (source=$frame_source): rows=$raw_rows, valid=$valid_rows, skipped=$skipped_rows, dialogue lines=$had_lines"
 
   return 0
 }
@@ -779,7 +851,10 @@ process_file() {
   # Otherwise: full burn-in + subtitle generation
 
   local cmdfile
-  cmdfile="$(mktemp "${TMPDIR}/dvts-XXXXXX.cmd")"
+  if ! cmdfile="$(make_temp_file dvts .cmd)"; then
+    echo "[ERROR] Unable to allocate temporary timestamp command file" >&2
+    return 1
+  fi
   local ts_status=0
   if ! make_timestamp_cmd "$in" "$cmdfile"; then
     ts_status=$?
