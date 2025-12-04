@@ -38,6 +38,7 @@ struct ContentView: View {
     @State private var missingMetaMode: MissingMetaMode = .skipBurninConvert
     @State private var availableFonts: [SubtitleFontOption] = []
     @State private var selectedFontPath: String?
+    @State private var debugMode: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -50,12 +51,14 @@ struct ContentView: View {
                 Text("Input:")
                 TextField("File or folder path", text: $inputPath)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .help("Enter a single DV file or a folder of DV files to process.")
 
                 Button("Choose…") {
                     chooseInput()
                 }
+                .help("Browse for a DV file or folder.")
             }
-
+            
             // Mode: single vs batch
             HStack {
                 Text("Mode:")
@@ -65,8 +68,9 @@ struct ContentView: View {
                 }
                 .pickerStyle(SegmentedPickerStyle())
                 .frame(width: 240)
+                .help("Choose whether to process one file or every DV file in a folder.")
             }
-
+            
             // Layout: stacked vs single bar
             HStack {
                 Text("Layout:")
@@ -76,8 +80,9 @@ struct ContentView: View {
                 }
                 .pickerStyle(SegmentedPickerStyle())
                 .frame(width: 320)
+                .help("Select how the burned-in date and time are arranged on screen.")
             }
-
+            
             // Format: mov vs mp4
             HStack {
                 Text("Format:")
@@ -87,24 +92,26 @@ struct ContentView: View {
                 }
                 .pickerStyle(SegmentedPickerStyle())
                 .frame(width: 320)
+                .help("Pick the container format for the output file.")
             }
-
+            
             // NEW: Output mode (burn-in vs convert only)
-            HStack {
-                Text("Output:")
-                Picker("", selection: $burnMode) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Output mode:")
+                Picker("Burn-in output mode", selection: $burnMode) {
                     Text("Burn in metadata").tag(BurnMode.burnin)
                     Text("Convert only (no burn-in)").tag(BurnMode.passthrough)
                     Text("Embed subtitle track (soft subs)").tag(BurnMode.subtitleTrack)
                 }
                 .pickerStyle(SegmentedPickerStyle())
-                .frame(width: 320)
+                .frame(maxWidth: .infinity)
+                .help("Choose between burning metadata into the image, keeping video unchanged, or adding a subtitle track.")
             }
-
+            
             // Subtitle font selector
             VStack(alignment: .leading, spacing: 4) {
                 Text("Subtitle font:")
-                Picker("Subtitle font", selection: Binding(
+                Picker("Subtitle font selection", selection: Binding(
                     get: { selectedFontPath ?? availableFonts.first?.path ?? "" },
                     set: { selectedFontPath = $0.isEmpty ? nil : $0 }
                 )) {
@@ -115,6 +122,8 @@ struct ContentView: View {
                 .pickerStyle(MenuPickerStyle())
                 .frame(maxWidth: 320)
                 .disabled(availableFonts.isEmpty)
+                .labelsHidden()
+                .help("Pick the font used for the burned-in or subtitle text.")
 
                 if availableFonts.isEmpty {
                     Text("No subtitle fonts found in app bundle or system.")
@@ -133,7 +142,12 @@ struct ContentView: View {
                 }
                 .pickerStyle(SegmentedPickerStyle())
                 .frame(width: 420)
+                .help("Pick what to do when a clip is missing DV metadata.")
             }
+
+            // Debug logging toggle to help capture more details
+            Toggle("Enable debug logging", isOn: $debugMode)
+                .help("Adds extra diagnostic output before and during processing to help troubleshoot failures.")
 
             // Run + dvrescue debug + Stop + Clear / Save buttons
             HStack {
@@ -141,10 +155,12 @@ struct ContentView: View {
                     logText = ""
                     fullLogText = ""
                 }
+                .help("Remove all log output from the window.")
 
                 Button("Save Log…") {
                     saveLogToFile()
                 }
+                .help("Save the full session log to a text file.")
 
                 Spacer()
 
@@ -152,16 +168,19 @@ struct ContentView: View {
                     runDVRescueDebug()
                 }
                 .disabled(isRunning)
+                .help("Run dvrescue to inspect metadata without creating output.")
 
                 Button("Stop") {
                     stopCurrentProcess()
                 }
                 .disabled(!isRunning || currentProcess == nil)
+                .help("Terminate the current process.")
 
                 Button(isRunning ? "Running…" : "Run Burn-In") {
                     runBurn()
                 }
                 .disabled(isRunning || inputPath.isEmpty)
+                .help("Start processing with the selected options.")
             }
 
 
@@ -176,6 +195,7 @@ struct ContentView: View {
                     .textSelection(.enabled)   // allow copy/paste
             }
             .border(Color.gray.opacity(0.4))
+            .help("Live output from dvrescue, ffmpeg, and script diagnostics.")
 
             // About & Licenses button
             HStack {
@@ -183,6 +203,7 @@ struct ContentView: View {
                 Button("About & Licenses") {
                     showingAbout = true
                 }
+                .help("View app version info and license details.")
             }
         }
         .padding()
@@ -382,6 +403,11 @@ struct ContentView: View {
         fullLogText = ""
         isRunning = true
 
+        // Capture a detailed snapshot of inputs when debug logging is enabled
+        if debugMode {
+            appendToLog(debugSnapshot(), capped: false)
+        }
+
         DispatchQueue.global(qos: .userInitiated).async {
             do {
                 let (process, pipe) = try self.makeProcess()
@@ -525,7 +551,7 @@ struct ContentView: View {
             "--dvrescue=\(dvrescueURL.path)",
             "--",
             inputPath
-        ]
+        ] + (debugMode ? ["--debug"] : [])
 
         var env = ProcessInfo.processInfo.environment
         env["TMPDIR"] = tempDir.path
@@ -612,5 +638,20 @@ struct ContentView: View {
             return match.displayName
         }
         return "UAV-OSD-Mono"
+    }
+
+    // MARK: - Debug helpers
+
+    /// Build a human-readable snapshot of the current settings to aid debugging.
+    private func debugSnapshot() -> String {
+        var lines: [String] = []
+        let fm = FileManager.default
+        lines.append("[DEBUG] Input path: \(inputPath)")
+        lines.append("[DEBUG] Input exists: \(fm.fileExists(atPath: inputPath) ? "yes" : "no")")
+        lines.append("[DEBUG] Mode: \(mode) | Layout: \(layout) | Format: \(format)")
+        lines.append("[DEBUG] Burn mode: \(burnMode.rawValue) | Missing metadata handling: \(missingMetaMode.rawValue)")
+        lines.append("[DEBUG] Font path: \(resolvedFontPath()) | Font name: \(resolvedFontName())")
+        lines.append("[DEBUG] Debug flag passed to script: on")
+        return lines.joined(separator: "\n") + "\n\n"
     }
 }
