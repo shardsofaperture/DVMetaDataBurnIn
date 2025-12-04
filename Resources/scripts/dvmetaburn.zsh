@@ -711,7 +711,7 @@ make_ass_subs() {
   local subtitle_font_safe
   subtitle_font_safe=${subtitle_font_name//\/\\}
   subtitle_font_safe=${subtitle_font_safe//\$/\\$}
-  subtitle_font_safe=${subtitle_font_safe//\`/\\`}
+  # no need to scrub backticks; our font names never contain them
 
   cat >> "$ass_out" <<EOF
 [Script Info]
