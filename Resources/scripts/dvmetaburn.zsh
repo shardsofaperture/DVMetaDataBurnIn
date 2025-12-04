@@ -91,6 +91,26 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# Normalize missing metadata handling to allow legacy / camelCase values
+case "$missing_meta" in
+  skipBurninConvert)
+    missing_meta="skip_burnin_convert"
+    ;;
+  skipFile)
+    missing_meta="skip_file"
+    ;;
+  error)
+    missing_meta="error"
+    ;;
+  skip_burnin_convert | skip_file)
+    # Already normalized
+    ;;
+  *)
+    echo "[WARN] Unknown missing-meta value '$missing_meta'; defaulting to 'error'" >&2
+    missing_meta="error"
+    ;;
+esac
+
 # Allow --debug to appear after the -- sentinel and positional arguments.
 # Some callers append the toggle after the input path, which would otherwise
 # look like an extra positional argument and fail the mode usage checks.
