@@ -29,6 +29,7 @@ fontfile=""
 fontname="UAV-OSD-Mono"
 ffmpeg_bin="ffmpeg"
 dvrescue_bin="dvrescue"
+artifact_root="${HOME}/Library/Logs/DVMeta"
 # Opt-in verbose logging for troubleshooting
 debug_mode=0
 
@@ -182,6 +183,33 @@ find_jq() {
 }
 
 jq_bin="$(find_jq)"
+
+# Track parse stats for manifest writing
+typeset -g last_parse_raw_rows=0
+typeset -g last_parse_valid_rows=0
+typeset -g last_parse_skipped_rows=0
+typeset -g last_parse_timeline_entries=0
+typeset -g last_parse_frame_source="unknown"
+typeset -g last_dvrescue_status=0
+
+prepare_artifact_dir() {
+  local input_path="$1"
+  local base_name ts dir_name
+
+  base_name="${input_path##*/}"
+  base_name="${base_name%.*}"
+  ts="$(date '+%Y%m%d_%H%M%S')"
+  dir_name="${artifact_root%/}/${base_name}_${ts}"
+
+  if ! mkdir -p "$dir_name"; then
+    echo "[ERROR] Unable to create artifact directory: $dir_name" >&2
+    return 1
+  fi
+
+  echo "[INFO] Artifact directory: $dir_name" >&2
+  debug_log "Artifacts will be stored in $dir_name"
+  echo "$dir_name"
+}
 
 # Lightweight helper for conditional debug output
 debug_log() {
@@ -358,6 +386,86 @@ log_file_excerpt() {
   fi
 }
 
+write_versions_file() {
+  local path="$1"
+
+  {
+    if command -v "$ffmpeg_bin" >/dev/null 2>&1; then
+      "$ffmpeg_bin" -version 2>/dev/null | head -n 1
+    else
+      echo "ffmpeg: unavailable"
+    fi
+
+    if command -v "$dvrescue_bin" >/dev/null 2>&1; then
+      "$dvrescue_bin" --version 2>/dev/null | head -n 1
+    else
+      echo "dvrescue: unavailable"
+    fi
+
+    if command -v "$jq_bin" >/dev/null 2>&1; then
+      "$jq_bin" --version 2>/dev/null
+    else
+      echo "jq: unavailable"
+    fi
+
+    echo "frame_source: $last_parse_frame_source"
+    echo "parse_stats: raw=${last_parse_raw_rows}, valid=${last_parse_valid_rows}, skipped=${last_parse_skipped_rows}, timeline=${last_parse_timeline_entries}"
+  } > "$path" 2>/dev/null || true
+
+  echo "[INFO] Versions file recorded at: $path" >&2
+}
+
+write_run_manifest() {
+  local manifest_path="$1"
+  local status_label="$2"
+  local input_path="$3"
+  local artifact_dir="$4"
+  local json_path="$5"
+  local log_path="$6"
+  local timeline_path="$7"
+  local sendcmd_path="$8"
+  local ass_path="$9"
+  local burn_output="${10}"
+  local subtitle_output="${11}"
+  local passthrough_output="${12}"
+  local versions_path="${13}"
+
+  cat > "$manifest_path" <<EOF
+{
+  "status": "$status_label",
+  "input": "$input_path",
+  "artifact_dir": "$artifact_dir",
+  "burn_mode": "$burn_mode",
+  "layout": "$layout",
+  "format": "$format",
+  "artifacts": {
+    "dvrescue_json": "$json_path",
+    "dvrescue_log": "$log_path",
+    "timeline_debug": "$timeline_path",
+    "sendcmd_file": "$sendcmd_path",
+    "ass_file": "$ass_path",
+    "versions_file": "$versions_path",
+    "run_manifest": "$manifest_path"
+  },
+  "outputs": {
+    "burnin": "$burn_output",
+    "subtitle": "$subtitle_output",
+    "passthrough": "$passthrough_output"
+  },
+  "parse": {
+    "frame_source": "$last_parse_frame_source",
+    "raw_rows": $last_parse_raw_rows,
+    "valid_rows": $last_parse_valid_rows,
+    "skipped_rows": $last_parse_skipped_rows,
+    "timeline_entries": $last_parse_timeline_entries,
+    "dvrescue_status": $last_dvrescue_status
+  }
+}
+EOF
+
+  echo "[INFO] Run manifest recorded at: $manifest_path" >&2
+}
+
 ########################################################
 # Helper: locate a font file
 ########################################################
@@ -463,31 +571,26 @@ seconds_to_ass_time() {
 make_timestamp_cmd() {
   local in="$1"
   local cmdfile="$2"
+  local json_file="$3"
+  local dv_log="$4"
+  local timeline_debug="$5"
 
-  local json_file dv_log dv_status=0
-  if ! json_file="$(make_temp_file dvts .json)"; then
-    echo "[ERROR] Unable to allocate temporary JSON file" >&2
-    return 1
-  fi
+  local dv_status=0
 
-  if ! dv_log="$(make_temp_file dvrs .log)"; then
-    echo "[ERROR] Unable to allocate temporary dvrescue log file" >&2
-    rm -f "$json_file"
-    return 1
-  fi
+  : > "$cmdfile"
+  : > "$timeline_debug"
 
-  debug_log "Extracting timestamp timeline via dvrescue -> $json_file (log: $dv_log)"
-  debug_log "Command: $dvrescue_bin \"$in\" -json $json_file"
-
-  debug_log "Extracting timestamp timeline via dvrescue -> $json_file (log: $dv_log)"
-  debug_log "Command: $dvrescue_bin \"$in\" -json $json_file"
-
-  if ! "$dvrescue_bin" "$in" -json "$json_file" >"$dv_log" 2>&1; then
-    dv_status=$?
+  if [[ -s "$json_file" ]]; then
+    debug_log "Reusing existing dvrescue JSON: $json_file"
+  else
+    debug_log "Extracting timestamp timeline via dvrescue -> $json_file (log: $dv_log)"
+    debug_log "Command: $dvrescue_bin \"$in\" -json $json_file"
+    if ! "$dvrescue_bin" "$in" -json "$json_file" >"$dv_log" 2>&1; then
+      dv_status=$?
+    fi
   fi
 
   local frame_source="json"
-  : > "$cmdfile"
 
   if [[ ! -s "$json_file" ]]; then
     if [[ -s "$dv_log" ]] && grep -q "<dvrescue" "$dv_log"; then
@@ -504,20 +607,23 @@ make_timestamp_cmd() {
           echo "[DEBUG] (no dvrescue stdout/stderr captured)" >&2
         fi
       fi
-      rm -f "$json_file"
-      rm -f "$dv_log"
       return 2
     fi
   fi
 
+  last_dvrescue_status=$dv_status
+  last_parse_frame_source="$frame_source"
+
   debug_log "dvrescue -json exit status: $dv_status"
   debug_log "dvrescue JSON size: $(stat -f %z "$json_file" 2>/dev/null || stat -c %s "$json_file" 2>/dev/null) bytes (source=$frame_source)"
-  [[ "$frame_source" == "json" ]] && rm -f "$dv_log"
 
   local -F prev_pts=-1 prev_mono=0 offset=0 last_delta=0
   local prev_dt=""
   local -i had_lines=0
   local -i raw_rows=0 valid_rows=0 skipped_rows=0
+  local -i frame_index=0
+
+  echo $'frame_index\tmono\tdt_key\tsegment_change' >> "$timeline_debug"
 
   while IFS=$'\t' read -r raw_pts raw_rdt; do
     (( raw_rows++ ))
@@ -590,12 +696,17 @@ make_timestamp_cmd() {
     esc_time="${esc_time//:/\\\\:}"
     local dt_key="${date_part} ${time_part}"
 
+    local -i segment_change=0
     if [[ "$dt_key" != "$prev_dt" ]]; then
       printf "%0.6f drawtext@dvdate reinit text='%s';\n" "$mono" "$esc_date" >> "$cmdfile"
       printf "%0.6f drawtext@dvtime reinit text='%s';\n" "$mono" "$esc_time" >> "$cmdfile"
       prev_dt="$dt_key"
       (( had_lines++ ))
+      segment_change=1
     fi
+
+    printf "%d\t%0.6f\t%s\t%d\n" "$frame_index" "$mono" "$dt_key" "$segment_change" >> "$timeline_debug"
+    (( frame_index++ ))
 
     prev_pts=$pts_sec
     prev_mono=$mono
@@ -617,13 +728,6 @@ make_timestamp_cmd() {
     fi
   )
 
-  if (( debug_mode == 0 )); then
-    rm -f "$json_file"
-    rm -f "$dv_log"
-  else
-    debug_log "Preserving dvrescue artifacts for inspection: json=$json_file log=$dv_log"
-  fi
-
   if (( had_lines < 2 )); then
     echo "[WARN] Insufficient per-frame RDT metadata found for $in (timeline entries=$had_lines)" >&2
     debug_log "Frame parse summary (source=$frame_source): rows=$raw_rows, valid=$valid_rows, skipped=$skipped_rows, timeline entries=$had_lines"
@@ -633,6 +737,11 @@ make_timestamp_cmd() {
   fi
 
   debug_log "Frame parse summary (source=$frame_source): rows=$raw_rows, valid=$valid_rows, skipped=$skipped_rows, timeline entries=$had_lines"
+
+  last_parse_raw_rows=$raw_rows
+  last_parse_valid_rows=$valid_rows
+  last_parse_skipped_rows=$skipped_rows
+  last_parse_timeline_entries=$had_lines
 
   return 0
 }
@@ -645,27 +754,20 @@ make_ass_subs() {
   local in="$1"
   local layout="$2"
   local ass_out="$3"
+  local json_file="$4"
+  local dv_log="$5"
+  local timeline_debug="$6"
 
-  local json_file dv_log dv_status=0
-  if ! json_file="$(make_temp_file dvts .json)"; then
-    echo "[ERROR] Unable to allocate temporary JSON file" >&2
-    return 1
-  fi
+  local dv_status=0
 
-  if ! dv_log="$(make_temp_file dvrs .log)"; then
-    echo "[ERROR] Unable to allocate temporary dvrescue log file" >&2
-    rm -f "$json_file"
-    return 1
-  fi
-
-  debug_log "Extracting subtitle timeline via dvrescue -> $json_file (log: $dv_log)"
-  debug_log "Command: $dvrescue_bin \"$in\" -json $json_file"
-
-  debug_log "Extracting subtitle timeline via dvrescue -> $json_file (log: $dv_log)"
-  debug_log "Command: $dvrescue_bin \"$in\" -json $json_file"
-
-  if ! "$dvrescue_bin" "$in" -json "$json_file" >"$dv_log" 2>&1; then
-    dv_status=$?
+  if [[ -s "$json_file" ]]; then
+    debug_log "Reusing existing dvrescue JSON: $json_file"
+  else
+    debug_log "Extracting subtitle timeline via dvrescue -> $json_file (log: $dv_log)"
+    debug_log "Command: $dvrescue_bin \"$in\" -json $json_file"
+    if ! "$dvrescue_bin" "$in" -json "$json_file" >"$dv_log" 2>&1; then
+      dv_status=$?
+    fi
   fi
 
   local frame_source="json"
@@ -685,17 +787,19 @@ make_ass_subs() {
           echo "[DEBUG] (no dvrescue stdout/stderr captured)" >&2
         fi
       fi
-      rm -f "$json_file"
-      rm -f "$dv_log"
       return 1
     fi
   fi
 
   debug_log "dvrescue -json exit status: $dv_status"
   debug_log "dvrescue JSON size: $(stat -f %z "$json_file" 2>/dev/null || stat -c %s "$json_file" 2>/dev/null) bytes (source=$frame_source)"
-  [[ "$frame_source" == "json" ]] && rm -f "$dv_log"
+
+  last_dvrescue_status=$dv_status
+  last_parse_frame_source="$frame_source"
 
   : > "$ass_out"
+  : > "$timeline_debug"
+  echo $'frame_index\tmono\tdt_key\tsegment_change' >> "$timeline_debug"
 
   # Prevent command substitution or other expansions when injecting the user-selected
   # font name into the ASS header.
@@ -727,6 +831,7 @@ EOF
   local prev_dt="" prev_date="" prev_time=""
   local -i had_lines=0
   local -i raw_rows=0 valid_rows=0 skipped_rows=0
+  local -i frame_index=0
 
   write_dialog() {
     local start_sec="$1"
@@ -818,6 +923,7 @@ EOF
 
     time_part="${time_part%%.*}"
     local dt_key="${date_part} ${time_part}"
+    local -i segment_change=0
 
     if [[ "$dt_key" != "$prev_dt" ]]; then
       if (( prev_mono >= 0 )); then
@@ -828,9 +934,12 @@ EOF
       prev_date="$date_part"
       prev_time="$time_part"
       prev_mono="$mono"
+      segment_change=1
     fi
 
     prev_pts=$pts_sec
+    printf "%d\t%0.6f\t%s\t%d\n" "$frame_index" "$mono" "$dt_key" "$segment_change" >> "$timeline_debug"
+    (( frame_index++ ))
   done < <(
     if [[ "$frame_source" == "json" ]]; then
       "$jq_bin" -r '
@@ -860,13 +969,6 @@ EOF
     ((had_lines++))
   fi
 
-  if (( debug_mode == 0 )); then
-    rm -f "$json_file"
-    rm -f "$dv_log"
-  else
-    debug_log "Preserving dvrescue artifacts for inspection: json=$json_file log=$dv_log"
-  fi
-
   if (( had_lines == 0 )); then
     echo "[WARN] No per-frame RDT metadata found for subtitles for $in" >&2
     debug_log "Frame parse summary (source=$frame_source): rows=$raw_rows, valid=$valid_rows, skipped=$skipped_rows, dialogue lines=$had_lines"
@@ -876,6 +978,11 @@ EOF
   fi
 
   debug_log "Frame parse summary (source=$frame_source): rows=$raw_rows, valid=$valid_rows, skipped=$skipped_rows, dialogue lines=$had_lines"
+
+  last_parse_raw_rows=$raw_rows
+  last_parse_valid_rows=$valid_rows
+  last_parse_skipped_rows=$skipped_rows
+  last_parse_timeline_entries=$had_lines
 
   return 0
 }
@@ -896,6 +1003,33 @@ process_file() {
 
   local base="${in%.*}"
   local out_ext="$format"
+  local artifact_dir dvrescue_json dvrescue_log cmdfile timeline_debug ass_artifact run_manifest versions_file
+  local burn_output="" subtitle_output="" passthrough_output=""
+  local status=0 manifest_status="pending"
+
+  if ! artifact_dir="$(prepare_artifact_dir "$in")"; then
+    return 1
+  fi
+
+  dvrescue_json="${artifact_dir}/dvrescue.json"
+  dvrescue_log="${artifact_dir}/dvrescue.log"
+  cmdfile="${artifact_dir}/timestamp.cmd"
+  timeline_debug="${artifact_dir}/timeline.debug.tsv"
+  ass_artifact="${artifact_dir}/timestamps.ass"
+  run_manifest="${artifact_dir}/run_manifest.json"
+  versions_file="${artifact_dir}/versions.txt"
+
+  : > "$dvrescue_json"
+  : > "$dvrescue_log"
+  : > "$cmdfile"
+  : > "$timeline_debug"
+  : > "$ass_artifact"
+
+  echo "[INFO] dvrescue JSON path: $dvrescue_json" >&2
+  echo "[INFO] dvrescue log path: $dvrescue_log" >&2
+  echo "[INFO] sendcmd path: $cmdfile" >&2
+  echo "[INFO] ASS output path: $ass_artifact" >&2
+  echo "[INFO] timeline debug path: $timeline_debug" >&2
 
   local -a codec_args
   case "$format" in
@@ -919,7 +1053,12 @@ process_file() {
     "$ffmpeg_bin" -y -i "$in" \
       "${codec_args[@]}" \
       "$out_passthrough"
-    return $?
+    status=$?
+    manifest_status=$([[ $status -eq 0 ]] && echo "success" || echo "error")
+    passthrough_output="$out_passthrough"
+    write_versions_file "$versions_file"
+    write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_json" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+    return $status
   fi
 
   # Locate font early for both burn-in and subtitle modes
@@ -940,7 +1079,7 @@ process_file() {
   if [[ "$burn_mode" == "subtitleTrack" || "$burn_mode" == "subtitle_track" || "$burn_mode" == "subtitle" ]]; then
     local ass_out="${base}_dvmeta_${layout}.ass"
     local sub_status=0
-    if ! make_ass_subs "$in" "$layout" "$ass_out"; then
+    if ! make_ass_subs "$in" "$layout" "$ass_artifact" "$dvrescue_json" "$dvrescue_log" "$timeline_debug"; then
       sub_status=$?
       if (( sub_status == 2 )); then
         case "$missing_meta" in
@@ -950,10 +1089,18 @@ process_file() {
             "$ffmpeg_bin" -y -i "$in" \
               "${codec_args[@]}" \
               "$out_passthrough"
-            return $?
+            status=$?
+            manifest_status=$([[ $status -eq 0 ]] && echo "success" || echo "error")
+            passthrough_output="$out_passthrough"
+            write_versions_file "$versions_file"
+            write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_json" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+            return $status
             ;;
           skip_file)
             echo "[WARN] Missing timestamp metadata for $in; skipping file." >&2
+            manifest_status="skipped"
+            write_versions_file "$versions_file"
+            write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_json" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
             return 0
             ;;
           *)
@@ -962,6 +1109,8 @@ process_file() {
       fi
 
       echo "[ERROR] Failed to build subtitles for $in" >&2
+      write_versions_file "$versions_file"
+      write_run_manifest "$run_manifest" "error" "$in" "$artifact_dir" "$dvrescue_json" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
       return 1
     fi
 
@@ -970,24 +1119,23 @@ process_file() {
 
     echo "[INFO] Adding DV metadata subtitle track to: $out_subbed"
     debug_log "Merging subtitle track with codec: $subtitle_codec"
-    "$ffmpeg_bin" -y -i "$in" -i "$ass_out" \
+    "$ffmpeg_bin" -y -i "$in" -i "$ass_artifact" \
       -map 0 -map 1 \
       -c:s "$subtitle_codec" \
       "${codec_args[@]}" \
       "$out_subbed"
-
-    return $?
+    cp "$ass_artifact" "$ass_out"
+    status=$?
+    manifest_status=$([[ $status -eq 0 ]] && echo "success" || echo "error")
+    subtitle_output="$out_subbed"
+    write_versions_file "$versions_file"
+    write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_json" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+    return $status
   fi
 
   # Otherwise: full burn-in + subtitle generation
-
-  local cmdfile
-  if ! cmdfile="$(make_temp_file dvts .cmd)"; then
-    echo "[ERROR] Unable to allocate temporary timestamp command file" >&2
-    return 1
-  fi
   local ts_status=0
-  if ! make_timestamp_cmd "$in" "$cmdfile"; then
+  if ! make_timestamp_cmd "$in" "$cmdfile" "$dvrescue_json" "$dvrescue_log" "$timeline_debug"; then
     ts_status=$?
 
     # Exit code 2 = missing metadata
@@ -999,12 +1147,18 @@ process_file() {
           "$ffmpeg_bin" -y -i "$in" \
             "${codec_args[@]}" \
             "$out_passthrough"
-          rm -f "$cmdfile"
-          return $?
+          status=$?
+          manifest_status=$([[ $status -eq 0 ]] && echo "success" || echo "error")
+          passthrough_output="$out_passthrough"
+          write_versions_file "$versions_file"
+          write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_json" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+          return $status
           ;;
         skip_file)
           echo "[WARN] Missing timestamp metadata for $in; skipping file." >&2
-          rm -f "$cmdfile"
+          manifest_status="skipped"
+          write_versions_file "$versions_file"
+          write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_json" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
           return 0
           ;;
         *)
@@ -1013,7 +1167,8 @@ process_file() {
     fi
 
     echo "[ERROR] Failed to build timestamp command file for $in" >&2
-    rm -f "$cmdfile"
+    write_versions_file "$versions_file"
+    write_run_manifest "$run_manifest" "error" "$in" "$artifact_dir" "$dvrescue_json" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
     return 1
   fi
 
@@ -1029,19 +1184,26 @@ process_file() {
         "$ffmpeg_bin" -y -i "$in" \
           "${codec_args[@]}" \
           "$out_passthrough"
-        rm -f "$cmdfile"
-        return $?
+        status=$?
+        manifest_status=$([[ $status -eq 0 ]] && echo "success" || echo "error")
+        passthrough_output="$out_passthrough"
+        write_versions_file "$versions_file"
+        write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_json" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+        return $status
         ;;
       skip_file)
         echo "[WARN] Skipping $in due to insufficient timestamp metadata." >&2
-        rm -f "$cmdfile"
+        manifest_status="skipped"
+        write_versions_file "$versions_file"
+        write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_json" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
         return 0
         ;;
       *)
         ;;
     esac
 
-    rm -f "$cmdfile"
+    write_versions_file "$versions_file"
+    write_run_manifest "$run_manifest" "error" "$in" "$artifact_dir" "$dvrescue_json" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
     return 1
   fi
 
@@ -1059,7 +1221,6 @@ drawtext@dvtime=fontfile='${font}':text='':fontcolor=white:fontsize=24:x=w-tw-40
       ;;
     *)
       echo "Unknown layout: $layout" >&2
-      rm -f "$cmdfile"
       return 1
       ;;
   esac
@@ -1073,10 +1234,13 @@ drawtext@dvtime=fontfile='${font}':text='':fontcolor=white:fontsize=24:x=w-tw-40
     "${codec_args[@]}" \
     "$out"
 
-  local ec=$?
-  rm -f "$cmdfile"
-  echo "ffmpeg exit code: $ec"
-  return $ec
+  status=$?
+  manifest_status=$([[ $status -eq 0 ]] && echo "success" || echo "error")
+  burn_output="$out"
+  echo "ffmpeg exit code: $status"
+  write_versions_file "$versions_file"
+  write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_json" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+  return $status
 }
 
 ########################################################
