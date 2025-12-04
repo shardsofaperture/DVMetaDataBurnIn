@@ -91,6 +91,27 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# Allow --debug to appear after the -- sentinel and positional arguments.
+# Some callers append the toggle after the input path, which would otherwise
+# look like an extra positional argument and fail the mode usage checks.
+if [[ $# -gt 0 ]]; then
+  positional=()
+  while [[ $# -gt 0 ]]; do
+    if [[ "$1" == "--debug" ]]; then
+      debug_mode=1
+    else
+      positional+=("$1")
+    fi
+    shift
+  done
+
+  if (( ${#positional[@]} )); then
+    set -- "${positional[@]}"
+  else
+    set --
+  fi
+fi
+
 ########################################################
 # Helper: locate jq (bundled or system)
 ########################################################
