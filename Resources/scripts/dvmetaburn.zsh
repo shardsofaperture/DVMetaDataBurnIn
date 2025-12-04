@@ -16,6 +16,23 @@ TMPPREFIX="${TMPDIR}/zsh-"
 mkdir -p "$TMPDIR"
 export TMPDIR TMPPREFIX
 
+fatal() {
+  echo "[ERROR] $*" >&2
+  exit 1
+}
+
+warn() {
+  echo "[WARN] $*" >&2
+}
+
+info() {
+  echo "[INFO] $*" >&2
+}
+
+debug() {
+  (( debug_mode == 1 )) && echo "[DEBUG] $*" >&2
+}
+
 ########################################################
 # Defaults / configuration
 ########################################################
@@ -45,57 +62,19 @@ typeset -gr timeline_header=$'frame_index\tt_sec\tdate_part\ttime_part\tdt_key\t
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --mode=*)
-      mode="${1#*=}"
-      shift
-      ;;
-    --layout=*)
-      layout="${1#*=}"
-      shift
-      ;;
-    --format=*)
-      format="${1#*=}"
-      shift
-      ;;
-    --burn-mode=*)
-      burn_mode="${1#*=}"
-      shift
-      ;;
-    --missing-meta=*)
-      missing_meta="${1#*=}"
-      shift
-      ;;
-    --fontfile=*)
-      fontfile="${1#*=}"
-      shift
-      ;;
-    --fontname=*)
-      fontname="${1#*=}"
-      shift
-      ;;
-    --ffmpeg=*)
-      ffmpeg_bin="${1#*=}"
-      shift
-      ;;
-    --dvrescue=*)
-      dvrescue_bin="${1#*=}"
-      shift
-      ;;
-    --debug)
-      debug_mode=1
-      shift
-      ;;
-    --)
-      shift
-      break
-      ;;
-    -*)
-      echo "Unknown option: $1" >&2
-      exit 1
-      ;;
-    *)
-      break
-      ;;
+    --mode=*) mode="${1#*=}"; shift ;;
+    --layout=*) layout="${1#*=}"; shift ;;
+    --format=*) format="${1#*=}"; shift ;;
+    --burn-mode=*) burn_mode="${1#*=}"; shift ;;
+    --missing-meta=*) missing_meta="${1#*=}"; shift ;;
+    --fontfile=*) fontfile="${1#*=}"; shift ;;
+    --fontname=*) fontname="${1#*=}"; shift ;;
+    --ffmpeg=*) ffmpeg_bin="${1#*=}"; shift ;;
+    --dvrescue=*) dvrescue_bin="${1#*=}"; shift ;;
+    --debug) debug_mode=1; shift ;;
+    --) shift; break ;;
+    -*) fatal "Unknown option: $1" ;;
+    *) break ;;
   esac
 done
 
@@ -123,27 +102,6 @@ case "$missing_meta" in
     missing_meta="error"
     ;;
 esac
-
-# Allow --debug to appear after the -- sentinel and positional arguments.
-# Some callers append the toggle after the input path, which would otherwise
-# look like an extra positional argument and fail the mode usage checks.
-if [[ $# -gt 0 ]]; then
-  positional=()
-  while [[ $# -gt 0 ]]; do
-    if [[ "$1" == "--debug" ]]; then
-      debug_mode=1
-    else
-      positional+=("$1")
-    fi
-    shift
-  done
-
-  if (( ${#positional[@]} )); then
-    set -- "${positional[@]}"
-  else
-    set --
-  fi
-fi
 
 # Track parse stats for manifest writing
 typeset -g last_parse_raw_rows=0
@@ -296,129 +254,14 @@ build_sendcmd_from_rdt() {
 make_temp_file() {
   local prefix="${1:-dvmeta}"
   local ext="${2:-}"
-  local dir="${TMPDIR:-/tmp}"
-  local fallback_dir="/tmp"
+  local path
 
-  # Prefer absolute paths for core utilities in case PATH is restricted.
-  local mktemp_cmd awk_cmd df_cmd stat_cmd mv_cmd sed_cmd cut_cmd
-  mktemp_cmd=$(command -v mktemp 2>/dev/null)
-  [[ -n "$mktemp_cmd" && -x "$mktemp_cmd" ]] || mktemp_cmd=""
-  [[ -z "$mktemp_cmd" && -x /usr/bin/mktemp ]] && mktemp_cmd="/usr/bin/mktemp"
+  path=$(mktemp "${TMPDIR:-/tmp}/${prefix}.XXXXXX") || return 127
 
-  awk_cmd=$(command -v awk 2>/dev/null)
-  [[ -n "$awk_cmd" && -x "$awk_cmd" ]] || awk_cmd=""
-  [[ -z "$awk_cmd" && -x /usr/bin/awk ]] && awk_cmd="/usr/bin/awk"
-
-  df_cmd=$(command -v df 2>/dev/null)
-  [[ -n "$df_cmd" && -x "$df_cmd" ]] || df_cmd=""
-  [[ -z "$df_cmd" && -x /bin/df ]] && df_cmd="/bin/df"
-
-  stat_cmd=$(command -v stat 2>/dev/null)
-  [[ -n "$stat_cmd" && -x "$stat_cmd" ]] || stat_cmd=""
-  [[ -z "$stat_cmd" && -x /usr/bin/stat ]] && stat_cmd="/usr/bin/stat"
-
-  mv_cmd=$(command -v mv 2>/dev/null)
-  [[ -n "$mv_cmd" && -x "$mv_cmd" ]] || mv_cmd=""
-  [[ -z "$mv_cmd" && -x /bin/mv ]] && mv_cmd="/bin/mv"
-  [[ -z "$mv_cmd" && -x /usr/bin/mv ]] && mv_cmd="/usr/bin/mv"
-
-  sed_cmd=$(command -v sed 2>/dev/null)
-  [[ -n "$sed_cmd" && -x "$sed_cmd" ]] || sed_cmd=""
-  [[ -z "$sed_cmd" && -x /bin/sed ]] && sed_cmd="/bin/sed"
-  [[ -z "$sed_cmd" && -x /usr/bin/sed ]] && sed_cmd="/usr/bin/sed"
-
-  cut_cmd=$(command -v cut 2>/dev/null)
-  [[ -n "$cut_cmd" && -x "$cut_cmd" ]] || cut_cmd=""
-  [[ -z "$cut_cmd" && -x /bin/cut ]] && cut_cmd="/bin/cut"
-  [[ -z "$cut_cmd" && -x /usr/bin/cut ]] && cut_cmd="/usr/bin/cut"
-
-  if [[ -z "$mktemp_cmd" ]]; then
-    echo "[ERROR] mktemp not found in PATH or standard locations; cannot allocate temp files." >&2
-    return 127
-  fi
-
-  if [[ -z "$mv_cmd" ]]; then
-    echo "[ERROR] mv not found in PATH or standard locations; cannot finalize temp files." >&2
-    return 127
-  fi
-
-  # macOS/BSD mktemp requires the XXXXXX pattern at the end of the template,
-  # so build the base path without the caller-provided extension and add the
-  # extension after the temporary file is created. This keeps GNU mktemp happy
-  # as well while avoiding "File exists" errors on macOS when a suffix follows
-  # the X characters.
-  local template_base="${dir%/}/${prefix}.XXXXXXXX"
-  local path mktemp_status mktemp_output fallback_output fallback_status
-
-  mktemp_output="$("$mktemp_cmd" "$template_base" 2>&1)"
-  mktemp_status=$?
-
-  if (( mktemp_status != 0 )); then
-    local dir_perms dir_free
-    if [[ -n "$stat_cmd" ]]; then
-      dir_perms=$("$stat_cmd" -f '%Sp' "$dir" 2>/dev/null || "$stat_cmd" -c '%A' "$dir" 2>/dev/null || echo 'unknown')
-    else
-      dir_perms="unknown"
-    fi
-
-    if [[ -n "$df_cmd" && -n "$awk_cmd" ]]; then
-      dir_free=$("$df_cmd" -Pk "$dir" 2>/dev/null | "$awk_cmd" 'NR==2{print $4"K"}' || true)
-    elif [[ -n "$df_cmd" && -n "$sed_cmd" && -n "$cut_cmd" ]]; then
-      dir_free=$("$df_cmd" -Pk "$dir" 2>/dev/null | "$sed_cmd" -n '2p' | "$cut_cmd" -d' ' -f4 2>/dev/null || true)
-      [[ -n "$dir_free" ]] && dir_free+="K"
-    elif [[ -n "$df_cmd" ]]; then
-      dir_free="unknown"
-    else
-      dir_free="unknown"
-    fi
-
-    echo "[ERROR] Unable to create temp file in ${dir}: ${mktemp_output:-unknown error}" >&2
-    echo "[ERROR] Temp dir info -> path: ${dir}, perms: ${dir_perms}, free: ${dir_free:-unknown}" >&2
-
-    if [[ "$dir" != "$fallback_dir" ]]; then
-      local fallback_template="${fallback_dir%/}/${prefix}.XXXXXXXX"
-      fallback_output="$("$mktemp_cmd" "$fallback_template" 2>&1)"
-      fallback_status=$?
-
-      if (( fallback_status != 0 )); then
-        local fallback_perms fallback_free
-        if [[ -n "$stat_cmd" ]]; then
-          fallback_perms=$("$stat_cmd" -f '%Sp' "$fallback_dir" 2>/dev/null || "$stat_cmd" -c '%A' "$fallback_dir" 2>/dev/null || echo 'unknown')
-        else
-          fallback_perms="unknown"
-        fi
-
-        if [[ -n "$df_cmd" && -n "$awk_cmd" ]]; then
-          fallback_free=$("$df_cmd" -Pk "$fallback_dir" 2>/dev/null | "$awk_cmd" 'NR==2{print $4"K"}' || true)
-        elif [[ -n "$df_cmd" && -n "$sed_cmd" && -n "$cut_cmd" ]]; then
-          fallback_free=$("$df_cmd" -Pk "$fallback_dir" 2>/dev/null | "$sed_cmd" -n '2p' | "$cut_cmd" -d' ' -f4 2>/dev/null || true)
-          [[ -n "$fallback_free" ]] && fallback_free+="K"
-        elif [[ -n "$df_cmd" ]]; then
-          fallback_free="unknown"
-        else
-          fallback_free="unknown"
-        fi
-
-        echo "[ERROR] Fallback to ${fallback_dir} also failed: ${fallback_output:-unknown error}" >&2
-        echo "[ERROR] Temp dir info -> path: ${fallback_dir}, perms: ${fallback_perms}, free: ${fallback_free:-unknown}" >&2
-        return $mktemp_status
-      fi
-
-      echo "[WARN] Using fallback temp directory ${fallback_dir} after mktemp failure." >&2
-      path="$fallback_output"
-    else
-      return $mktemp_status
-    fi
-  else
-    path="$mktemp_output"
-  fi
-
-  # If the caller asked for an extension, rename the mktemp output to add it
-  # while keeping the unique random portion provided by mktemp.
   if [[ -n "$ext" ]]; then
-    local path_with_ext="${path}${ext}"
-    "$mv_cmd" "$path" "$path_with_ext"
-    path="$path_with_ext"
+    local new_path="${path}${ext}"
+    mv "$path" "$new_path"
+    path="$new_path"
   fi
 
   echo "$path"
@@ -546,6 +389,32 @@ EOF
   echo "[INFO] Run manifest recorded at: $manifest_path" >&2
 }
 
+finish_run() {
+  local exit_code="$1"
+  local status_label="$2"
+  local input_path="$3"
+  local artifact_dir="$4"
+  local dvrescue_xml="$5"
+  local dvrescue_log="$6"
+  local timeline_path="$7"
+  local cmd_path="$8"
+  local ass_path="$9"
+  local burn_output="${10}"
+  local subtitle_output="${11}"
+  local passthrough_output="${12}"
+  local versions_file="${13}"
+  local manifest_path="${14}"
+
+  write_versions_file "$versions_file"
+  write_run_manifest "$manifest_path" "$status_label" "$input_path" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_path" "$cmd_path" "$ass_path" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+
+  if [[ "$status_label" == "success" ]]; then
+    emit_debug_snapshots "$timeline_path" "$cmd_path"
+  fi
+
+  return "$exit_code"
+}
+
 ########################################################
 # Helper: locate a font file
 ########################################################
@@ -641,6 +510,48 @@ seconds_to_ass_time() {
   (( fsec = s - h*3600 - m*60 ))
 
   printf "%d:%02d:%05.2f" "$h" "$m" "$fsec"
+}
+
+########################################################
+# Helper: segment generator shared by sendcmd + ASS
+########################################################
+
+generate_segments_from_tsv() {
+  local rdt_tsv="$1"
+  local fps="$2"
+
+  local prev_dt="" prev_date="" prev_time=""
+  local prev_start=""
+  local frame_step
+  frame_step=$(awk -v fps="$fps" 'BEGIN{printf "%.6f", 1/fps}')
+
+  while read -r frame_idx date_part time_part; do
+    local dt_key="${date_part} ${time_part}"
+    local start_sec
+    start_sec=$(awk -v f="$frame_idx" -v fps="$fps" 'BEGIN{printf "%.6f", f/fps}')
+
+    if [[ -z "$prev_dt" ]]; then
+      prev_dt="$dt_key"
+      prev_date="$date_part"
+      prev_time="$time_part"
+      prev_start="$start_sec"
+      continue
+    fi
+
+    if [[ "$dt_key" != "$prev_dt" ]]; then
+      printf "%s\t%s\t%s\t%s\n" "$prev_start" "$start_sec" "$prev_date" "$prev_time"
+      prev_dt="$dt_key"
+      prev_date="$date_part"
+      prev_time="$time_part"
+      prev_start="$start_sec"
+    fi
+  done < "$rdt_tsv"
+
+  if [[ -n "$prev_dt" && -n "$prev_start" ]]; then
+    local end_sec
+    end_sec=$(awk -v start="$prev_start" -v step="$frame_step" 'BEGIN{printf "%.6f", start+step}')
+    printf "%s\t%s\t%s\t%s\n" "$prev_start" "$end_sec" "$prev_date" "$prev_time"
+  fi
 }
 
 ########################################################
@@ -741,11 +652,17 @@ make_timestamp_cmd() {
     return 2
   fi
 
-  cat "$rdt_tmp" \
-    | build_sendcmd_from_rdt "$fps" \
-    | sed 's/:/\\\\:/g' \
-    | awk '{ t = $1; $1 = ""; sub(/^ /, "", $0); printf "%.6f drawtext@dvmeta reinit text='\''%s'\'';\n", t, $0 }' \
-    > "$cmdfile"
+  local segments_tmp
+  segments_tmp=$(make_temp_file dvmeta_segments ".tsv") || return 1
+  generate_segments_from_tsv "$rdt_tmp" "$fps" > "$segments_tmp"
+
+  : > "$cmdfile"
+  while IFS=$'\t' read -r start_sec end_sec date_part time_part; do
+    local ts text
+    ts="${date_part} ${time_part}"
+    text=$(printf "%s" "$ts" | sed 's/:/\\\\:/g')
+    printf "%0.6f drawtext@dvmeta reinit text='\''%s'\'';\n" "$start_sec" "$text" >> "$cmdfile"
+  done < "$segments_tmp"
 
   local -i cmd_lines=0
   cmd_lines=$( (grep -c 'drawtext@dvmeta' "$cmdfile" 2>/dev/null) || echo 0 )
@@ -828,41 +745,17 @@ EOF
     return 2
   fi
 
+  local segments_tmp
+  segments_tmp=$(make_temp_file dvmeta_segments ".tsv") || return 1
+  generate_segments_from_tsv "$rdt_tmp" "$fps" > "$segments_tmp"
+
   local -i raw_rows=0 valid_rows=0 skipped_rows=0
   local -i unique_dt_keys=0 segment_count=0 dialogue_count=0
   local -F frame_step
   frame_step=$((1.0 / fps))
 
-  local prev_dt="" prev_date="" prev_time="" prev_mono=0
+  local prev_dt=""
   typeset -A dt_keys_seen=()
-
-  write_dialog() {
-    local start_sec="$1"
-    local end_sec="$2"
-    local date_part="$3"
-    local time_part="$4"
-    local layout="$5"
-
-    local start_str end_str
-    start_str="$(seconds_to_ass_time "$start_sec")"
-    end_str="$(seconds_to_ass_time "$end_sec")"
-
-    local text
-    case "$layout" in
-      stacked)
-        text="${date_part}\\N${time_part}"
-        ;;
-      single)
-        text="${date_part}  ${time_part}"
-        ;;
-      *)
-        text="${date_part}\\N${time_part}"
-        ;;
-    esac
-
-    printf "Dialogue: 0,%s,%s,DVOSD,,0,0,20,,%s\n" \
-      "$start_str" "$end_str" "$text" >> "$ass_out"
-  }
 
   while read -r frame_idx date_part time_part; do
     (( raw_rows++ ))
@@ -881,21 +774,12 @@ EOF
     local -i segment_change=0
     if [[ "$dt_key" != "$prev_dt" ]]; then
       segment_change=1
-      if [[ -n "$prev_dt" ]]; then
-        write_dialog "$prev_mono" "$t_sec" "$prev_date" "$prev_time" "$layout"
-        (( dialogue_count++ ))
-      fi
-
       prev_dt="$dt_key"
-      prev_date="$date_part"
-      prev_time="$time_part"
-      prev_mono=$t_sec
-
+      (( segment_count++ ))
       if [[ -z "${dt_keys_seen[$dt_key]:-}" ]]; then
         dt_keys_seen[$dt_key]=1
         (( unique_dt_keys++ ))
       fi
-      (( segment_count++ ))
     fi
 
     (( valid_rows++ ))
@@ -903,12 +787,21 @@ EOF
       "$frame_idx" "$t_sec" "$date_part" "$time_part" "$dt_key" "$segment_change" >> "$timeline_debug"
   done < "$rdt_tmp"
 
-  if [[ -n "$prev_dt" ]]; then
-    local -F end_sec
-    end_sec=$((prev_mono + frame_step))
-    write_dialog "$prev_mono" "$end_sec" "$prev_date" "$prev_time" "$layout"
+  while IFS=$'\t' read -r start_sec end_sec date_part time_part; do
+    local start_str end_str text
+    start_str="$(seconds_to_ass_time "$start_sec")"
+    end_str="$(seconds_to_ass_time "$end_sec")"
+
+    case "$layout" in
+      stacked) text="${date_part}\\N${time_part}" ;;
+      single) text="${date_part}  ${time_part}" ;;
+      *) text="${date_part}\\N${time_part}" ;;
+    esac
+
+    printf "Dialogue: 0,%s,%s,DVOSD,,0,0,20,,%s\n" \
+      "$start_str" "$end_str" "$text" >> "$ass_out"
     (( dialogue_count++ ))
-  fi
+  done < "$segments_tmp"
 
   last_parse_frame_source="xml"
   last_parse_raw_rows=$raw_rows
@@ -990,18 +883,16 @@ process_file() {
       codec_args=(-c:v mpeg4 -qscale:v 2 -c:a aac -b:a 192k)
       ;;
     *)
-      echo "Unknown format: $format" >&2
+      warn "Unknown format: $format"
       manifest_status="error"
-      write_versions_file "$versions_file"
-      write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+      finish_run 1 "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
       return 1
       ;;
   esac
 
   local fps
   if ! fps="$(detect_fps "$in")"; then
-    write_versions_file "$versions_file"
-    write_run_manifest "$run_manifest" "error" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+    finish_run 1 "error" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
     return 1
   fi
   debug_log "Detected FPS: $fps"
