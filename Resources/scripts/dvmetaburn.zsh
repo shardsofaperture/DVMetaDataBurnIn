@@ -202,9 +202,8 @@ extract_rdt_from_xml() {
 
   perl -0777 -ne '
     my $idx = 0;
-
-    while (/<frame\b([^>]*)>(.*?)<\/frame>/sg) {
-      my ($attrs, $body) = ($1, $2);
+    while (/<frame\b([^>]*?)(?:\/>|>(.*?)<\/frame>)/sg) {
+      my ($attrs, $body) = ($1, $2 // q{});
 
       my ($date, $time);
 
