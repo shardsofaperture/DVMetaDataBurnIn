@@ -24,6 +24,8 @@ fontfile=""
 fontname="UAV-OSD-Mono"
 ffmpeg_bin="ffmpeg"
 dvrescue_bin="dvrescue"
+# Opt-in verbose logging for troubleshooting
+debug_mode=0
 
 # Optional environment overrides
 : "${DVMETABURN_FONTFILE:=}"   # override font path
@@ -69,6 +71,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --dvrescue=*)
       dvrescue_bin="${1#*=}"
+      shift
+      ;;
+    --debug)
+      debug_mode=1
       shift
       ;;
     --)
@@ -125,6 +131,13 @@ find_jq() {
 }
 
 jq_bin="$(find_jq)"
+
+# Lightweight helper for conditional debug output
+debug_log() {
+  if (( debug_mode == 1 )); then
+    echo "[DEBUG] $*"
+  fi
+}
 
 ########################################################
 # Helper: locate a font file
@@ -192,6 +205,16 @@ find_font() {
 
 # Keep a global friendly font name for ASS style
 subtitle_font_name="$fontname"
+
+debug_log "Mode: $mode"
+debug_log "Layout: $layout"
+debug_log "Format: $format"
+debug_log "Burn mode: $burn_mode"
+debug_log "Missing meta handling: $missing_meta"
+debug_log "Requested font name: ${subtitle_font_name:-<auto>}"
+debug_log "ffmpeg path: $ffmpeg_bin"
+debug_log "dvrescue path: $dvrescue_bin"
+debug_log "jq path: $jq_bin"
 
 ########################################################
 # Helper: seconds (float) -> ASS time H:MM:SS.cc
@@ -527,6 +550,8 @@ process_file() {
     return 1
   fi
 
+  debug_log "Processing input file: $in"
+
   local base="${in%.*}"
   local out_ext="$format"
 
@@ -548,6 +573,7 @@ process_file() {
   if [[ "$burn_mode" == "passthrough" ]]; then
     local out_passthrough="${base}_conv.${out_ext}"
     echo "[INFO] Passthrough conversion (no burn-in) to: $out_passthrough"
+    debug_log "Running passthrough encode with args: ${codec_args[*]}"
     "$ffmpeg_bin" -y -i "$in" \
       "${codec_args[@]}" \
       "$out_passthrough"
@@ -560,6 +586,8 @@ process_file() {
     echo "[ERROR] Unable to locate a usable font. Provide --fontfile, set DVMETABURN_FONTFILE, or place a supported font in Resources/fonts/." >&2
     return 1
   fi
+
+  debug_log "Using font file: $font"
 
   if [[ -z "$subtitle_font_name" ]]; then
     subtitle_font_name="${font:t:r}"
@@ -599,6 +627,7 @@ process_file() {
     local subtitle_codec="mov_text"
 
     echo "[INFO] Adding DV metadata subtitle track to: $out_subbed"
+    debug_log "Merging subtitle track with codec: $subtitle_codec"
     "$ffmpeg_bin" -y -i "$in" -i "$ass_out" \
       -map 0 -map 1 \
       -c:s "$subtitle_codec" \
@@ -673,6 +702,7 @@ drawtext=fontfile='${font}':text='':fontcolor=white:fontsize=24:x=w-tw-40:y=h-30
   local out="${base}_dateburn.${out_ext}"
 
   echo "[INFO] Burning DV metadata into: $out"
+  debug_log "ffmpeg burn-in args: ${codec_args[*]}"
   "$ffmpeg_bin" -y -i "$in" \
     -vf "$vf" \
     "${codec_args[@]}" \
@@ -693,6 +723,7 @@ if [[ "$mode" == "single" ]]; then
     echo "Usage: $0 [--mode=single] [--layout=stacked|single] [--format=mov|mp4] [--burn-mode=burnin|passthrough|subtitleTrack] /path/to/clip.avi" >&2
     exit 1
   fi
+  debug_log "Running in single-file mode with target: $1"
   process_file "$1"
   exit $?
 fi
@@ -711,6 +742,7 @@ if [[ "$mode" == "batch" ]]; then
   fi
 
   echo "Batch mode: scanning $folder"
+  debug_log "Scanning batch folder for AVI/DV files"
   for f in "$folder"/*.{avi,AVI,dv,DV}; do
     [[ -f "$f" ]] || continue
     echo "Processing $f"
