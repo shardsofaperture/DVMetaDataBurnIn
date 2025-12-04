@@ -194,14 +194,22 @@ make_temp_file() {
   local fallback_dir="/tmp"
 
   # Prefer absolute paths for core utilities in case PATH is restricted.
-  local mktemp_cmd awk_cmd df_cmd stat_cmd
+  local mktemp_cmd awk_cmd df_cmd stat_cmd mv_cmd sed_cmd cut_cmd
   mktemp_cmd=$(command -v mktemp || { [[ -x /usr/bin/mktemp ]] && echo /usr/bin/mktemp; } || true)
   awk_cmd=$(command -v awk || { [[ -x /usr/bin/awk ]] && echo /usr/bin/awk; } || true)
   df_cmd=$(command -v df || { [[ -x /bin/df ]] && echo /bin/df; } || true)
   stat_cmd=$(command -v stat || { [[ -x /usr/bin/stat ]] && echo /usr/bin/stat; } || true)
+  mv_cmd=$(command -v mv || { [[ -x /bin/mv ]] && echo /bin/mv; } || { [[ -x /usr/bin/mv ]] && echo /usr/bin/mv; } || true)
+  sed_cmd=$(command -v sed || { [[ -x /bin/sed ]] && echo /bin/sed; } || { [[ -x /usr/bin/sed ]] && echo /usr/bin/sed; } || true)
+  cut_cmd=$(command -v cut || { [[ -x /bin/cut ]] && echo /bin/cut; } || { [[ -x /usr/bin/cut ]] && echo /usr/bin/cut; } || true)
 
   if [[ -z "$mktemp_cmd" ]]; then
     echo "[ERROR] mktemp not found in PATH or standard locations; cannot allocate temp files." >&2
+    return 127
+  fi
+
+  if [[ -z "$mv_cmd" ]]; then
+    echo "[ERROR] mv not found in PATH or standard locations; cannot finalize temp files." >&2
     return 127
   fi
 
@@ -227,7 +235,7 @@ make_temp_file() {
     if [[ -n "$df_cmd" && -n "$awk_cmd" ]]; then
       dir_free=$("$df_cmd" -Pk "$dir" 2>/dev/null | "$awk_cmd" 'NR==2{print $4"K"}' || true)
     elif [[ -n "$df_cmd" ]]; then
-      dir_free=$("$df_cmd" -Pk "$dir" 2>/dev/null | sed -n '2p' | cut -d' ' -f4 2>/dev/null || true)
+      dir_free=$("$df_cmd" -Pk "$dir" 2>/dev/null | ${sed_cmd:-sed} -n '2p' | ${cut_cmd:-cut} -d' ' -f4 2>/dev/null || true)
       [[ -n "$dir_free" ]] && dir_free+="K"
     else
       dir_free="unknown"
@@ -252,7 +260,7 @@ make_temp_file() {
         if [[ -n "$df_cmd" && -n "$awk_cmd" ]]; then
           fallback_free=$("$df_cmd" -Pk "$fallback_dir" 2>/dev/null | "$awk_cmd" 'NR==2{print $4"K"}' || true)
         elif [[ -n "$df_cmd" ]]; then
-          fallback_free=$("$df_cmd" -Pk "$fallback_dir" 2>/dev/null | sed -n '2p' | cut -d' ' -f4 2>/dev/null || true)
+          fallback_free=$("$df_cmd" -Pk "$fallback_dir" 2>/dev/null | ${sed_cmd:-sed} -n '2p' | ${cut_cmd:-cut} -d' ' -f4 2>/dev/null || true)
           [[ -n "$fallback_free" ]] && fallback_free+="K"
         else
           fallback_free="unknown"
@@ -276,7 +284,7 @@ make_temp_file() {
   # while keeping the unique random portion provided by mktemp.
   if [[ -n "$ext" ]]; then
     local path_with_ext="${path}${ext}"
-    mv "$path" "$path_with_ext"
+    "$mv_cmd" "$path" "$path_with_ext"
     path="$path_with_ext"
   fi
 
@@ -291,15 +299,23 @@ log_file_excerpt() {
   local path="$2"
   local -i max_lines=${3:-20}
 
+  local wc_cmd
+  wc_cmd=$(command -v wc || { [[ -x /bin/wc ]] && echo /bin/wc; } || { [[ -x /usr/bin/wc ]] && echo /usr/bin/wc; } || true)
+
+  if [[ -z "$wc_cmd" ]]; then
+    debug_log "$label missing or empty (path: $path)"
+    return 0
+  fi
+
   if [[ -s "$path" ]]; then
-    debug_log "$label (path: $path, size: $(wc -c <"$path") bytes):"
+    debug_log "$label (path: $path, size: $("$wc_cmd" -c <"$path") bytes):"
     local -i count=0
     while IFS= read -r line && (( count < max_lines )); do
       debug_log "  $line"
       (( count++ ))
     done <"$path"
 
-    if (( $(wc -l <"$path") > max_lines )); then
+    if (( $("$wc_cmd" -l <"$path") > max_lines )); then
       debug_log "  ... (truncated after $max_lines lines)"
     fi
   else
