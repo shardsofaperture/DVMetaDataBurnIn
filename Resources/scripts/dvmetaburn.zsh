@@ -205,10 +205,15 @@ make_temp_file() {
     return 127
   fi
 
-  local template="${dir%/}/${prefix}.XXXXXXXX${ext}"
+  # macOS/BSD mktemp requires the XXXXXX pattern at the end of the template,
+  # so build the base path without the caller-provided extension and add the
+  # extension after the temporary file is created. This keeps GNU mktemp happy
+  # as well while avoiding "File exists" errors on macOS when a suffix follows
+  # the X characters.
+  local template_base="${dir%/}/${prefix}.XXXXXXXX"
   local path mktemp_status mktemp_output fallback_output fallback_status
 
-  mktemp_output="$("$mktemp_cmd" "$template" 2>&1)"
+  mktemp_output="$("$mktemp_cmd" "$template_base" 2>&1)"
   mktemp_status=$?
 
   if (( mktemp_status != 0 )); then
@@ -232,7 +237,7 @@ make_temp_file() {
     echo "[ERROR] Temp dir info -> path: ${dir}, perms: ${dir_perms}, free: ${dir_free:-unknown}" >&2
 
     if [[ "$dir" != "$fallback_dir" ]]; then
-      local fallback_template="${fallback_dir%/}/${prefix}.XXXXXXXX${ext}"
+      local fallback_template="${fallback_dir%/}/${prefix}.XXXXXXXX"
       fallback_output="$("$mktemp_cmd" "$fallback_template" 2>&1)"
       fallback_status=$?
 
@@ -265,6 +270,14 @@ make_temp_file() {
     fi
   else
     path="$mktemp_output"
+  fi
+
+  # If the caller asked for an extension, rename the mktemp output to add it
+  # while keeping the unique random portion provided by mktemp.
+  if [[ -n "$ext" ]]; then
+    local path_with_ext="${path}${ext}"
+    mv "$path" "$path_with_ext"
+    path="$path_with_ext"
   fi
 
   echo "$path"
@@ -377,16 +390,17 @@ debug_log "jq path: $jq_bin"
 
 seconds_to_ass_time() {
   local sec="$1"
-  local -F s h m fsec
+  local -F s fsec
+  local -i h m
 
   s="$sec"
   if (( s < 0 )); then
     s=0
   fi
 
-  h=$(( int(s/3600.0) ))
-  m=$(( int((s - h*3600.0)/60.0) ))
-  fsec=$(( s - h*3600.0 - m*60.0 ))
+  (( h = s / 3600 ))
+  (( m = (s - h*3600) / 60 ))
+  (( fsec = s - h*3600 - m*60 ))
 
   printf "%d:%02d:%05.2f" "$h" "$m" "$fsec"
 }
