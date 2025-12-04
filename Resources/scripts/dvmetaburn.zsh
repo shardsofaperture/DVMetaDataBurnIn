@@ -662,7 +662,7 @@ make_timestamp_cmd() {
   debug_log "dvrescue -json exit status: $dv_status"
   debug_log "dvrescue JSON size: $(stat -f %z "$json_file" 2>/dev/null || stat -c %s "$json_file" 2>/dev/null) bytes (source=$frame_source)"
 
-  local -F prev_pts=-1 prev_mono=0 offset=0 last_delta=0
+  local -F frame_step=0.0333667
   local prev_dt=""
   typeset -A dt_keys_seen=()
   local -i raw_rows=0 valid_rows=0 skipped_rows=0
@@ -679,51 +679,8 @@ make_timestamp_cmd() {
     fi
     (( valid_rows++ ))
 
-    # Convert pts to floating seconds
-    local -F pts_sec base_seconds=0
-    if [[ "$raw_pts" == *:* ]]; then
-      local h m s frac="0"
-      h="${raw_pts%%:*}"
-      m="${raw_pts#*:}"
-      m="${m%%:*}"
-      s="${raw_pts##*:}"
-      if [[ "$s" == *.* ]]; then
-        frac="${s#*.}"
-        s="${s%%.*}"
-      fi
-
-      base_seconds=$((10#$h * 3600 + 10#$m * 60 + 10#$s))
-      pts_sec=$base_seconds
-
-      if [[ -n "$frac" && "$frac" != "0" ]]; then
-        local -F frac_val
-        frac_val="0.${frac}"
-        pts_sec=$((pts_sec + frac_val))
-      fi
-    else
-      pts_sec=$raw_pts
-    fi
-
-    # Normalize pts into a monotonic mono timeline
-    if (( prev_pts >= 0 )); then
-      local -F delta=0
-      delta=$((pts_sec - prev_pts))
-      if (( delta > 0 )); then
-        last_delta=$delta
-      fi
-
-      if (( pts_sec < prev_pts )); then
-        local -F step
-        step=$last_delta
-        if (( step <= 0 )); then
-          step=0.0333667  # ~1/29.97
-        fi
-        offset=$((prev_mono + step - pts_sec))
-      fi
-    fi
-
     local -F mono
-    mono=$((pts_sec + offset))
+    mono=$((frame_index * frame_step))
 
     # Split RDT into date + time
     local date_part time_part
@@ -757,9 +714,6 @@ make_timestamp_cmd() {
 
     printf "%d\t%0.6f\t%s\t%d\n" "$frame_index" "$mono" "$dt_key" "$segment_change" >> "$timeline_debug"
     (( frame_index++ ))
-
-    prev_pts=$pts_sec
-    prev_mono=$mono
   done < <(
     if [[ "$frame_source" == "json" ]]; then
       "$jq_bin" -r '
@@ -881,7 +835,7 @@ Style: DVOSD,${subtitle_font_safe},24,&H00FFFFFF,&H00000000,&H00000000,&H0000000
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 EOF
 
-  local -F prev_pts=-1 prev_mono=-1 offset=0 last_delta=0
+  local -F frame_step=0.0333667 prev_mono=-1
   local prev_dt="" prev_date="" prev_time=""
   typeset -A dt_keys_seen=()
   local -i raw_rows=0 valid_rows=0 skipped_rows=0
@@ -924,49 +878,8 @@ EOF
     fi
     (( valid_rows++ ))
 
-    local -F pts_sec base_seconds=0
-    if [[ "$raw_pts" == *:* ]]; then
-      local h m s frac="0"
-      h="${raw_pts%%:*}"
-      m="${raw_pts#*:}"
-      m="${m%%:*}"
-      s="${raw_pts##*:}"
-      if [[ "$s" == *.* ]]; then
-        frac="${s#*.}"
-        s="${s%%.*}"
-      fi
-
-      base_seconds=$((10#$h * 3600 + 10#$m * 60 + 10#$s))
-      pts_sec=$base_seconds
-
-      if [[ -n "$frac" && "$frac" != "0" ]]; then
-        local -F frac_val
-        frac_val="0.${frac}"
-        pts_sec=$((pts_sec + frac_val))
-      fi
-    else
-      pts_sec=$raw_pts
-    fi
-
-    if (( prev_pts >= 0 )); then
-      local -F delta=0
-      delta=$((pts_sec - prev_pts))
-      if (( delta > 0 )); then
-        last_delta=$delta
-      fi
-
-      if (( pts_sec < prev_pts )); then
-        local -F step
-        step=$last_delta
-        if (( step <= 0 )); then
-          step=0.0333667
-        fi
-        offset=$((prev_mono + step - pts_sec))
-      fi
-    fi
-
     local -F mono
-    mono=$((pts_sec + offset))
+    mono=$((frame_index * frame_step))
 
     local date_part time_part
     if [[ "$raw_rdt" == *" "* ]]; then
@@ -981,7 +894,7 @@ EOF
     local -i segment_change=0
 
     if [[ "$dt_key" != "$prev_dt" ]]; then
-      if (( prev_mono >= 0 )); then
+      if (( frame_index > 0 )); then
         write_dialog "$prev_mono" "$mono" "$prev_date" "$prev_time" "$layout"
         (( dialogue_count++ ))
         if [[ -n "$prev_dt" && -z "${dt_keys_seen[$prev_dt]:-}" ]]; then
@@ -1001,7 +914,6 @@ EOF
       (( segment_count++ ))
     fi
 
-    prev_pts=$pts_sec
     printf "%d\t%0.6f\t%s\t%d\n" "$frame_index" "$mono" "$dt_key" "$segment_change" >> "$timeline_debug"
     (( frame_index++ ))
   done < <(
@@ -1022,13 +934,9 @@ EOF
     fi
   )
 
-  if (( prev_mono >= 0 )); then
-    local -F end_sec step
-    step=$last_delta
-    if (( step <= 0 )); then
-      step=1.0
-    fi
-    end_sec=$((prev_mono + step))
+  if (( prev_dt != "" )); then
+    local -F end_sec
+    end_sec=$((prev_mono + frame_step))
     write_dialog "$prev_mono" "$end_sec" "$prev_date" "$prev_time" "$layout"
     (( dialogue_count++ ))
     if [[ -n "$prev_dt" && -z "${dt_keys_seen[$prev_dt]:-}" ]]; then
