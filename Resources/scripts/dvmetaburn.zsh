@@ -200,17 +200,36 @@ make_temp_file() {
 
   # Prefer absolute paths for core utilities in case PATH is restricted.
   local mktemp_cmd awk_cmd df_cmd stat_cmd mv_cmd sed_cmd cut_cmd
-  mktemp_cmd=$(command -v mktemp || { [[ -x /usr/bin/mktemp ]] && echo /usr/bin/mktemp; } || true)
-  awk_cmd=$(command -v awk || { [[ -x /usr/bin/awk ]] && echo /usr/bin/awk; } || true)
-  df_cmd=$(command -v df || { [[ -x /bin/df ]] && echo /bin/df; } || true)
-  stat_cmd=$(command -v stat || { [[ -x /usr/bin/stat ]] && echo /usr/bin/stat; } || true)
+  mktemp_cmd=$(command -v mktemp 2>/dev/null)
+  [[ -n "$mktemp_cmd" && -x "$mktemp_cmd" ]] || mktemp_cmd=""
+  [[ -z "$mktemp_cmd" && -x /usr/bin/mktemp ]] && mktemp_cmd="/usr/bin/mktemp"
 
-  mv_cmd=$(command -v mv || true)
+  awk_cmd=$(command -v awk 2>/dev/null)
+  [[ -n "$awk_cmd" && -x "$awk_cmd" ]] || awk_cmd=""
+  [[ -z "$awk_cmd" && -x /usr/bin/awk ]] && awk_cmd="/usr/bin/awk"
+
+  df_cmd=$(command -v df 2>/dev/null)
+  [[ -n "$df_cmd" && -x "$df_cmd" ]] || df_cmd=""
+  [[ -z "$df_cmd" && -x /bin/df ]] && df_cmd="/bin/df"
+
+  stat_cmd=$(command -v stat 2>/dev/null)
+  [[ -n "$stat_cmd" && -x "$stat_cmd" ]] || stat_cmd=""
+  [[ -z "$stat_cmd" && -x /usr/bin/stat ]] && stat_cmd="/usr/bin/stat"
+
+  mv_cmd=$(command -v mv 2>/dev/null)
+  [[ -n "$mv_cmd" && -x "$mv_cmd" ]] || mv_cmd=""
   [[ -z "$mv_cmd" && -x /bin/mv ]] && mv_cmd="/bin/mv"
   [[ -z "$mv_cmd" && -x /usr/bin/mv ]] && mv_cmd="/usr/bin/mv"
 
-  sed_cmd=$(command -v sed || { [[ -x /bin/sed ]] && echo /bin/sed; } || { [[ -x /usr/bin/sed ]] && echo /usr/bin/sed; } || true)
-  cut_cmd=$(command -v cut || { [[ -x /bin/cut ]] && echo /bin/cut; } || { [[ -x /usr/bin/cut ]] && echo /usr/bin/cut; } || true)
+  sed_cmd=$(command -v sed 2>/dev/null)
+  [[ -n "$sed_cmd" && -x "$sed_cmd" ]] || sed_cmd=""
+  [[ -z "$sed_cmd" && -x /bin/sed ]] && sed_cmd="/bin/sed"
+  [[ -z "$sed_cmd" && -x /usr/bin/sed ]] && sed_cmd="/usr/bin/sed"
+
+  cut_cmd=$(command -v cut 2>/dev/null)
+  [[ -n "$cut_cmd" && -x "$cut_cmd" ]] || cut_cmd=""
+  [[ -z "$cut_cmd" && -x /bin/cut ]] && cut_cmd="/bin/cut"
+  [[ -z "$cut_cmd" && -x /usr/bin/cut ]] && cut_cmd="/usr/bin/cut"
 
   if [[ -z "$mktemp_cmd" ]]; then
     echo "[ERROR] mktemp not found in PATH or standard locations; cannot allocate temp files." >&2
@@ -243,9 +262,11 @@ make_temp_file() {
 
     if [[ -n "$df_cmd" && -n "$awk_cmd" ]]; then
       dir_free=$("$df_cmd" -Pk "$dir" 2>/dev/null | "$awk_cmd" 'NR==2{print $4"K"}' || true)
-    elif [[ -n "$df_cmd" ]]; then
-      dir_free=$("$df_cmd" -Pk "$dir" 2>/dev/null | ${sed_cmd:-sed} -n '2p' | ${cut_cmd:-cut} -d' ' -f4 2>/dev/null || true)
+    elif [[ -n "$df_cmd" && -n "$sed_cmd" && -n "$cut_cmd" ]]; then
+      dir_free=$("$df_cmd" -Pk "$dir" 2>/dev/null | "$sed_cmd" -n '2p' | "$cut_cmd" -d' ' -f4 2>/dev/null || true)
       [[ -n "$dir_free" ]] && dir_free+="K"
+    elif [[ -n "$df_cmd" ]]; then
+      dir_free="unknown"
     else
       dir_free="unknown"
     fi
@@ -268,9 +289,11 @@ make_temp_file() {
 
         if [[ -n "$df_cmd" && -n "$awk_cmd" ]]; then
           fallback_free=$("$df_cmd" -Pk "$fallback_dir" 2>/dev/null | "$awk_cmd" 'NR==2{print $4"K"}' || true)
-        elif [[ -n "$df_cmd" ]]; then
-          fallback_free=$("$df_cmd" -Pk "$fallback_dir" 2>/dev/null | ${sed_cmd:-sed} -n '2p' | ${cut_cmd:-cut} -d' ' -f4 2>/dev/null || true)
+        elif [[ -n "$df_cmd" && -n "$sed_cmd" && -n "$cut_cmd" ]]; then
+          fallback_free=$("$df_cmd" -Pk "$fallback_dir" 2>/dev/null | "$sed_cmd" -n '2p' | "$cut_cmd" -d' ' -f4 2>/dev/null || true)
           [[ -n "$fallback_free" ]] && fallback_free+="K"
+        elif [[ -n "$df_cmd" ]]; then
+          fallback_free="unknown"
         else
           fallback_free="unknown"
         fi
@@ -309,7 +332,8 @@ log_file_excerpt() {
   local -i max_lines=${3:-20}
 
   local wc_cmd
-  wc_cmd=$(command -v wc || true)
+  wc_cmd=$(command -v wc 2>/dev/null)
+  [[ -n "$wc_cmd" && -x "$wc_cmd" ]] || wc_cmd=""
   [[ -z "$wc_cmd" && -x /bin/wc ]] && wc_cmd="/bin/wc"
   [[ -z "$wc_cmd" && -x /usr/bin/wc ]] && wc_cmd="/usr/bin/wc"
 
