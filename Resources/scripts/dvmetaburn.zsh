@@ -898,7 +898,7 @@ process_file() {
 
   local dv_status=0
   debug_log "Extracting dvrescue XML -> $dvrescue_xml (log: $dvrescue_log)"
-  "$dvrescue_bin" "$in" -xml "$dvrescue_xml" >"$dvrescue_log" 2>&1
+  "$dvrescue_bin" --xml-output "$dvrescue_xml" "$in" >"$dvrescue_log" 2>&1
   dv_status=$?
   last_dvrescue_status=$dv_status
   log_artifact_path_and_size "dvrescue XML" "$dvrescue_xml"
