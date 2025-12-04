@@ -516,7 +516,7 @@ make_timestamp_cmd() {
 
   local -F prev_pts=-1 prev_mono=0 offset=0 last_delta=0
   local prev_dt=""
-  local had_lines=0
+  local -i had_lines=0
   local -i raw_rows=0 valid_rows=0 skipped_rows=0
 
   while IFS=$'\t' read -r raw_pts raw_rdt; do
@@ -587,14 +587,14 @@ make_timestamp_cmd() {
     esc_date="${date_part//\\/\\\\}"
     esc_date="${esc_date//:/\\\\:}"
     esc_time="${time_part//\\/\\\\}"
-    esc_time="${esc_time//:/\\:}"
+    esc_time="${esc_time//:/\\\\:}"
     local dt_key="${date_part} ${time_part}"
 
     if [[ "$dt_key" != "$prev_dt" ]]; then
       printf "%0.6f drawtext@dvdate reinit text='%s';\n" "$mono" "$esc_date" >> "$cmdfile"
       printf "%0.6f drawtext@dvtime reinit text='%s';\n" "$mono" "$esc_time" >> "$cmdfile"
       prev_dt="$dt_key"
-      had_lines=1
+      (( had_lines++ ))
     fi
 
     prev_pts=$pts_sec
@@ -624,12 +624,12 @@ make_timestamp_cmd() {
     debug_log "Preserving dvrescue artifacts for inspection: json=$json_file log=$dv_log"
   fi
 
-  if (( had_lines == 0 )); then
-    echo "[WARN] No per-frame RDT metadata found for $in" >&2
+  if (( had_lines < 2 )); then
+    echo "[WARN] Insufficient per-frame RDT metadata found for $in (timeline entries=$had_lines)" >&2
     debug_log "Frame parse summary (source=$frame_source): rows=$raw_rows, valid=$valid_rows, skipped=$skipped_rows, timeline entries=$had_lines"
     log_file_excerpt "dvrescue log snippet" "$dv_log"
     log_file_excerpt "dvrescue JSON snippet" "$json_file"
-    return 2   # special code: no metadata
+    return 2   # special code: no/insufficient metadata
   fi
 
   debug_log "Frame parse summary (source=$frame_source): rows=$raw_rows, valid=$valid_rows, skipped=$skipped_rows, timeline entries=$had_lines"
@@ -1013,6 +1013,34 @@ process_file() {
     fi
 
     echo "[ERROR] Failed to build timestamp command file for $in" >&2
+    rm -f "$cmdfile"
+    return 1
+  fi
+
+  local -i cmd_lines=0
+  cmd_lines=$( (grep -c 'drawtext@' "$cmdfile" 2>/dev/null) || echo 0 )
+
+  if (( cmd_lines < 4 )); then
+    echo "[WARN] Timestamp command file for $in has too few drawtext updates ($cmd_lines); overlay would be static" >&2
+    case "$missing_meta" in
+      skip_burnin_convert)
+        echo "[WARN] Converting without burn-in due to insufficient timestamp metadata." >&2
+        local out_passthrough="${base}_conv.${out_ext}"
+        "$ffmpeg_bin" -y -i "$in" \
+          "${codec_args[@]}" \
+          "$out_passthrough"
+        rm -f "$cmdfile"
+        return $?
+        ;;
+      skip_file)
+        echo "[WARN] Skipping $in due to insufficient timestamp metadata." >&2
+        rm -f "$cmdfile"
+        return 0
+        ;;
+      *)
+        ;;
+    esac
+
     rm -f "$cmdfile"
     return 1
   fi
