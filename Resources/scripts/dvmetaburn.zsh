@@ -193,29 +193,65 @@ make_temp_file() {
   local dir="${TMPDIR:-/tmp}"
   local fallback_dir="/tmp"
 
+  # Prefer absolute paths for core utilities in case PATH is restricted.
+  local mktemp_cmd awk_cmd df_cmd stat_cmd
+  mktemp_cmd=$(command -v mktemp || { [[ -x /usr/bin/mktemp ]] && echo /usr/bin/mktemp; } || true)
+  awk_cmd=$(command -v awk || { [[ -x /usr/bin/awk ]] && echo /usr/bin/awk; } || true)
+  df_cmd=$(command -v df || { [[ -x /bin/df ]] && echo /bin/df; } || true)
+  stat_cmd=$(command -v stat || { [[ -x /usr/bin/stat ]] && echo /usr/bin/stat; } || true)
+
+  if [[ -z "$mktemp_cmd" ]]; then
+    echo "[ERROR] mktemp not found in PATH or standard locations; cannot allocate temp files." >&2
+    return 127
+  fi
+
   local template="${dir%/}/${prefix}.XXXXXXXX${ext}"
   local path mktemp_status mktemp_output fallback_output fallback_status
 
-  mktemp_output="$(mktemp "$template" 2>&1)"
+  mktemp_output="$("$mktemp_cmd" "$template" 2>&1)"
   mktemp_status=$?
 
   if (( mktemp_status != 0 )); then
     local dir_perms dir_free
-    dir_perms=$(stat -f '%Sp' "$dir" 2>/dev/null || stat -c '%A' "$dir" 2>/dev/null || echo 'unknown')
-    dir_free=$(df -Pk "$dir" 2>/dev/null | awk 'NR==2{print $4"K"}' || true)
+    if [[ -n "$stat_cmd" ]]; then
+      dir_perms=$("$stat_cmd" -f '%Sp' "$dir" 2>/dev/null || "$stat_cmd" -c '%A' "$dir" 2>/dev/null || echo 'unknown')
+    else
+      dir_perms="unknown"
+    fi
+
+    if [[ -n "$df_cmd" && -n "$awk_cmd" ]]; then
+      dir_free=$("$df_cmd" -Pk "$dir" 2>/dev/null | "$awk_cmd" 'NR==2{print $4"K"}' || true)
+    elif [[ -n "$df_cmd" ]]; then
+      dir_free=$("$df_cmd" -Pk "$dir" 2>/dev/null | sed -n '2p' | cut -d' ' -f4 2>/dev/null || true)
+      [[ -n "$dir_free" ]] && dir_free+="K"
+    else
+      dir_free="unknown"
+    fi
 
     echo "[ERROR] Unable to create temp file in ${dir}: ${mktemp_output:-unknown error}" >&2
     echo "[ERROR] Temp dir info -> path: ${dir}, perms: ${dir_perms}, free: ${dir_free:-unknown}" >&2
 
     if [[ "$dir" != "$fallback_dir" ]]; then
       local fallback_template="${fallback_dir%/}/${prefix}.XXXXXXXX${ext}"
-      fallback_output="$(mktemp "$fallback_template" 2>&1)"
+      fallback_output="$("$mktemp_cmd" "$fallback_template" 2>&1)"
       fallback_status=$?
 
       if (( fallback_status != 0 )); then
         local fallback_perms fallback_free
-        fallback_perms=$(stat -f '%Sp' "$fallback_dir" 2>/dev/null || stat -c '%A' "$fallback_dir" 2>/dev/null || echo 'unknown')
-        fallback_free=$(df -Pk "$fallback_dir" 2>/dev/null | awk 'NR==2{print $4"K"}' || true)
+        if [[ -n "$stat_cmd" ]]; then
+          fallback_perms=$("$stat_cmd" -f '%Sp' "$fallback_dir" 2>/dev/null || "$stat_cmd" -c '%A' "$fallback_dir" 2>/dev/null || echo 'unknown')
+        else
+          fallback_perms="unknown"
+        fi
+
+        if [[ -n "$df_cmd" && -n "$awk_cmd" ]]; then
+          fallback_free=$("$df_cmd" -Pk "$fallback_dir" 2>/dev/null | "$awk_cmd" 'NR==2{print $4"K"}' || true)
+        elif [[ -n "$df_cmd" ]]; then
+          fallback_free=$("$df_cmd" -Pk "$fallback_dir" 2>/dev/null | sed -n '2p' | cut -d' ' -f4 2>/dev/null || true)
+          [[ -n "$fallback_free" ]] && fallback_free+="K"
+        else
+          fallback_free="unknown"
+        fi
 
         echo "[ERROR] Fallback to ${fallback_dir} also failed: ${fallback_output:-unknown error}" >&2
         echo "[ERROR] Temp dir info -> path: ${fallback_dir}, perms: ${fallback_perms}, free: ${fallback_free:-unknown}" >&2
