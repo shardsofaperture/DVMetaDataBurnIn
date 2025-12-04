@@ -314,12 +314,20 @@ make_timestamp_cmd() {
   local in="$1"
   local cmdfile="$2"
 
-  local json_base json_file
-  json_base="$(mktemp "${TMPDIR}/dvts-XXXXXX")"
-  json_file="${json_base}.json"
+  local json_file dv_log dv_status=0
+  if ! json_file="$(make_temp_file dvts .json)"; then
+    echo "[ERROR] Unable to allocate temporary JSON file" >&2
+    return 1
+  fi
 
-  local dv_log dv_status=0
-  dv_log="$(mktemp "${TMPDIR}/dvrs-XXXXXX.log")"
+  if ! dv_log="$(make_temp_file dvrs .log)"; then
+    echo "[ERROR] Unable to allocate temporary dvrescue log file" >&2
+    rm -f "$json_file"
+    return 1
+  fi
+
+  debug_log "Extracting timestamp timeline via dvrescue -> $json_file (log: $dv_log)"
+  debug_log "Command: $dvrescue_bin \"$in\" -json $json_file"
 
   debug_log "Extracting timestamp timeline via dvrescue -> $json_file (log: $dv_log)"
   debug_log "Command: $dvrescue_bin \"$in\" -json $json_file"
@@ -451,25 +459,7 @@ make_timestamp_cmd() {
         frames[] | [.pts_time // .pts, .rdt] | @tsv
       ' "$json_file"
     else
-      python3 - "$dv_log" <<'PY'
-import sys
-import xml.etree.ElementTree as ET
-
-path = sys.argv[1]
-ns = {'d': 'https://mediaarea.net/dvrescue'}
-
-try:
-    tree = ET.parse(path)
-except ET.ParseError:
-    sys.exit(0)
-
-for frame in tree.findall('.//d:frame', ns):
-    pts = frame.get('pts_time') or frame.get('pts')
-    rdt = frame.get('rdt')
-    if not pts or not rdt:
-        continue
-    print(f"{pts}\t{rdt}")
-PY
+      awk 'BEGIN{FS="\""} /<frame /{pts="";rdt=""; for(i=1;i<NF;i++){if($i~/(^| )pts_time=/||$i~/(^| )pts=/)pts=$(i+1); if($i~/(^| )rdt=/)rdt=$(i+1)} if(pts!="" && rdt!="") printf "%s\t%s\n", pts, rdt}' "$dv_log"
     fi
   )
 
@@ -502,12 +492,20 @@ make_ass_subs() {
   local layout="$2"
   local ass_out="$3"
 
-  local json_base json_file
-  json_base="$(mktemp "${TMPDIR}/dvts-XXXXXX")"
-  json_file="${json_base}.json"
+  local json_file dv_log dv_status=0
+  if ! json_file="$(make_temp_file dvts .json)"; then
+    echo "[ERROR] Unable to allocate temporary JSON file" >&2
+    return 1
+  fi
 
-  local dv_log dv_status=0
-  dv_log="$(mktemp "${TMPDIR}/dvrs-XXXXXX.log")"
+  if ! dv_log="$(make_temp_file dvrs .log)"; then
+    echo "[ERROR] Unable to allocate temporary dvrescue log file" >&2
+    rm -f "$json_file"
+    return 1
+  fi
+
+  debug_log "Extracting subtitle timeline via dvrescue -> $json_file (log: $dv_log)"
+  debug_log "Command: $dvrescue_bin \"$in\" -json $json_file"
 
   debug_log "Extracting subtitle timeline via dvrescue -> $json_file (log: $dv_log)"
   debug_log "Command: $dvrescue_bin \"$in\" -json $json_file"
@@ -693,25 +691,7 @@ EOF
         frames[] | [.pts_time // .pts, .rdt] | @tsv
       ' "$json_file"
     else
-      python3 - "$dv_log" <<'PY'
-import sys
-import xml.etree.ElementTree as ET
-
-path = sys.argv[1]
-ns = {'d': 'https://mediaarea.net/dvrescue'}
-
-try:
-    tree = ET.parse(path)
-except ET.ParseError:
-    sys.exit(0)
-
-for frame in tree.findall('.//d:frame', ns):
-    pts = frame.get('pts_time') or frame.get('pts')
-    rdt = frame.get('rdt')
-    if not pts or not rdt:
-        continue
-    print(f"{pts}\t{rdt}")
-PY
+      awk 'BEGIN{FS="\""} /<frame /{pts="";rdt=""; for(i=1;i<NF;i++){if($i~/(^| )pts_time=/||$i~/(^| )pts=/)pts=$(i+1); if($i~/(^| )rdt=/)rdt=$(i+1)} if(pts!="" && rdt!="") printf "%s\t%s\n", pts, rdt}' "$dv_log"
     fi
   )
 
@@ -843,7 +823,10 @@ process_file() {
   # Otherwise: full burn-in + subtitle generation
 
   local cmdfile
-  cmdfile="$(mktemp "${TMPDIR}/dvts-XXXXXX.cmd")"
+  if ! cmdfile="$(make_temp_file dvts .cmd)"; then
+    echo "[ERROR] Unable to allocate temporary timestamp command file" >&2
+    return 1
+  fi
   local ts_status=0
   if ! make_timestamp_cmd "$in" "$cmdfile"; then
     ts_status=$?
