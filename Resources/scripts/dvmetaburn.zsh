@@ -185,6 +185,24 @@ debug_log() {
   fi
 }
 
+# Allocate a temporary file in TMPDIR with a predictable prefix and optional
+# extension. Uses mktemp to avoid races and returns the created path on stdout.
+make_temp_file() {
+  local prefix="${1:-dvmeta}"
+  local ext="${2:-}"
+  local dir="${TMPDIR:-/tmp}"
+
+  local template="${dir%/}/${prefix}.XXXXXXXX${ext}"
+  local path
+
+  if ! path="$(mktemp "$template" 2>/dev/null)"; then
+    echo "[ERROR] Unable to create temp file in ${dir}" >&2
+    return 1
+  fi
+
+  echo "$path"
+}
+
 # Emit a short, prefixed excerpt from a file for troubleshooting
 log_file_excerpt() {
   (( debug_mode == 1 )) || return 0
