@@ -194,53 +194,19 @@ log_file_excerpt() {
   local -i max_lines=${3:-20}
 
   if [[ -s "$path" ]]; then
-    local size
-    size=$(stat -f %z "$path" 2>/dev/null || stat -c %s "$path" 2>/dev/null)
-    if [[ -z "$size" ]]; then
-      size=$(ls -ln "$path" 2>/dev/null | awk '{print $5}')
-    fi
-
-    local -i lines_total=0
-    while IFS= read -r _; do
-      (( lines_total++ ))
-    done <"$path"
-
-    debug_log "$label (path: $path, size: ${size:-unknown} bytes):"
+    debug_log "$label (path: $path, size: $(wc -c <"$path") bytes):"
     local -i count=0
     while IFS= read -r line && (( count < max_lines )); do
       debug_log "  $line"
       (( count++ ))
     done <"$path"
 
-    if (( lines_total > max_lines )); then
+    if (( $(wc -l <"$path") > max_lines )); then
       debug_log "  ... (truncated after $max_lines lines)"
     fi
   else
     debug_log "$label missing or empty (path: $path)"
   fi
-}
-
-# Cross-platform temporary file helper with optional suffix
-make_temp_file() {
-  local prefix="$1"
-  local suffix="$2"
-
-  local tmp base
-  if tmp=$(mktemp -t "$prefix" 2>/dev/null); then
-    :
-  elif tmp=$(mktemp "${TMPDIR}/${prefix}.XXXXXX" 2>/dev/null); then
-    :
-  else
-    return 1
-  fi
-
-  if [[ -n "$suffix" ]]; then
-    base="$tmp"
-    tmp="${tmp}${suffix}"
-    mv "$base" "$tmp" || return 1
-  fi
-
-  echo "$tmp"
 }
 
 ########################################################
@@ -359,6 +325,9 @@ make_timestamp_cmd() {
     rm -f "$json_file"
     return 1
   fi
+
+  debug_log "Extracting timestamp timeline via dvrescue -> $json_file (log: $dv_log)"
+  debug_log "Command: $dvrescue_bin \"$in\" -json $json_file"
 
   debug_log "Extracting timestamp timeline via dvrescue -> $json_file (log: $dv_log)"
   debug_log "Command: $dvrescue_bin \"$in\" -json $json_file"
@@ -534,6 +503,9 @@ make_ass_subs() {
     rm -f "$json_file"
     return 1
   fi
+
+  debug_log "Extracting subtitle timeline via dvrescue -> $json_file (log: $dv_log)"
+  debug_log "Command: $dvrescue_bin \"$in\" -json $json_file"
 
   debug_log "Extracting subtitle timeline via dvrescue -> $json_file (log: $dv_log)"
   debug_log "Command: $dvrescue_bin \"$in\" -json $json_file"
