@@ -230,7 +230,7 @@ log_artifact_path_and_size() {
 # Lightweight helper for conditional debug output
 debug_log() {
   if (( debug_mode == 1 )); then
-    echo "[DEBUG] $*"
+    echo "[DEBUG] $*" >&2
   fi
 }
 
