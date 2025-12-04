@@ -969,13 +969,13 @@ process_file() {
   case "$layout" in
     stacked)
       vf="sendcmd=f='${cmdfile}',\
-drawtext=fontfile='${font}':text='':fontcolor=white:fontsize=24:x=w-tw-20:y=h-60:@dvdate,\
-drawtext=fontfile='${font}':text='':fontcolor=white:fontsize=24:x=w-tw-20:y=h-30:@dvtime"
+drawtext@dvdate=fontfile='${font}':text='':fontcolor=white:fontsize=24:x=w-tw-20:y=h-60,\
+drawtext@dvtime=fontfile='${font}':text='':fontcolor=white:fontsize=24:x=w-tw-20:y=h-30"
       ;;
     single)
       vf="sendcmd=f='${cmdfile}',\
-drawtext=fontfile='${font}':text='':fontcolor=white:fontsize=24:x=40:y=h-30:@dvdate,\
-drawtext=fontfile='${font}':text='':fontcolor=white:fontsize=24:x=w-tw-40:y=h-30:@dvtime"
+drawtext@dvdate=fontfile='${font}':text='':fontcolor=white:fontsize=24:x=40:y=h-30,\
+drawtext@dvtime=fontfile='${font}':text='':fontcolor=white:fontsize=24:x=w-tw-40:y=h-30"
       ;;
     *)
       echo "Unknown layout: $layout" >&2
