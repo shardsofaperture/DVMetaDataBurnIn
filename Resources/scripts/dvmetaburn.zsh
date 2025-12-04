@@ -91,12 +91,17 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Normalize missing metadata handling to allow legacy / camelCase values
+# Normalize missing metadata handling to allow legacy / camelCase values and
+# to ignore stray whitespace from callers.
+missing_meta="${missing_meta//[[:space:]]/}"
+missing_meta="${missing_meta//-/_}"
+missing_meta="${missing_meta:l}"
+
 case "$missing_meta" in
-  skipBurninConvert)
+  skipburninconvert)
     missing_meta="skip_burnin_convert"
     ;;
-  skipFile)
+  skipfile)
     missing_meta="skip_file"
     ;;
   error)
