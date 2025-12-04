@@ -967,7 +967,7 @@ make_ass_subs() {
     fi
 
     if (( ${#parse_sources[@]} == 0 )); then
-      echo "[WARN] Subtitle JSON missing for $in (dvrescue exit $dv_status)" >&2
+      echo "[WARN] Subtitle JSON missing for $in (dvrescue exit $dv_status); treating as missing metadata" >&2
       if (( debug_mode == 1 )); then
         echo "[DEBUG] dvrescue -json output for subtitles from $in:" >&2
         if [[ -s "$dv_log" ]]; then
@@ -976,7 +976,7 @@ make_ass_subs() {
           echo "[DEBUG] (no dvrescue stdout/stderr captured)" >&2
         fi
       fi
-      return 1
+      return 2   # special code: no/insufficient metadata
     fi
   fi
 
