@@ -191,13 +191,44 @@ make_temp_file() {
   local prefix="${1:-dvmeta}"
   local ext="${2:-}"
   local dir="${TMPDIR:-/tmp}"
+  local fallback_dir="/tmp"
 
   local template="${dir%/}/${prefix}.XXXXXXXX${ext}"
-  local path
+  local path mktemp_status mktemp_output fallback_output fallback_status
 
-  if ! path="$(mktemp "$template" 2>/dev/null)"; then
-    echo "[ERROR] Unable to create temp file in ${dir}" >&2
-    return 1
+  mktemp_output="$(mktemp "$template" 2>&1)"
+  mktemp_status=$?
+
+  if (( mktemp_status != 0 )); then
+    local dir_perms dir_free
+    dir_perms=$(stat -f '%Sp' "$dir" 2>/dev/null || stat -c '%A' "$dir" 2>/dev/null || echo 'unknown')
+    dir_free=$(df -Pk "$dir" 2>/dev/null | awk 'NR==2{print $4"K"}' || true)
+
+    echo "[ERROR] Unable to create temp file in ${dir}: ${mktemp_output:-unknown error}" >&2
+    echo "[ERROR] Temp dir info -> path: ${dir}, perms: ${dir_perms}, free: ${dir_free:-unknown}" >&2
+
+    if [[ "$dir" != "$fallback_dir" ]]; then
+      local fallback_template="${fallback_dir%/}/${prefix}.XXXXXXXX${ext}"
+      fallback_output="$(mktemp "$fallback_template" 2>&1)"
+      fallback_status=$?
+
+      if (( fallback_status != 0 )); then
+        local fallback_perms fallback_free
+        fallback_perms=$(stat -f '%Sp' "$fallback_dir" 2>/dev/null || stat -c '%A' "$fallback_dir" 2>/dev/null || echo 'unknown')
+        fallback_free=$(df -Pk "$fallback_dir" 2>/dev/null | awk 'NR==2{print $4"K"}' || true)
+
+        echo "[ERROR] Fallback to ${fallback_dir} also failed: ${fallback_output:-unknown error}" >&2
+        echo "[ERROR] Temp dir info -> path: ${fallback_dir}, perms: ${fallback_perms}, free: ${fallback_free:-unknown}" >&2
+        return $mktemp_status
+      fi
+
+      echo "[WARN] Using fallback temp directory ${fallback_dir} after mktemp failure." >&2
+      path="$fallback_output"
+    else
+      return $mktemp_status
+    fi
+  else
+    path="$mktemp_output"
   fi
 
   echo "$path"
