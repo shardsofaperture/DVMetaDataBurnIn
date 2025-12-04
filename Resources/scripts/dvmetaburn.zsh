@@ -978,7 +978,7 @@ process_file() {
   local out_ext="$format"
   local artifact_dir dvrescue_json dvrescue_log cmdfile timeline_debug ass_artifact run_manifest versions_file
   local burn_output="" subtitle_output="" passthrough_output=""
-  local status=0 manifest_status="pending"
+  local exit_status=0 manifest_status="pending"
 
   if ! artifact_dir="$(prepare_artifact_dir "$in")"; then
     return 1
@@ -1026,12 +1026,12 @@ process_file() {
     "$ffmpeg_bin" -y -i "$in" \
       "${codec_args[@]}" \
       "$out_passthrough"
-    status=$?
-    manifest_status=$([[ $status -eq 0 ]] && echo "success" || echo "error")
+    exit_status=$?
+    manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
     passthrough_output="$out_passthrough"
     write_versions_file "$versions_file"
     write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_json" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
-    return $status
+    return $exit_status
   fi
 
   # Locate font early for both burn-in and subtitle modes
@@ -1062,12 +1062,12 @@ process_file() {
             "$ffmpeg_bin" -y -i "$in" \
               "${codec_args[@]}" \
               "$out_passthrough"
-            status=$?
-            manifest_status=$([[ $status -eq 0 ]] && echo "success" || echo "error")
+            exit_status=$?
+            manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
             passthrough_output="$out_passthrough"
             write_versions_file "$versions_file"
             write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_json" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
-            return $status
+            return $exit_status
             ;;
           skip_file)
             echo "[WARN] Missing timestamp metadata for $in; skipping file." >&2
@@ -1098,12 +1098,12 @@ process_file() {
       "${codec_args[@]}" \
       "$out_subbed"
     cp "$ass_artifact" "$ass_out"
-    status=$?
-    manifest_status=$([[ $status -eq 0 ]] && echo "success" || echo "error")
+    exit_status=$?
+    manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
     subtitle_output="$out_subbed"
     write_versions_file "$versions_file"
     write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_json" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
-    return $status
+    return $exit_status
   fi
 
   # Otherwise: full burn-in + subtitle generation
@@ -1120,12 +1120,12 @@ process_file() {
           "$ffmpeg_bin" -y -i "$in" \
             "${codec_args[@]}" \
             "$out_passthrough"
-          status=$?
-          manifest_status=$([[ $status -eq 0 ]] && echo "success" || echo "error")
+          exit_status=$?
+          manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
           passthrough_output="$out_passthrough"
           write_versions_file "$versions_file"
           write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_json" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
-          return $status
+          return $exit_status
           ;;
         skip_file)
           echo "[WARN] Missing timestamp metadata for $in; skipping file." >&2
@@ -1157,12 +1157,12 @@ process_file() {
         "$ffmpeg_bin" -y -i "$in" \
           "${codec_args[@]}" \
           "$out_passthrough"
-        status=$?
-        manifest_status=$([[ $status -eq 0 ]] && echo "success" || echo "error")
+        exit_status=$?
+        manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
         passthrough_output="$out_passthrough"
         write_versions_file "$versions_file"
         write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_json" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
-        return $status
+        return $exit_status
         ;;
       skip_file)
         echo "[WARN] Skipping $in due to insufficient timestamp metadata." >&2
@@ -1207,13 +1207,13 @@ drawtext@dvtime=fontfile='${font}':text='':fontcolor=white:fontsize=24:x=w-tw-40
     "${codec_args[@]}" \
     "$out"
 
-  status=$?
-  manifest_status=$([[ $status -eq 0 ]] && echo "success" || echo "error")
+  exit_status=$?
+  manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
   burn_output="$out"
-  echo "ffmpeg exit code: $status"
+  echo "ffmpeg exit code: $exit_status"
   write_versions_file "$versions_file"
   write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_json" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
-  return $status
+  return $exit_status
 }
 
 ########################################################
