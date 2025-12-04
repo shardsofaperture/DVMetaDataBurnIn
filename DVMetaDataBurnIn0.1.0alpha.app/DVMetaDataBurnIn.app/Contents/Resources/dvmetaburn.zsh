@@ -592,9 +592,11 @@ make_timestamp_cmd() {
   local timeline_debug="$5"
 
   local dv_status=0
+  if [[ ! -s "$timeline_debug" ]]; then
+    echo $'frame_index\traw_pts\tmono_time\traw_rdt\tdate_part\ttime_part\tdt_key\tsegment_change' >> "$timeline_debug"
+  fi
 
   : > "$cmdfile"
-  : > "$timeline_debug"
 
   if [[ -s "$json_file" ]]; then
     debug_log "Reusing existing dvrescue JSON: $json_file"
@@ -669,50 +671,44 @@ make_timestamp_cmd() {
   local -i unique_dt_keys=0 segment_count=0
   local -i frame_index=0
 
-  echo $'frame_index\tmono\tdt_key\tsegment_change' >> "$timeline_debug"
-
   while IFS=$'\t' read -r raw_pts raw_rdt; do
     (( raw_rows++ ))
-    if [[ -z "$raw_pts" || -z "$raw_rdt" ]]; then
-      (( skipped_rows++ ))
-      continue
-    fi
-    (( valid_rows++ ))
-
     local -F mono
     mono=$((frame_index * frame_step))
 
-    # Split RDT into date + time
-    local date_part time_part
-    if [[ "$raw_rdt" == *" "* ]]; then
+    local date_part="" time_part="" dt_key="" esc_date esc_time
+    local -i segment_change=0
+
+    if [[ -z "$raw_pts" || -z "$raw_rdt" || "$raw_rdt" != *" "* ]]; then
+      (( skipped_rows++ ))
+    else
       date_part="${raw_rdt%% *}"
       time_part="${raw_rdt#* }"
-    else
-      continue
-    fi
+      time_part="${time_part%%.*}"
+      dt_key="${date_part} ${time_part}"
 
-    time_part="${time_part%%.*}"
-    local esc_date esc_time
-    esc_date="${date_part//\\/\\\\}"
-    esc_date="${esc_date//:/\\\\:}"
-    esc_time="${time_part//\\/\\\\}"
-    esc_time="${esc_time//:/\\\\:}"
-    local dt_key="${date_part} ${time_part}"
+      (( valid_rows++ ))
 
-    local -i segment_change=0
-    if [[ "$dt_key" != "$prev_dt" ]]; then
-      printf "%0.6f drawtext@dvdate reinit text='%s';\n" "$mono" "$esc_date" >> "$cmdfile"
-      printf "%0.6f drawtext@dvtime reinit text='%s';\n" "$mono" "$esc_time" >> "$cmdfile"
-      prev_dt="$dt_key"
-      (( segment_count++ ))
-      if [[ -z "${dt_keys_seen[$dt_key]:-}" ]]; then
-        dt_keys_seen[$dt_key]=1
-        (( unique_dt_keys++ ))
+      esc_date="${date_part//\\/\\\\}"
+      esc_date="${esc_date//:/\\\\:}"
+      esc_time="${time_part//\\/\\\\}"
+      esc_time="${esc_time//:/\\\\:}"
+
+      if [[ "$dt_key" != "$prev_dt" ]]; then
+        printf "%0.6f drawtext@dvdate reinit text='%s';\n" "$mono" "$esc_date" >> "$cmdfile"
+        printf "%0.6f drawtext@dvtime reinit text='%s';\n" "$mono" "$esc_time" >> "$cmdfile"
+        prev_dt="$dt_key"
+        (( segment_count++ ))
+        if [[ -z "${dt_keys_seen[$dt_key]:-}" ]]; then
+          dt_keys_seen[$dt_key]=1
+          (( unique_dt_keys++ ))
+        fi
+        segment_change=1
       fi
-      segment_change=1
     fi
 
-    printf "%d\t%0.6f\t%s\t%d\n" "$frame_index" "$mono" "$dt_key" "$segment_change" >> "$timeline_debug"
+    printf "%d\t%s\t%0.6f\t%s\t%s\t%s\t%s\t%d\n" \
+      "$frame_index" "$raw_pts" "$mono" "$raw_rdt" "$date_part" "$time_part" "$dt_key" "$segment_change" >> "$timeline_debug"
     (( frame_index++ ))
   done < <(
     if [[ "$frame_source" == "json" ]]; then
@@ -765,6 +761,10 @@ make_ass_subs() {
 
   local dv_status=0
 
+  if [[ ! -s "$timeline_debug" ]]; then
+    echo $'frame_index\traw_pts\tmono_time\traw_rdt\tdate_part\ttime_part\tdt_key\tsegment_change' >> "$timeline_debug"
+  fi
+
   if [[ -s "$json_file" ]]; then
     debug_log "Reusing existing dvrescue JSON: $json_file"
   else
@@ -806,8 +806,6 @@ make_ass_subs() {
   last_parse_frame_source="$frame_source"
 
   : > "$ass_out"
-  : > "$timeline_debug"
-  echo $'frame_index\tmono\tdt_key\tsegment_change' >> "$timeline_debug"
 
   # Prevent command substitution or other expansions when injecting the user-selected
   # font name into the ASS header.
@@ -872,49 +870,47 @@ EOF
 
   while IFS=$'\t' read -r raw_pts raw_rdt; do
     (( raw_rows++ ))
-    if [[ -z "$raw_pts" || -z "$raw_rdt" ]]; then
-      (( skipped_rows++ ))
-      continue
-    fi
-    (( valid_rows++ ))
 
     local -F mono
     mono=$((frame_index * frame_step))
 
-    local date_part time_part
-    if [[ "$raw_rdt" == *" "* ]]; then
-      date_part="${raw_rdt%% *}"
-      time_part="${raw_rdt#* }"
-    else
-      continue
-    fi
-
-    time_part="${time_part%%.*}"
-    local dt_key="${date_part} ${time_part}"
+    local date_part="" time_part="" dt_key=""
     local -i segment_change=0
 
-    if [[ "$dt_key" != "$prev_dt" ]]; then
-      if (( frame_index > 0 )); then
-        write_dialog "$prev_mono" "$mono" "$prev_date" "$prev_time" "$layout"
-        (( dialogue_count++ ))
-        if [[ -n "$prev_dt" && -z "${dt_keys_seen[$prev_dt]:-}" ]]; then
-          dt_keys_seen[$prev_dt]=1
+    if [[ -z "$raw_pts" || -z "$raw_rdt" || "$raw_rdt" != *" "* ]]; then
+      (( skipped_rows++ ))
+    else
+      date_part="${raw_rdt%% *}"
+      time_part="${raw_rdt#* }"
+      time_part="${time_part%%.*}"
+      dt_key="${date_part} ${time_part}"
+
+      (( valid_rows++ ))
+
+      if [[ "$dt_key" != "$prev_dt" ]]; then
+        if (( frame_index > 0 )); then
+          write_dialog "$prev_mono" "$mono" "$prev_date" "$prev_time" "$layout"
+          (( dialogue_count++ ))
+          if [[ -n "$prev_dt" && -z "${dt_keys_seen[$prev_dt]:-}" ]]; then
+            dt_keys_seen[$prev_dt]=1
+            (( unique_dt_keys++ ))
+          fi
+        fi
+        prev_dt="$dt_key"
+        prev_date="$date_part"
+        prev_time="$time_part"
+        prev_mono="$mono"
+        segment_change=1
+        if [[ -z "${dt_keys_seen[$dt_key]:-}" ]]; then
+          dt_keys_seen[$dt_key]=1
           (( unique_dt_keys++ ))
         fi
+        (( segment_count++ ))
       fi
-      prev_dt="$dt_key"
-      prev_date="$date_part"
-      prev_time="$time_part"
-      prev_mono="$mono"
-      segment_change=1
-      if [[ -z "${dt_keys_seen[$dt_key]:-}" ]]; then
-        dt_keys_seen[$dt_key]=1
-        (( unique_dt_keys++ ))
-      fi
-      (( segment_count++ ))
     fi
 
-    printf "%d\t%0.6f\t%s\t%d\n" "$frame_index" "$mono" "$dt_key" "$segment_change" >> "$timeline_debug"
+    printf "%d\t%s\t%0.6f\t%s\t%s\t%s\t%s\t%d\n" \
+      "$frame_index" "$raw_pts" "$mono" "$raw_rdt" "$date_part" "$time_part" "$dt_key" "$segment_change" >> "$timeline_debug"
     (( frame_index++ ))
   done < <(
     if [[ "$frame_source" == "json" ]]; then
