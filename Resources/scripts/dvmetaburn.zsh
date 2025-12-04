@@ -232,12 +232,29 @@ extract_rdt_from_xml() {
 
   perl -0777 -ne '
     my $idx = 0;
-    while (/<frame\b[^>]*\brdt=\"([^\"]+)\"[^>]*>/g) {
-      my $rdt = $1;
-      my ($date, $time) = split(/\\s+/, $rdt, 2);
+
+    while (/<frame\b([^>]*)>(.*?)<\/frame>/sg) {
+      my ($attrs, $body) = ($1, $2);
+
+      my ($date, $time);
+
+      if ($attrs =~ /\brdt=\"([^\"]+)\"/) {
+        my $rdt = $1;
+        ($date, $time) = split(/\s+/, $rdt, 2);
+      } elsif ($body =~ /<recordingDateTime[^>]*>.*?<date>([^<]*)<\/date>.*?<time>([^<]*)<\/time>/s) {
+        ($date, $time) = ($1, $2);
+      } elsif ($body =~ /<recordingDateTime[^>]*>.*?<time>([^<]*)<\/time>.*?<date>([^<]*)<\/date>/s) {
+        ($time, $date) = ($1, $2);
+      }
+
       next unless defined $date && defined $time;
-      $time =~ s/^\\s+|\\s+$//g;
-      printf "%d %s %s\\n", $idx, $date, $time;
+
+      $date =~ s/^\s+|\s+$//g;
+      $time =~ s/^\s+|\s+$//g;
+
+      next if $date eq q{} || $time eq q{};
+
+      printf "%d %s %s\n", $idx, $date, $time;
       $idx++;
     }
   ' "$xml_path"
@@ -691,7 +708,7 @@ make_timestamp_cmd() {
 
   extract_rdt_from_xml "$xml_file" \
     | build_sendcmd_from_rdt "$fps" \
-    | sed "s/:/\\:/g" \
+    | sed 's/:/\\\\:/g' \
     | awk '{ t = $1; $1 = ""; sub(/^ /, "", $0); printf "%.6f drawtext@dvmeta reinit text='\''%s'\'';\n", t, $0 }' \
     > "$cmdfile"
 
