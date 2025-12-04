@@ -583,12 +583,16 @@ make_timestamp_cmd() {
     fi
 
     time_part="${time_part%%.*}"
-    local esc_time="${time_part//:/\\\\:}"
+    local esc_date esc_time
+    esc_date="${date_part//\\/\\\\}"
+    esc_date="${esc_date//:/\\\\:}"
+    esc_time="${time_part//\\/\\\\}"
+    esc_time="${esc_time//:/\\\\:}"
     local dt_key="${date_part} ${time_part}"
 
     if [[ "$dt_key" != "$prev_dt" ]]; then
-      printf "%0.6f drawtext@dvdate reinit text=%s;\n" "$mono" "$date_part" >> "$cmdfile"
-      printf "%0.6f drawtext@dvtime reinit text=%s;\n" "$mono" "$esc_time" >> "$cmdfile"
+      printf "%0.6f drawtext@dvdate reinit text='%s';\n" "$mono" "$esc_date" >> "$cmdfile"
+      printf "%0.6f drawtext@dvtime reinit text='%s';\n" "$mono" "$esc_time" >> "$cmdfile"
       prev_dt="$dt_key"
       had_lines=1
     fi
