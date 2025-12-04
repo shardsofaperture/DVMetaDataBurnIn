@@ -185,6 +185,30 @@ debug_log() {
   fi
 }
 
+# Emit a short, prefixed excerpt from a file for troubleshooting
+log_file_excerpt() {
+  (( debug_mode == 1 )) || return 0
+
+  local label="$1"
+  local path="$2"
+  local -i max_lines=${3:-20}
+
+  if [[ -s "$path" ]]; then
+    debug_log "$label (path: $path, size: $(wc -c <"$path") bytes):"
+    local -i count=0
+    while IFS= read -r line && (( count < max_lines )); do
+      debug_log "  $line"
+      (( count++ ))
+    done <"$path"
+
+    if (( $(wc -l <"$path") > max_lines )); then
+      debug_log "  ... (truncated after $max_lines lines)"
+    fi
+  else
+    debug_log "$label missing or empty (path: $path)"
+  fi
+}
+
 ########################################################
 # Helper: locate a font file
 ########################################################
@@ -297,6 +321,9 @@ make_timestamp_cmd() {
   local dv_log dv_status=0
   dv_log="$(mktemp "${TMPDIR}/dvrs-XXXXXX.log")"
 
+  debug_log "Extracting timestamp timeline via dvrescue -> $json_file (log: $dv_log)"
+  debug_log "Command: $dvrescue_bin \"$in\" -json $json_file"
+
   if ! "$dvrescue_bin" "$in" -json "$json_file" >"$dv_log" 2>&1; then
     dv_status=$?
   fi
@@ -308,6 +335,7 @@ make_timestamp_cmd() {
     if [[ -s "$dv_log" ]] && grep -q "<dvrescue" "$dv_log"; then
       frame_source="xml"
       debug_log "Timestamp JSON missing; falling back to dvrescue XML output"
+      log_file_excerpt "Captured dvrescue XML" "$dv_log" 10
     else
       echo "[WARN] Timestamp JSON missing for $in (dvrescue exit $dv_status)" >&2
       if (( debug_mode == 1 )); then
@@ -325,14 +353,21 @@ make_timestamp_cmd() {
   fi
 
   debug_log "dvrescue -json exit status: $dv_status"
+  debug_log "dvrescue JSON size: $(stat -f %z "$json_file" 2>/dev/null || stat -c %s "$json_file" 2>/dev/null) bytes (source=$frame_source)"
   [[ "$frame_source" == "json" ]] && rm -f "$dv_log"
 
   local -F prev_pts=-1 prev_mono=0 offset=0 last_delta=0
   local prev_dt=""
   local had_lines=0
+  local -i raw_rows=0 valid_rows=0 skipped_rows=0
 
   while IFS=$'\t' read -r raw_pts raw_rdt; do
-    [[ -z "$raw_pts" || -z "$raw_rdt" ]] && continue
+    (( raw_rows++ ))
+    if [[ -z "$raw_pts" || -z "$raw_rdt" ]]; then
+      (( skipped_rows++ ))
+      continue
+    fi
+    (( valid_rows++ ))
 
     # Convert pts to floating seconds
     local -F pts_sec base_seconds=0
@@ -438,13 +473,22 @@ PY
     fi
   )
 
-  rm -f "$json_file"
-  rm -f "$dv_log"
+  if (( debug_mode == 0 )); then
+    rm -f "$json_file"
+    rm -f "$dv_log"
+  else
+    debug_log "Preserving dvrescue artifacts for inspection: json=$json_file log=$dv_log"
+  fi
 
   if (( had_lines == 0 )); then
     echo "[WARN] No per-frame RDT metadata found for $in" >&2
+    debug_log "Frame parse summary (source=$frame_source): rows=$raw_rows, valid=$valid_rows, skipped=$skipped_rows, timeline entries=$had_lines"
+    log_file_excerpt "dvrescue log snippet" "$dv_log"
+    log_file_excerpt "dvrescue JSON snippet" "$json_file"
     return 2   # special code: no metadata
   fi
+
+  debug_log "Frame parse summary (source=$frame_source): rows=$raw_rows, valid=$valid_rows, skipped=$skipped_rows, timeline entries=$had_lines"
 
   return 0
 }
@@ -465,6 +509,9 @@ make_ass_subs() {
   local dv_log dv_status=0
   dv_log="$(mktemp "${TMPDIR}/dvrs-XXXXXX.log")"
 
+  debug_log "Extracting subtitle timeline via dvrescue -> $json_file (log: $dv_log)"
+  debug_log "Command: $dvrescue_bin \"$in\" -json $json_file"
+
   if ! "$dvrescue_bin" "$in" -json "$json_file" >"$dv_log" 2>&1; then
     dv_status=$?
   fi
@@ -475,6 +522,7 @@ make_ass_subs() {
     if [[ -s "$dv_log" ]] && grep -q "<dvrescue" "$dv_log"; then
       frame_source="xml"
       debug_log "Subtitle JSON missing; falling back to dvrescue XML output"
+      log_file_excerpt "Captured dvrescue XML" "$dv_log" 10
     else
       echo "[WARN] Subtitle JSON missing for $in (dvrescue exit $dv_status)" >&2
       if (( debug_mode == 1 )); then
@@ -492,6 +540,7 @@ make_ass_subs() {
   fi
 
   debug_log "dvrescue -json exit status: $dv_status"
+  debug_log "dvrescue JSON size: $(stat -f %z "$json_file" 2>/dev/null || stat -c %s "$json_file" 2>/dev/null) bytes (source=$frame_source)"
   [[ "$frame_source" == "json" ]] && rm -f "$dv_log"
 
   : > "$ass_out"
@@ -525,6 +574,7 @@ EOF
   local -F prev_pts=-1 prev_mono=-1 offset=0 last_delta=0
   local prev_dt="" prev_date="" prev_time=""
   local had_lines=0
+  local -i raw_rows=0 valid_rows=0 skipped_rows=0
 
   write_dialog() {
     local start_sec="$1"
@@ -555,7 +605,12 @@ EOF
   }
 
   while IFS=$'\t' read -r raw_pts raw_rdt; do
-    [[ -z "$raw_pts" || -z "$raw_rdt" ]] && continue
+    (( raw_rows++ ))
+    if [[ -z "$raw_pts" || -z "$raw_rdt" ]]; then
+      (( skipped_rows++ ))
+      continue
+    fi
+    (( valid_rows++ ))
 
     local -F pts_sec base_seconds=0
     if [[ "$raw_pts" == *:* ]]; then
@@ -666,13 +721,22 @@ PY
     write_dialog "$prev_mono" "$end_sec" "$prev_date" "$prev_time" "$layout"
   fi
 
-  rm -f "$json_file"
-  rm -f "$dv_log"
+  if (( debug_mode == 0 )); then
+    rm -f "$json_file"
+    rm -f "$dv_log"
+  else
+    debug_log "Preserving dvrescue artifacts for inspection: json=$json_file log=$dv_log"
+  fi
 
   if (( had_lines == 0 )); then
     echo "[WARN] No per-frame RDT metadata found for subtitles for $in" >&2
+    debug_log "Frame parse summary (source=$frame_source): rows=$raw_rows, valid=$valid_rows, skipped=$skipped_rows, dialogue lines=$had_lines"
+    log_file_excerpt "dvrescue log snippet" "$dv_log"
+    log_file_excerpt "dvrescue JSON snippet" "$json_file"
     return 2
   fi
+
+  debug_log "Frame parse summary (source=$frame_source): rows=$raw_rows, valid=$valid_rows, skipped=$skipped_rows, dialogue lines=$had_lines"
 
   return 0
 }
