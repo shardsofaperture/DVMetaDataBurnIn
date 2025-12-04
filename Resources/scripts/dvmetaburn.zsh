@@ -762,7 +762,7 @@ make_timestamp_cmd() {
           frames[] | ["", (.pts_time // .pts), (.anc?.dvitc?.rdt // .rdt)] | @tsv
         ' "$json_file"
       elif [[ "$frame_source" == "text" ]]; then
-        awk '{ gsub(/\r$/, ""); count=split($0, parts, /[[:space:]]+/); if (count >= 4 && parts[1] ~ /^[0-9]+$/ && parts[2] ~ /^[0-9]{2}:[0-9]{2}:[0-9]{2}[;:][0-9]{2}$/ && parts[3] ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/ && parts[4] ~ /^[0-9]{2}:[0-9]{2}:[0-9]{2}$/) printf "%d\t%s\t%s %s\n", parts[1]-1, parts[2], parts[3], parts[4]; }' "$dv_log"
+        awk '{ gsub(/\r$/, ""); sub(/^[[:space:]]+/, ""); if (NF >= 4 && $1 ~ /^[0-9]+$/ && $2 ~ /^[0-9]{2}:[0-9]{2}:[0-9]{2}[;:][0-9]{2}$/ && $3 ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/ && $4 ~ /^[0-9]{2}:[0-9]{2}:[0-9]{2}$/) printf "%d\t%s\t%s %s\n", $1-1, $2, $3, $4; }' "$dv_log"
       else
         awk 'BEGIN{FS="\""} /<frame /{pts="";rdt=""; for(i=1;i<NF;i++){if($i~/(^| )pts_time=/||$i~/(^| )pts=/)pts=$(i+1); if($i~/(^| )rdt=/)rdt=$(i+1)} if(pts!="" && rdt!="") printf "\t%s\t%s\n", pts, rdt}' "$dv_log"
       fi
@@ -778,7 +778,12 @@ make_timestamp_cmd() {
     fi
   done
 
-  last_parse_frame_source="$frame_source"
+  local selected_frame_source="${frame_source:-unknown}"
+  if (( parse_success == 0 )); then
+    selected_frame_source="$frame_source"
+  fi
+
+  last_parse_frame_source="$selected_frame_source"
   last_parse_raw_rows=$raw_rows
   last_parse_valid_rows=$valid_rows
   last_parse_skipped_rows=$skipped_rows
@@ -1014,7 +1019,7 @@ EOF
           frames[] | ["", (.pts_time // .pts), .rdt] | @tsv
         ' "$json_file"
       elif [[ "$frame_source" == "text" ]]; then
-        awk '{ gsub(/\r$/, ""); count=split($0, parts, /[[:space:]]+/); if (count >= 4 && parts[1] ~ /^[0-9]+$/ && parts[2] ~ /^[0-9]{2}:[0-9]{2}:[0-9]{2}[;:][0-9]{2}$/ && parts[3] ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/ && parts[4] ~ /^[0-9]{2}:[0-9]{2}:[0-9]{2}$/) printf "%d\t%s\t%s %s\n", parts[1]-1, parts[2], parts[3], parts[4]; }' "$dv_log"
+        awk '{ gsub(/\r$/, ""); sub(/^[[:space:]]+/, ""); if (NF >= 4 && $1 ~ /^[0-9]+$/ && $2 ~ /^[0-9]{2}:[0-9]{2}:[0-9]{2}[;:][0-9]{2}$/ && $3 ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/ && $4 ~ /^[0-9]{2}:[0-9]{2}:[0-9]{2}$/) printf "%d\t%s\t%s %s\n", $1-1, $2, $3, $4; }' "$dv_log"
       else
         awk 'BEGIN{FS="\""} /<frame /{pts="";rdt=""; for(i=1;i<NF;i++){if($i~/(^| )pts_time=/||$i~/(^| )pts=/)pts=$(i+1); if($i~/(^| )rdt=/)rdt=$(i+1)} if(pts!="" && rdt!="") printf "\t%s\t%s\n", pts, rdt}' "$dv_log"
       fi
@@ -1041,7 +1046,12 @@ EOF
     fi
   done
 
-  last_parse_frame_source="$frame_source"
+  local selected_frame_source="${frame_source:-unknown}"
+  if (( parse_success == 0 )); then
+    selected_frame_source="$frame_source"
+  fi
+
+  last_parse_frame_source="$selected_frame_source"
   last_parse_raw_rows=$raw_rows
   last_parse_valid_rows=$valid_rows
   last_parse_skipped_rows=$skipped_rows
