@@ -717,7 +717,7 @@ Timer: 100.0000
 ; Style: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,
 ;        Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,
 ;        Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding
-Style: DVOSD,${subtitle_font_safe},24,&H00FFFFFF,&H00000000,&H00000000,&H64000000,-1,0,0,0,100,100,0,0,1,1,0,2,20,20,20,1
+Style: DVOSD,${subtitle_font_safe},24,&H00FFFFFF,&H00000000,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,0,0,0,2,20,20,20,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -725,7 +725,7 @@ EOF
 
   local -F prev_pts=-1 prev_mono=-1 offset=0 last_delta=0
   local prev_dt="" prev_date="" prev_time=""
-  local had_lines=0
+  local -i had_lines=0
   local -i raw_rows=0 valid_rows=0 skipped_rows=0
 
   write_dialog() {
@@ -822,12 +822,12 @@ EOF
     if [[ "$dt_key" != "$prev_dt" ]]; then
       if (( prev_mono >= 0 )); then
         write_dialog "$prev_mono" "$mono" "$prev_date" "$prev_time" "$layout"
+        ((had_lines++))
       fi
       prev_dt="$dt_key"
       prev_date="$date_part"
       prev_time="$time_part"
       prev_mono="$mono"
-      had_lines=1
     fi
 
     prev_pts=$pts_sec
@@ -850,9 +850,14 @@ EOF
   )
 
   if (( prev_mono >= 0 )); then
-    local -F end_sec
-    end_sec=$((prev_mono + 1.0))
+    local -F end_sec step
+    step=$last_delta
+    if (( step <= 0 )); then
+      step=1.0
+    fi
+    end_sec=$((prev_mono + step))
     write_dialog "$prev_mono" "$end_sec" "$prev_date" "$prev_time" "$layout"
+    ((had_lines++))
   fi
 
   if (( debug_mode == 0 )); then
@@ -927,7 +932,7 @@ process_file() {
   debug_log "Using font file: $font"
 
   if [[ -z "$subtitle_font_name" ]]; then
-    subtitle_font_name="${font:t:r}"
+    subtitle_font_name="UAV OSD Mono"
   fi
   subtitle_font_name="${subtitle_font_name//,/ }"
 
