@@ -664,8 +664,9 @@ make_timestamp_cmd() {
 
   local -F prev_pts=-1 prev_mono=0 offset=0 last_delta=0
   local prev_dt=""
-  local -i had_lines=0
+  typeset -A dt_keys_seen=()
   local -i raw_rows=0 valid_rows=0 skipped_rows=0
+  local -i unique_dt_keys=0 segment_count=0
   local -i frame_index=0
 
   echo $'frame_index\tmono\tdt_key\tsegment_change' >> "$timeline_debug"
@@ -746,7 +747,11 @@ make_timestamp_cmd() {
       printf "%0.6f drawtext@dvdate reinit text='%s';\n" "$mono" "$esc_date" >> "$cmdfile"
       printf "%0.6f drawtext@dvtime reinit text='%s';\n" "$mono" "$esc_time" >> "$cmdfile"
       prev_dt="$dt_key"
-      (( had_lines++ ))
+      (( segment_count++ ))
+      if [[ -z "${dt_keys_seen[$dt_key]:-}" ]]; then
+        dt_keys_seen[$dt_key]=1
+        (( unique_dt_keys++ ))
+      fi
       segment_change=1
     fi
 
@@ -773,20 +778,21 @@ make_timestamp_cmd() {
     fi
   )
 
-  if (( had_lines < 2 )); then
-    echo "[WARN] Insufficient per-frame RDT metadata found for $in (timeline entries=$had_lines)" >&2
-    debug_log "Frame parse summary (source=$frame_source): rows=$raw_rows, valid=$valid_rows, skipped=$skipped_rows, timeline entries=$had_lines"
+  local summary_line="[INFO] Frame parse summary (source=$frame_source): rows=$raw_rows, valid=$valid_rows, skipped=$skipped_rows, unique_dt_keys=$unique_dt_keys, segment_count=$segment_count"
+  echo "$summary_line" >&2
+  debug_log "$summary_line"
+
+  if (( segment_count < 2 )); then
+    echo "[WARN] Insufficient per-frame RDT metadata found for $in (segments=$segment_count; need at least 2). Returning missing metadata status." >&2
     log_file_excerpt "dvrescue log snippet" "$dv_log"
     log_file_excerpt "dvrescue JSON snippet" "$json_file"
     return 2   # special code: no/insufficient metadata
   fi
 
-  debug_log "Frame parse summary (source=$frame_source): rows=$raw_rows, valid=$valid_rows, skipped=$skipped_rows, timeline entries=$had_lines"
-
   last_parse_raw_rows=$raw_rows
   last_parse_valid_rows=$valid_rows
   last_parse_skipped_rows=$skipped_rows
-  last_parse_timeline_entries=$had_lines
+  last_parse_timeline_entries=$segment_count
 
   return 0
 }
@@ -877,8 +883,9 @@ EOF
 
   local -F prev_pts=-1 prev_mono=-1 offset=0 last_delta=0
   local prev_dt="" prev_date="" prev_time=""
-  local -i had_lines=0
+  typeset -A dt_keys_seen=()
   local -i raw_rows=0 valid_rows=0 skipped_rows=0
+  local -i unique_dt_keys=0 segment_count=0 dialogue_count=0
   local -i frame_index=0
 
   write_dialog() {
@@ -976,13 +983,22 @@ EOF
     if [[ "$dt_key" != "$prev_dt" ]]; then
       if (( prev_mono >= 0 )); then
         write_dialog "$prev_mono" "$mono" "$prev_date" "$prev_time" "$layout"
-        ((had_lines++))
+        (( dialogue_count++ ))
+        if [[ -n "$prev_dt" && -z "${dt_keys_seen[$prev_dt]:-}" ]]; then
+          dt_keys_seen[$prev_dt]=1
+          (( unique_dt_keys++ ))
+        fi
       fi
       prev_dt="$dt_key"
       prev_date="$date_part"
       prev_time="$time_part"
       prev_mono="$mono"
       segment_change=1
+      if [[ -z "${dt_keys_seen[$dt_key]:-}" ]]; then
+        dt_keys_seen[$dt_key]=1
+        (( unique_dt_keys++ ))
+      fi
+      (( segment_count++ ))
     fi
 
     prev_pts=$pts_sec
@@ -1014,23 +1030,28 @@ EOF
     fi
     end_sec=$((prev_mono + step))
     write_dialog "$prev_mono" "$end_sec" "$prev_date" "$prev_time" "$layout"
-    ((had_lines++))
+    (( dialogue_count++ ))
+    if [[ -n "$prev_dt" && -z "${dt_keys_seen[$prev_dt]:-}" ]]; then
+      dt_keys_seen[$prev_dt]=1
+      (( unique_dt_keys++ ))
+    fi
   fi
 
-  if (( had_lines == 0 )); then
-    echo "[WARN] No per-frame RDT metadata found for subtitles for $in" >&2
-    debug_log "Frame parse summary (source=$frame_source): rows=$raw_rows, valid=$valid_rows, skipped=$skipped_rows, dialogue lines=$had_lines"
+  local summary_line="[INFO] Frame parse summary (source=$frame_source): rows=$raw_rows, valid=$valid_rows, skipped=$skipped_rows, unique_dt_keys=$unique_dt_keys, segment_count=$segment_count, dialogue_count=$dialogue_count"
+  echo "$summary_line" >&2
+  debug_log "$summary_line"
+
+  if (( dialogue_count < 2 )); then
+    echo "[WARN] Insufficient per-frame RDT metadata found for subtitles for $in (dialogues=$dialogue_count; need at least 2). Returning missing metadata status." >&2
     log_file_excerpt "dvrescue log snippet" "$dv_log"
     log_file_excerpt "dvrescue JSON snippet" "$json_file"
     return 2
   fi
 
-  debug_log "Frame parse summary (source=$frame_source): rows=$raw_rows, valid=$valid_rows, skipped=$skipped_rows, dialogue lines=$had_lines"
-
   last_parse_raw_rows=$raw_rows
   last_parse_valid_rows=$valid_rows
   last_parse_skipped_rows=$skipped_rows
-  last_parse_timeline_entries=$had_lines
+  last_parse_timeline_entries=$dialogue_count
 
   return 0
 }
