@@ -237,6 +237,73 @@ debug_log() {
   fi
 }
 
+# Prefer an existing dvrescue XML artifact, falling back to a companion file
+# with a .xml extension alongside the log or JSON paths.
+find_dvrescue_xml_file() {
+  local dv_log="$1"
+  local json_file="$2"
+
+  local -a candidates=()
+
+  if [[ -n "$json_file" ]]; then
+    candidates+=("${json_file%.*}.xml")
+  fi
+
+  if [[ -n "$dv_log" ]]; then
+    candidates+=("${dv_log%.*}.xml")
+  fi
+
+  local candidate
+  for candidate in "${candidates[@]}"; do
+    if [[ -n "$candidate" && -s "$candidate" ]]; then
+      echo "$candidate"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+# Quick check for XML content beginning with the XML declaration in a log file.
+xml_section_present() {
+  local log_path="$1"
+
+  if [[ -z "$log_path" || ! -s "$log_path" ]]; then
+    return 1
+  fi
+
+  awk 'BEGIN{found=0} /^<\?xml/{found=1; exit} END{exit found?0:1}' "$log_path"
+}
+
+# Emit TSV rows ("\tPTS\tRDT\n") for each <frame ...> element from either an
+# XML file or the XML section of a dvrescue log.
+stream_xml_frame_rows() {
+  local xml_file="$1"
+  local log_path="$2"
+
+  local xml_stream_source=()
+
+  if [[ -n "$xml_file" && -s "$xml_file" ]]; then
+    xml_stream_source=(cat "$xml_file")
+  elif xml_section_present "$log_path"; then
+    xml_stream_source=(awk 'found{print} /^<\?xml/{found=1; print}' "$log_path")
+  else
+    return 1
+  fi
+
+  "${xml_stream_source[@]}" | perl -0777 -ne '
+    while (/<frame\b([^>]*)>/g) {
+      my $attrs = $1;
+      my ($pts) = $attrs =~ /\bpts_time="([^"]+)"/;
+      $pts //= ($attrs =~ /\bpts="([^"]+)"/)[0];
+      my ($rdt) = $attrs =~ /\brdt="([^"]+)"/;
+
+      next unless defined $pts && defined $rdt;
+      print "\t$pts\t$rdt\n";
+    }
+  '
+}
+
 # Allocate a temporary file in TMPDIR with a predictable prefix and optional
 # extension. Uses mktemp to avoid races and returns the created path on stdout.
 make_temp_file() {
@@ -640,8 +707,22 @@ make_timestamp_cmd() {
     fi
   fi
 
+  local xml_payload_file=""
+  if xml_payload_file=$(find_dvrescue_xml_file "$dv_log" "$json_file" 2>/dev/null); then
+    debug_log "Found dvrescue XML artifact: $xml_payload_file"
+  else
+    xml_payload_file=""
+  fi
+
   local -a parse_sources=()
   local text_rdt_pattern='^[[:space:]]*[0-9]+[[:space:]]+[0-9]{2}:[0-9]{2}:[0-9]{2}[;:][0-9]{2}[[:space:]]+[0-9]{4}-[0-9]{2}-[0-9]{2}[[:space:]]+[0-9]{2}:[0-9]{2}:[0-9]{2}'
+  local -i xml_available=0
+
+  if [[ -n "$xml_payload_file" ]]; then
+    xml_available=1
+  elif xml_section_present "$dv_log"; then
+    xml_available=1
+  fi
 
   if [[ -s "$json_file" ]]; then
     parse_sources=("json")
@@ -652,10 +733,12 @@ make_timestamp_cmd() {
       log_file_excerpt "Captured dvrescue timestamp text" "$dv_log" 10
     fi
 
-    if [[ -s "$dv_log" ]] && grep -q "<dvrescue" "$dv_log"; then
+    if (( xml_available )); then
       parse_sources+=("xml")
-      debug_log "Timestamp JSON missing; dvrescue XML available as fallback"
-      log_file_excerpt "Captured dvrescue XML" "$dv_log" 10
+      debug_log "Timestamp JSON missing; dvrescue XML available after text fallback"
+      if [[ -z "$xml_payload_file" ]]; then
+        log_file_excerpt "Captured dvrescue XML" "$dv_log" 10
+      fi
     fi
 
     if (( ${#parse_sources[@]} == 0 )); then
@@ -759,7 +842,7 @@ make_timestamp_cmd() {
       elif [[ "$frame_source" == "text" ]]; then
         awk '{ gsub(/\r$/, ""); sub(/^[[:space:]]+/, ""); if (NF >= 4 && $1 ~ /^[0-9]+$/ && $2 ~ /^[0-9]{2}:[0-9]{2}:[0-9]{2}[;:][0-9]{2}$/ && $3 ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/ && $4 ~ /^[0-9]{2}:[0-9]{2}:[0-9]{2}$/) printf "%d\t%s\t%s %s\n", $1-1, $2, $3, $4; }' "$dv_log"
       else
-        awk 'BEGIN{FS="\""} /<frame /{pts="";rdt=""; for(i=1;i<NF;i++){if($i~/(^| )pts_time=/||$i~/(^| )pts=/)pts=$(i+1); if($i~/(^| )rdt=/)rdt=$(i+1)} if(pts!="" && rdt!="") printf "\t%s\t%s\n", pts, rdt}' "$dv_log"
+        stream_xml_frame_rows "$xml_payload_file" "$dv_log"
       fi
     )
 
@@ -849,8 +932,22 @@ make_ass_subs() {
   log_artifact_path_and_size "dvrescue JSON" "$json_file"
   log_artifact_path_and_size "dvrescue log" "$dv_log"
 
+  local xml_payload_file=""
+  if xml_payload_file=$(find_dvrescue_xml_file "$dv_log" "$json_file" 2>/dev/null); then
+    debug_log "Found dvrescue XML artifact: $xml_payload_file"
+  else
+    xml_payload_file=""
+  fi
+
   local -a parse_sources=()
   local text_rdt_pattern='^[[:space:]]*[0-9]+[[:space:]]+[0-9]{2}:[0-9]{2}:[0-9]{2}[;:][0-9]{2}[[:space:]]+[0-9]{4}-[0-9]{2}-[0-9]{2}[[:space:]]+[0-9]{2}:[0-9]{2}:[0-9]{2}'
+  local -i xml_available=0
+
+  if [[ -n "$xml_payload_file" ]]; then
+    xml_available=1
+  elif xml_section_present "$dv_log"; then
+    xml_available=1
+  fi
 
   if [[ -s "$json_file" ]]; then
     parse_sources=("json")
@@ -861,10 +958,12 @@ make_ass_subs() {
       log_file_excerpt "Captured dvrescue timestamp text" "$dv_log" 10
     fi
 
-    if [[ -s "$dv_log" ]] && grep -q "<dvrescue" "$dv_log"; then
+    if (( xml_available )); then
       parse_sources+=("xml")
-      debug_log "Subtitle JSON missing; dvrescue XML available as fallback"
-      log_file_excerpt "Captured dvrescue XML" "$dv_log" 10
+      debug_log "Subtitle JSON missing; dvrescue XML available after text fallback"
+      if [[ -z "$xml_payload_file" ]]; then
+        log_file_excerpt "Captured dvrescue XML" "$dv_log" 10
+      fi
     fi
 
     if (( ${#parse_sources[@]} == 0 )); then
@@ -1033,7 +1132,7 @@ EOF
       elif [[ "$frame_source" == "text" ]]; then
         awk '{ gsub(/\r$/, ""); sub(/^[[:space:]]+/, ""); if (NF >= 4 && $1 ~ /^[0-9]+$/ && $2 ~ /^[0-9]{2}:[0-9]{2}:[0-9]{2}[;:][0-9]{2}$/ && $3 ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/ && $4 ~ /^[0-9]{2}:[0-9]{2}:[0-9]{2}$/) printf "%d\t%s\t%s %s\n", $1-1, $2, $3, $4; }' "$dv_log"
       else
-        awk 'BEGIN{FS="\""} /<frame /{pts="";rdt=""; for(i=1;i<NF;i++){if($i~/(^| )pts_time=/||$i~/(^| )pts=/)pts=$(i+1); if($i~/(^| )rdt=/)rdt=$(i+1)} if(pts!="" && rdt!="") printf "\t%s\t%s\n", pts, rdt}' "$dv_log"
+        stream_xml_frame_rows "$xml_payload_file" "$dv_log"
       fi
     )
 
