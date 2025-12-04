@@ -538,7 +538,7 @@ struct ContentView: View {
             missingMetaArg = "skip_file"
         }
 
-        process.arguments = [
+        var args: [String] = [
             tempScriptURL.path,
             "--mode=\(mode)",
             "--layout=\(layout)",
@@ -548,10 +548,16 @@ struct ContentView: View {
             "--fontfile=\(resolvedFontPath())",
             "--fontname=\(resolvedFontName())",
             "--ffmpeg=\(ffmpegURL.path)",
-            "--dvrescue=\(dvrescueURL.path)",
-            "--",
-            inputPath
-        ] + (debugMode ? ["--debug"] : [])
+            "--dvrescue=\(dvrescueURL.path)"
+        ]
+
+        if debugMode {
+            args.append("--debug")
+        }
+
+        args.append(contentsOf: ["--", inputPath])
+
+        process.arguments = args
 
         var env = ProcessInfo.processInfo.environment
         env["TMPDIR"] = tempDir.path
