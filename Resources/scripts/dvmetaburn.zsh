@@ -3,6 +3,11 @@
 set -euo pipefail
 setopt NULL_GLOB
 
+# Ensure baseline coreutils are available even when PATH is sanitized by the
+# app bundle environment.
+PATH="/bin:/usr/bin:/usr/local/bin:${PATH:-}"
+export PATH
+
 # Ensure zsh temp files go somewhere writable
 : "${TMPDIR:=/tmp}"
 TMPDIR="${TMPDIR%/}"
@@ -199,7 +204,11 @@ make_temp_file() {
   awk_cmd=$(command -v awk || { [[ -x /usr/bin/awk ]] && echo /usr/bin/awk; } || true)
   df_cmd=$(command -v df || { [[ -x /bin/df ]] && echo /bin/df; } || true)
   stat_cmd=$(command -v stat || { [[ -x /usr/bin/stat ]] && echo /usr/bin/stat; } || true)
-  mv_cmd=$(command -v mv || { [[ -x /bin/mv ]] && echo /bin/mv; } || { [[ -x /usr/bin/mv ]] && echo /usr/bin/mv; } || true)
+
+  mv_cmd=$(command -v mv || true)
+  [[ -z "$mv_cmd" && -x /bin/mv ]] && mv_cmd="/bin/mv"
+  [[ -z "$mv_cmd" && -x /usr/bin/mv ]] && mv_cmd="/usr/bin/mv"
+
   sed_cmd=$(command -v sed || { [[ -x /bin/sed ]] && echo /bin/sed; } || { [[ -x /usr/bin/sed ]] && echo /usr/bin/sed; } || true)
   cut_cmd=$(command -v cut || { [[ -x /bin/cut ]] && echo /bin/cut; } || { [[ -x /usr/bin/cut ]] && echo /usr/bin/cut; } || true)
 
@@ -300,7 +309,9 @@ log_file_excerpt() {
   local -i max_lines=${3:-20}
 
   local wc_cmd
-  wc_cmd=$(command -v wc || { [[ -x /bin/wc ]] && echo /bin/wc; } || { [[ -x /usr/bin/wc ]] && echo /usr/bin/wc; } || true)
+  wc_cmd=$(command -v wc || true)
+  [[ -z "$wc_cmd" && -x /bin/wc ]] && wc_cmd="/bin/wc"
+  [[ -z "$wc_cmd" && -x /usr/bin/wc ]] && wc_cmd="/usr/bin/wc"
 
   if [[ -z "$wc_cmd" ]]; then
     debug_log "$label missing or empty (path: $path)"
@@ -548,7 +559,7 @@ make_timestamp_cmd() {
     fi
 
     time_part="${time_part%%.*}"
-    local esc_time="${time_part//:/\\:}"
+    local esc_time="${time_part//:/\\\\:}"
     local dt_key="${date_part} ${time_part}"
 
     if [[ "$dt_key" != "$prev_dt" ]]; then
@@ -971,14 +982,6 @@ process_file() {
     echo "[ERROR] Failed to build timestamp command file for $in" >&2
     rm -f "$cmdfile"
     return 1
-  fi
-
-  # ASS subtitles: non-fatal if missing
-  local ass_out="${base}_dvmeta_${layout}.ass"
-  if ! make_ass_subs "$in" "$layout" "$ass_out"; then
-    echo "[WARN] Failed to build ASS subtitles for $in" >&2
-  else
-    echo "[INFO] Wrote subtitles: $ass_out"
   fi
 
   local vf
