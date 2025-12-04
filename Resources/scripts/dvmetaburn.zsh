@@ -289,15 +289,32 @@ make_timestamp_cmd() {
   json_base="$(mktemp "${TMPDIR}/dvts-XXXXXX")"
   json_file="${json_base}.json"
 
-  "$dvrescue_bin" "$in" -json "$json_file" >/dev/null 2>&1 || true
+  local dv_log dv_status=0
+  dv_log="$(mktemp "${TMPDIR}/dvrs-XXXXXX.log")"
+
+  if ! "$dvrescue_bin" "$in" -json "$json_file" >"$dv_log" 2>&1; then
+    dv_status=$?
+  fi
 
   : > "$cmdfile"
 
   if [[ ! -s "$json_file" ]]; then
-    echo "[WARN] Timestamp JSON missing for $in" >&2
+    echo "[WARN] Timestamp JSON missing for $in (dvrescue exit $dv_status)" >&2
+    if (( debug_mode == 1 )); then
+      echo "[DEBUG] dvrescue -json output for $in:" >&2
+      if [[ -s "$dv_log" ]]; then
+        cat "$dv_log" >&2
+      else
+        echo "[DEBUG] (no dvrescue stdout/stderr captured)" >&2
+      fi
+    fi
     rm -f "$json_file"
+    rm -f "$dv_log"
     return 2
   fi
+
+  debug_log "dvrescue -json exit status: $dv_status"
+  rm -f "$dv_log"
 
   local -F prev_pts=-1 prev_mono=0 offset=0 last_delta=0
   local prev_dt=""
@@ -411,13 +428,30 @@ make_ass_subs() {
   json_base="$(mktemp "${TMPDIR}/dvts-XXXXXX")"
   json_file="${json_base}.json"
 
-  "$dvrescue_bin" "$in" -json "$json_file" >/dev/null 2>&1 || true
+  local dv_log dv_status=0
+  dv_log="$(mktemp "${TMPDIR}/dvrs-XXXXXX.log")"
+
+  if ! "$dvrescue_bin" "$in" -json "$json_file" >"$dv_log" 2>&1; then
+    dv_status=$?
+  fi
 
   if [[ ! -s "$json_file" ]]; then
-    echo "[WARN] Subtitle JSON missing for $in" >&2
+    echo "[WARN] Subtitle JSON missing for $in (dvrescue exit $dv_status)" >&2
+    if (( debug_mode == 1 )); then
+      echo "[DEBUG] dvrescue -json output for subtitles from $in:" >&2
+      if [[ -s "$dv_log" ]]; then
+        cat "$dv_log" >&2
+      else
+        echo "[DEBUG] (no dvrescue stdout/stderr captured)" >&2
+      fi
+    fi
     rm -f "$json_file"
+    rm -f "$dv_log"
     return 1
   fi
+
+  debug_log "dvrescue -json exit status: $dv_status"
+  rm -f "$dv_log"
 
   : > "$ass_out"
 
