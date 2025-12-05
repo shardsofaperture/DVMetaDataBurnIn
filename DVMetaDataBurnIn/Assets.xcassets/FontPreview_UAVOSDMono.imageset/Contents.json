@@ -1,12 +1,11 @@
 {
   "images" : [
     {
-      "filename" : "BARCOLONSLASH.png",
+      "filename" : "FontPreview_VCROSDMONO.png",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
-      "filename" : "STACKEDCOLONSLASH.png",
       "idiom" : "universal",
       "scale" : "2x"
     },

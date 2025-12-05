@@ -1,17 +1,19 @@
 {
   "images" : [
     {
-      "filename" : "UAVOSDMONO.png",
+      "filename" : "OverlayPreview_Stacked.png",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
-      "filename" : "UAVOSDSANS.png",
+      "idiom" : "universal",
+      "scale" : "1x"
+    },
+    {
       "idiom" : "universal",
       "scale" : "2x"
     },
     {
-      "filename" : "VCROSDMONO.png",
       "idiom" : "universal",
       "scale" : "3x"
     }
