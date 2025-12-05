@@ -234,36 +234,121 @@ extract_rdt_from_xml() {
 
 # PRIMARY SOURCE: parse dvrescue log into frame / date / time TSV.
 build_rdt_from_log() {
-  local log="$1"
+  local log_path="$1"
+  local out_tsv="$2"
+  local fps="$3"
 
-  if [[ -z "$log" || ! -s "$log" ]]; then
-    echo "[ERROR] dvrescue log missing or empty: $log" >&2
+  if [[ ! -s "$log_path" ]]; then
+    echo "[WARN] build_rdt_from_log: log missing or empty: $log_path" >&2
     return 1
   fi
 
-  awk '
-    BEGIN { rows = 0 }
+  # Parse lines like:
+  #   309 00:02:59;12 2025-11-12 09:17:29
+  # into:
+  #   <frame_index_0_based> <pts_sec> <YYYY-MM-DD HH:MM:SS>
+  awk -v fps="$fps" '
+    # data rows: index, timecode, datetime
+    /^[[:space:]]*[0-9]+[[:space:]]+[0-9]{2}:[0-9]{2}:[0-9]{2};[0-9]{2}[[:space:]]+[0-9]{4}-[0-9]{2}-[0-9]{2}[[:space:]][0-9]{2}:[0-9]{2}:[0-9]{2}$/ {
+      idx = $1 + 0
+      tc  = $2
+      dt  = $3 " " $4
 
-    {
-      # Strip ALL leading whitespace
-      sub(/^[[:space:]]+/, "", $0)
+      # tc = HH:MM:SS;FF → pts in seconds
+      n = split(tc, a, /[:;]/)
+      if (n != 4) next
+      h = a[1] + 0
+      m = a[2] + 0
+      s = a[3] + 0
+      f = a[4] + 0
 
-      # Expected layout (very loose):
-      #   $1 = frame index
-      #   $2 = SMPTE timecode (ignored)
-      #   $3 = YYYY-MM-DD
-      #   $4 = HH:MM:SS
-      if (NF >= 4 && $1 ~ /^[0-9]+$/) {
-        printf "%s\t%s\t%s\n", $1, $3, $4
-        rows++
-      }
+      pts = h * 3600 + m * 60 + s + (fps > 0 ? f / fps : 0)
+
+      # 0-based frame index, pts, dt key (full second precision)
+      printf "%d\t%.6f\t%s\n", idx - 1, pts, dt
     }
+  ' "$log_path" > "$out_tsv"
 
-    END {
-      if (rows == 0) exit 1
-    }
-  ' "$log"
+  local rows
+  rows=$(wc -l < "$out_tsv" | tr -d '[:space:]')
+  if [[ "$rows" -eq 0 ]]; then
+    echo "[WARN] build_rdt_from_log: produced 0 rows from $log_path" >&2
+    return 1
+  fi
+
+  echo "[DEBUG] build_rdt_from_log: wrote $rows rows to $out_tsv from $log_path" >&2
+  return 0
 }
+
+
+
+# Segment generator — shared by sendcmd + ASS
+generate_segments_from_tsv() {
+  local rdt_tsv="$1"
+  local fps="$2"
+
+  local prev_dt="" prev_date="" prev_time=""
+  local prev_start=""
+  local frame_step
+  frame_step=$(awk -v fps="$fps" 'BEGIN{printf "%.6f", 1/fps}')
+
+  local -i segment_rows=0 raw_rows=0
+  local last_frame_idx=""
+
+  # rdt_tsv lines: frame_idx<TAB>date<TAB>time
+  while read -r frame_idx date_part time_part || [[ -n "${frame_idx:-}" ]]; do
+    (( raw_rows++ ))
+    local dt_key="${date_part} ${time_part}"
+
+    # Frame start time in seconds
+    local start_sec
+    start_sec=$(awk -v f="$frame_idx" -v fps="$fps" 'BEGIN{
+      if (f < 1) f = 1;
+      printf "%.6f", (f-1)/fps
+    }')
+
+    # Track last frame index seen
+    last_frame_idx="$frame_idx"
+
+    # First row: just seed the "previous" segment
+    if [[ -z "$prev_dt" ]]; then
+      prev_dt="$dt_key"
+      prev_date="$date_part"
+      prev_time="$time_part"
+      prev_start="$start_sec"
+      continue
+    fi
+
+    # When the datetime changes, close the previous segment
+    if [[ "$dt_key" != "$prev_dt" ]]; then
+      printf "%s\t%s\t%s\t%s\n" \
+        "$prev_start" "$start_sec" "$prev_date" "$prev_time"
+      (( segment_rows++ ))
+
+      prev_dt="$dt_key"
+      prev_date="$date_part"
+      prev_time="$time_part"
+      prev_start="$start_sec"
+    fi
+  done < "$rdt_tsv"
+
+  # Close the final segment so it runs through the last frame
+  if [[ -n "$prev_dt" && -n "$prev_start" && -n "$last_frame_idx" ]]; then
+    local end_sec
+    end_sec=$(awk -v f="$last_frame_idx" -v fps="$fps" 'BEGIN{
+      if (f < 1) f = 1;
+      printf "%.6f", f/fps
+    }')
+
+    printf "%s\t%s\t%s\t%s\n" \
+      "$prev_start" "$end_sec" "$prev_date" "$prev_time"
+    (( segment_rows++ ))
+  fi
+
+  debug_log "generate_segments_from_tsv rows_in=$raw_rows rows_out=$segment_rows source_tsv=$rdt_tsv fps=$fps"
+}
+
+
 
 # Try XML then log, but prefer LOG when it has usable rows.
 build_rdt_tmp() {
