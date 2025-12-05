@@ -241,23 +241,28 @@ build_rdt_from_log() {
   fi
 
   awk '
-    BEGIN {
-      last_dt_key = ""
+    {
+      # Remove leading whitespace so field positions are correct
+      sub(/^[[:space:]]+/, "", $0)
+
+      # Expect after trim:
+      #   $1 = frame index (integer)
+      #   $2 = SMPTE timecode (ignored)
+      #   $3 = YYYY-MM-DD
+      #   $4 = HH:MM:SS
+      if (NF >= 4 &&
+          $1 ~ /^[0-9]+$/ &&
+          $3 ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/ &&
+          $4 ~ /^[0-9]{2}:[0-9]{2}:[0-9]{2}$/) {
+
+        printf "%s\t%s %s\n", $1, $3, $4
+        rows++
+      }
     }
 
-    # Expect lines like: "1 00:02:41;06 2025-11-11 08:29:35"
-    NF >= 4 &&
-    $3 ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/ &&
-    $4 ~ /^[0-9]{2}:[0-9]{2}:[0-9]{2}$/ {
-      frame_idx = $1
-      date_part = $3
-      time_part = $4
-      dt_key    = date_part " " time_part
-
-      # Emit ONE row per unique (date+time) change
-      if (dt_key != last_dt_key) {
-        printf "%s\t%s\t%s\n", frame_idx, date_part, time_part
-        last_dt_key = dt_key
+    END {
+      if (rows == 0) {
+        exit 1
       }
     }
   ' "$log"
@@ -278,7 +283,7 @@ build_rdt_tmp() {
   local tmp_var="$3"
   local source_var="$4"
 
-  local tmp_path source="xml"
+  local tmp_path frame_source="xml"
   tmp_path=$(make_temp_file dvmeta_rdt ".tsv") || return 1
 
   local xml_rows=0 log_rows=0
@@ -297,27 +302,33 @@ build_rdt_tmp() {
   local -i final_rows
   final_rows=$xml_rows
 
-  if (( xml_rows < 3 )); then
-    debug_log "XML RDT too sparse ($xml_rows rows), falling back to dvrescue log"
+  if (( xml_rows == 0 )); then
+    debug_log "XML RDT empty or unavailable ($xml_rows rows); checking dvrescue log"
     if [[ -n "$log_path" && -s "$log_path" ]]; then
-      if build_rdt_from_log "$log_path" > "$tmp_path"; then
-        source="log"
-      else
+      if ! build_rdt_from_log "$log_path" > "$tmp_path"; then
         debug_log "build_rdt_from_log failed for $log_path"
+        : > "$tmp_path"
       fi
     else
       debug_log "dvrescue log missing or empty; cannot use log fallback (log_path=$log_path)"
+      : > "$tmp_path"
     fi
-    log_rows=$(wc -l < "$tmp_path" | tr -d " ")
+    log_rows=$(wc -l < "$tmp_path" | tr -d ' ')
+  fi
+
+  if (( xml_rows >= 1 )); then
+    frame_source="xml"
+    final_rows=$xml_rows
+  elif (( log_rows >= 1 )); then
+    frame_source="log"
     final_rows=$log_rows
+  else
+    final_rows=0
   fi
 
-  if [[ $log_rows -eq 0 && $source == "xml" ]]; then
-    log_rows=$xml_rows
-  fi
-
-  echo "[INFO] build_rdt_tmp xml_path=$xml_path log_path=$log_path xml_rows=$xml_rows log_rows=$log_rows source=$source final_rows=$final_rows" >&2
-  debug_log "build_rdt_tmp (detailed) xml_path=$xml_path log_path=$log_path xml_rows=$xml_rows log_rows=$log_rows source=$source final_rows=$final_rows"
+  echo "[INFO] build_rdt_tmp xml_path=$xml_path log_path=$log_path xml_rows=$xml_rows log_rows=$log_rows source=$frame_source final_rows=$final_rows" >&2
+  debug_log "build_rdt_tmp xml_rows=$xml_rows log_rows=$log_rows final_rows=$final_rows source=$frame_source"
+  debug_log "build_rdt_tmp (detailed) xml_path=$xml_path log_path=$log_path xml_rows=$xml_rows log_rows=$log_rows source=$frame_source final_rows=$final_rows"
 
   if (( final_rows == 0 )); then
     echo "[WARN] Unable to derive RDT timeline from XML or dvrescue log" >&2
@@ -325,7 +336,7 @@ build_rdt_tmp() {
   fi
 
   printf -v "$tmp_var" '%s' "$tmp_path"
-  printf -v "$source_var" '%s' "$source"
+  printf -v "$source_var" '%s' "$frame_source"
   return 0
 }
 
@@ -808,7 +819,7 @@ make_timestamp_cmd() {
 
   if (( valid_rows < 1 )); then
     echo "[WARN] No valid per-frame RDT metadata found in $xml_file" >&2
-    return 2
+    return 1
   fi
 
   local segments_tmp
@@ -1195,105 +1206,21 @@ process_file() {
     return $exit_status
   fi
 
-  local ts_status=0
   if ! make_timestamp_cmd "$in" "$cmdfile" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$fps"; then
-    ts_status=$?
-    if (( ts_status == 2 )); then
-      local fallback_dt fallback_source
-      if extract_first_rdt "$dvrescue_xml" "$dvrescue_log" fallback_dt fallback_source; then
-        debug_log "Using fallback RDT for burn-in: $fallback_dt (source: $fallback_source)"
-
-        local date_part time_part date_label
-        date_part="${fallback_dt% *}"
-        time_part="${fallback_dt#* }"
-
-        if ! date_label=$(date -j -f "%Y-%m-%d" "$date_part" "+%b %e %Y" 2>/dev/null); then
-          date_label=$(date -d "$date_part" "+%b %e %Y" 2>/dev/null || echo "$date_part")
-        fi
-
-        local hour minute second
-        IFS=: read -r hour minute second <<< "$time_part"
-        local -i offset_sec
-        offset_sec=$((10#$hour * 3600 + 10#$minute * 60 + 10#$second))
-
-        : > "$timeline_debug"
-        echo "$timeline_header" >> "$timeline_debug"
-        printf "0\t0.000000\t%s\t%s\t%s\t1\n" "$date_part" "$time_part" "$fallback_dt" >> "$timeline_debug"
-
-        : > "$cmdfile"
-        echo "# fallback overlay; no sendcmd timeline available" >> "$cmdfile"
-
-        last_parse_frame_source="${fallback_source:-fallback}"
-        if (( last_parse_raw_rows < 1 )); then
-          last_parse_raw_rows=1
-          last_parse_valid_rows=1
-          last_parse_skipped_rows=0
-          last_parse_timeline_entries=1
-        fi
-
-        local vf_fallback
-        case "$layout" in
-          stacked)
-            vf_fallback="drawtext=fontfile='${font}':text='${date_label}':fontcolor=white:fontsize=24:x=w-tw-20:y=h-60,drawtext=fontfile='${font}':text='%{pts\\:gmtime:${offset_sec}:%r}':fontcolor=white:fontsize=24:x=w-tw-20:y=h-30"
-            ;;
-          single)
-            vf_fallback="drawtext=fontfile='${font}':text='${date_label} %{pts\\:gmtime:${offset_sec}:%r}':fontcolor=white:fontsize=24:x=w-tw-40:y=h-30"
-            ;;
-          *)
-            vf_fallback="drawtext=fontfile='${font}':text='${date_label}':fontcolor=white:fontsize=24:x=w-tw-20:y=h-60,drawtext=fontfile='${font}':text='%{pts\\:gmtime:${offset_sec}:%r}':fontcolor=white:fontsize=24:x=w-tw-20:y=h-30"
-            ;;
-        esac
-
-        local out_fallback="${base}_dateburn.${out_ext}"
-        echo "[INFO] Using fallback DV metadata overlay for $in" >&2
-        "$ffmpeg_bin" -y -i "$in" \
-          -vf "$vf_fallback" \
-          "${codec_args[@]}" \
-          "$out_fallback"
-
-        exit_status=$?
-        manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
-        burn_output="$out_fallback"
-        write_versions_file "$versions_file"
-        write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
-        if [[ "$manifest_status" == "success" ]]; then
-          emit_debug_snapshots "$timeline_debug" "$cmdfile"
-        fi
-        return $exit_status
-      fi
-      case "$missing_meta" in
-        skip_burnin_convert)
-          echo "[WARN] Missing timestamp metadata for $in; converting without burn-in." >&2
-          local out_passthrough="${base}_conv.${out_ext}"
-          "$ffmpeg_bin" -y -i "$in" \
-            "${codec_args[@]}" \
-            "$out_passthrough"
-          exit_status=$?
-          manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
-          passthrough_output="$out_passthrough"
-          write_versions_file "$versions_file"
-          write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
-          if [[ "$manifest_status" == "success" ]]; then
-            emit_debug_snapshots "$timeline_debug" "$cmdfile"
-          fi
-          return $exit_status
-          ;;
-        skip_file)
-          echo "[WARN] Missing timestamp metadata for $in; skipping file." >&2
-          manifest_status="skipped"
-          write_versions_file "$versions_file"
-          write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
-          return 0
-          ;;
-        *)
-          ;;
-      esac
-    fi
-
-    echo "[ERROR] Failed to build timestamp command file for $in" >&2
-    write_versions_file "$versions_file"
-    write_run_manifest "$run_manifest" "error" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
-    return 1
+    case "$missing_meta" in
+      error)
+        error "Failed to build timestamp command file for $in"
+        return 1
+        ;;
+      skip_burnin_convert)
+        warn "No usable RDT; converting without burn-in for $in"
+        burn_mode="passthrough"
+        ;;
+      skip_file)
+        warn "No usable RDT; skipping file $in"
+        return 0
+        ;;
+    esac
   fi
 
   local -i cmd_lines=0
