@@ -1020,33 +1020,34 @@ process_file() {
 
     echo "[INFO] Adding DV metadata subtitle track to: $out_subbed"
     debug_log "Merging subtitle track with codec: $subtitle_codec (video args: ${sub_video_args[*]})"
-# Inside process_file(), under: if [[ "$burn_mode" == "burnin" ]]; then ...
 
-  local out_burn="${base}_dateburn.${out_ext}"
+   set -x
+    "$ffmpeg_bin" -y \
+      -i "$in" \
+      -f ass -i "$ass_artifact" \
+      "${sub_video_args[@]}" \
+      -c:s "$subtitle_codec" \
+      -map 0:v -map '0:a?' -map 1:0 \
+      -metadata:s:s:0 language=eng \
+      "$out_subbed"
+    set +x
 
-  echo "[INFO] Burning DV metadata into: $out_burn"
-  debug_log "Burn-in ffmpeg filter: sendcmd=f=$cmdfile,drawtext@dvmeta=..."
+    exit_status=$?
+    manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
+    subtitle_output="$out_subbed"
+    write_versions_file "$versions_file"
+    write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" \
+      "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" \
+      "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
 
-  "$ffmpeg_bin" -y \
-    -i "$in" \
-    -vf "sendcmd=f=$cmdfile,drawtext@dvmeta=fontfile=$fontfile:text=' ':fontsize=24:fontcolor=white:x=(w-tw)/2:y=h-th-32:box=1:boxcolor=black@0.6:boxborderw=4" \
-    "${codec_args[@]}" \
-    "$out_burn"
+    if [[ "$manifest_status" == "success" ]]; then
+      emit_debug_snapshots "$timeline_debug" "$cmdfile"
+    fi
 
-  exit_status=$?
-  manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
-  burn_output="$out_burn"
-  write_versions_file "$versions_file"
-  write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" \
-    "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" \
-    "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
-
-  if [[ "$manifest_status" == "success" ]]; then
-    emit_debug_snapshots "$timeline_debug" "$cmdfile"
+    return $exit_status
   fi
 
-  return $exit_status
-fi
+
 
   # Burn-in mode
   local timeline_fail=0
