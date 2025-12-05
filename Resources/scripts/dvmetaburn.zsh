@@ -861,7 +861,8 @@ process_file() {
   run_manifest="${artifact_dir}/run_manifest.json"
   versions_file="${artifact_dir}/versions.txt"
 
-  : > "$dvrescue_xml"
+  rm -f "$dvrescue_xml"
+  debug_log "Cleared prior dvrescue XML target: $dvrescue_xml"
   : > "$dvrescue_log"
   : > "$cmdfile"
   : > "$timeline_debug"
