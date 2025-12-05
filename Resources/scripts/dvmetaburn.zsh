@@ -277,7 +277,7 @@ build_sendcmd_from_timeline() {
     return 1
   fi
 
-  : > "$sendcmd_path"   # truncate file
+  : > "$sendcmd_path"   # truncate
 
   awk -F '\t' '
     # Expect: frame_index \t t_sec \t date \t time \t dt_key
@@ -287,25 +287,24 @@ build_sendcmd_from_timeline() {
       date      = $3
       time      = $4
 
-      # Build "YYYY-MM-DD HH:MM:SS"
-      text = date " " time
+      # Strip CRs
+      gsub(/\r/, "", date)
+      gsub(/\r/, "", time)
 
-      # Strip any stray CRs that came through
-      gsub(/\r/, "", text)
+      # Escape backslashes (paranoia)
+      gsub(/\\/, "\\\\", date)
+      gsub(/\\/, "\\\\", time)
 
-      # Escape backslashes
-      gsub(/\\/, "\\\\", text)
+      # Time has colons → escape for drawtext
+      gsub(/:/, "\\\\:", time)
 
-      # Escape colons for drawtext
-      gsub(/:/, "\\\\:", text)
+      # Dates are YYYY-MM-DD, no spaces/colons, so they’re fine now.
 
-      # Escape spaces so the whole timestamp is one token:
-      #   2025-11-12\ 09\\:17\\:19
-      gsub(/ /, "\\ ", text)
-
-      # Final line:
-      # 0.000000 drawtext@dvmeta reinit text=2025-11-12\ 09\\:17\\:19;
-      printf("%.6f drawtext@dvmeta reinit text=%s;\n", t_sec, text)
+      # Two commands at same timestamp:
+      #   dvdate → date
+      #   dvtime → time
+      printf("%.6f drawtext@dvdate reinit text=%s;\n", t_sec, date)
+      printf("%.6f drawtext@dvtime reinit text=%s;\n", t_sec, time)
     }
   ' "$tsv_path" >> "$sendcmd_path"
 
@@ -315,8 +314,6 @@ build_sendcmd_from_timeline() {
 
   return 0
 }
-
-
 
 
 
@@ -1088,15 +1085,19 @@ fi
     esac
   fi
 
-  local vf
+    local vf
   case "$layout" in
     stacked)
+      # DV-style: bottom-right, date over time, no background
       vf="sendcmd=f='${cmdfile}',\
-drawtext@dvmeta=fontfile='${font}':text='':fontcolor=white:fontsize=24:x=w-tw-20:y=h-45"
+drawtext@dvdate=fontfile='${font}':text='':fontcolor=white:fontsize=24:box=0:x=w-tw-20:y=h-60,\
+drawtext@dvtime=fontfile='${font}':text='':fontcolor=white:fontsize=24:box=0:x=w-tw-20:y=h-30"
       ;;
     single)
+      # Bar: date left, time right, same baseline, no background
       vf="sendcmd=f='${cmdfile}',\
-drawtext@dvmeta=fontfile='${font}':text='':fontcolor=white:fontsize=24:x=w-tw-40:y=h-30"
+drawtext@dvdate=fontfile='${font}':text='':fontcolor=white:fontsize=24:box=0:x=20:y=h-40,\
+drawtext@dvtime=fontfile='${font}':text='':fontcolor=white:fontsize=24:box=0:x=w-tw-20:y=h-40"
       ;;
     *)
       echo "Unknown layout: $layout" >&2
@@ -1105,6 +1106,7 @@ drawtext@dvmeta=fontfile='${font}':text='':fontcolor=white:fontsize=24:x=w-tw-40
       return 1
       ;;
   esac
+
 
   local out="${base}_dateburn.${out_ext}"
 
