@@ -223,7 +223,12 @@ extract_rdt_from_xml() {
 
       next if $date eq q{} || $time eq q{};
 
-      printf "%d %s %s\n", $idx, $date, $time;
+      my $frame = $idx;
+      if ($attrs =~ /\bn=\"([0-9]+)\"/) {
+        $frame = $1;
+      }
+
+      printf "%d %s %s\n", $frame, $date, $time;
       $idx++;
     }
   ' "$xml_path"
@@ -241,6 +246,8 @@ build_rdt_from_log() {
   fi
 
   awk '
+    BEGIN { rows = 0 }
+
     {
       # Remove leading whitespace so field positions are correct
       sub(/^[[:space:]]+/, "", $0)
@@ -283,47 +290,55 @@ build_rdt_tmp() {
   local tmp_var="$3"
   local source_var="$4"
 
-  local tmp_path frame_source="xml"
-  tmp_path=$(make_temp_file dvmeta_rdt ".tsv") || return 1
+  local frame_source="unknown"
+  local -i final_rows=0
+  local -i xml_rows=0 log_rows=0
+  local -i log_min_rows=10
+  local prefer_log=0
 
-  local xml_rows=0 log_rows=0
+  local xml_tmp="" log_tmp="" tmp_path=""
+
+  if (( last_dvrescue_status == 0 )) && [[ -n "$log_path" && -s "$log_path" ]]; then
+    prefer_log=1
+  fi
 
   if [[ -n "$xml_path" && -s "$xml_path" ]]; then
-    if ! extract_rdt_from_xml "$xml_path" > "$tmp_path"; then
-      debug_log "extract_rdt_from_xml failed for $xml_path; continuing to log fallback"
-      : > "$tmp_path"
+    xml_tmp=$(make_temp_file dvmeta_rdt_xml ".tsv") || return 1
+    if ! extract_rdt_from_xml "$xml_path" > "$xml_tmp"; then
+      debug_log "extract_rdt_from_xml failed for $xml_path; continuing to log evaluation"
+      : > "$xml_tmp"
     fi
-    xml_rows=$(wc -l < "$tmp_path" | tr -d " ")
+    xml_rows=$(wc -l < "$xml_tmp" | tr -d " ")
   else
     debug_log "XML path missing or empty; skipping XML parse (xml_path=$xml_path)"
-    : > "$tmp_path"
   fi
 
-  local -i final_rows
-  final_rows=$xml_rows
-
-  if (( xml_rows == 0 )); then
-    debug_log "XML RDT empty or unavailable ($xml_rows rows); checking dvrescue log"
-    if [[ -n "$log_path" && -s "$log_path" ]]; then
-      if ! build_rdt_from_log "$log_path" > "$tmp_path"; then
-        debug_log "build_rdt_from_log failed for $log_path"
-        : > "$tmp_path"
-      fi
-    else
-      debug_log "dvrescue log missing or empty; cannot use log fallback (log_path=$log_path)"
-      : > "$tmp_path"
+  if [[ -n "$log_path" && -s "$log_path" ]]; then
+    log_tmp=$(make_temp_file dvmeta_rdt_log ".tsv") || return 1
+    if ! build_rdt_from_log "$log_path" > "$log_tmp"; then
+      debug_log "build_rdt_from_log failed for $log_path"
+      : > "$log_tmp"
     fi
-    log_rows=$(wc -l < "$tmp_path" | tr -d ' ')
+    log_rows=$(wc -l < "$log_tmp" | tr -d ' ')
+  else
+    debug_log "dvrescue log missing or empty; skipping log parse (log_path=$log_path)"
   fi
 
-  if (( xml_rows >= 1 )); then
+  if (( prefer_log == 1 && log_rows >= log_min_rows )); then
+    frame_source="log"
+    final_rows=$log_rows
+    tmp_path="$log_tmp"
+  elif (( xml_rows >= 1 )); then
     frame_source="xml"
     final_rows=$xml_rows
+    tmp_path="$xml_tmp"
   elif (( log_rows >= 1 )); then
     frame_source="log"
     final_rows=$log_rows
+    tmp_path="$log_tmp"
   else
-    final_rows=0
+    tmp_path=$(make_temp_file dvmeta_rdt ".tsv") || return 1
+    : > "$tmp_path"
   fi
 
   echo "[INFO] build_rdt_tmp xml_path=$xml_path log_path=$log_path xml_rows=$xml_rows log_rows=$log_rows source=$frame_source final_rows=$final_rows" >&2
@@ -698,7 +713,7 @@ generate_segments_from_tsv() {
     (( raw_rows++ ))
     local dt_key="${date_part} ${time_part}"
     local start_sec
-    start_sec=$(awk -v f="$frame_idx" -v fps="$fps" 'BEGIN{printf "%.6f", f/fps}')
+    start_sec=$(awk -v f="$frame_idx" -v fps="$fps" 'BEGIN{if (f < 1) {f = 1} printf "%.6f", (f-1)/fps}')
 
     if [[ -z "$prev_dt" ]]; then
       prev_dt="$dt_key"
@@ -785,7 +800,11 @@ make_timestamp_cmd() {
     fi
 
     local -F t_sec
-    t_sec=$((frame_idx / fps))
+    if (( frame_idx < 1 )); then
+      t_sec=0
+    else
+      t_sec=$(((frame_idx - 1) / fps))
+    fi
 
     local dt_key
     dt_key="${date_part} ${time_part}"
