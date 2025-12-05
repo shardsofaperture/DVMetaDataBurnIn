@@ -711,8 +711,7 @@ make_ass_subs() {
   subtitle_font_safe=${subtitle_font_name//\\/\\\\}
   subtitle_font_safe=${subtitle_font_safe//\$/\\$}
 
-
-cat >> "$ass_out" <<EOF
+  cat >> "$ass_out" <<EOF
 [Script Info]
 Title: DV Metadata Burn-In
 ScriptType: v4.00+
@@ -722,16 +721,17 @@ PlayResY: 480
 Timer: 100.0000
 
 [V4+ Styles]
-; white text, no outline, bottom-right
-Style: DVOSD,${subtitle_font_safe},24,&H00FFFFFF,&H00000000,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,0,0,3,20,20,20,1
+; bottom-left (date)
+Style: DVLeft,${subtitle_font_safe},24,&H00FFFFFF,&H00000000,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,0,0,1,20,0,40,1
+; bottom-right (time or stacked block)
+Style: DVRight,${subtitle_font_safe},24,&H00FFFFFF,&H00000000,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,0,0,3,0,20,40,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 EOF
 
 
-
-  local frame_step
+   local frame_step
   frame_step=$(awk -v fps="$fps" 'BEGIN{if (fps<=0) {exit 1} printf "%.6f", 1/fps}') || {
     echo "[ERROR] Unable to compute frame step for subtitles" >&2
     return 1
@@ -752,27 +752,31 @@ EOF
     [[ -z "$dt_key" ]] && dt_key="$dt_key_fallback"
 
     if [[ -n "$prev_dt" ]]; then
-      local start_str end_str text
+      local start_str end_str
       start_str=$(seconds_to_ass_time "$prev_start_sec")
       end_str=$(seconds_to_ass_time "$t_sec")
 
       case "$layout" in
         stacked)
-          # Two-line block: date over time
-          text="${prev_date}\\N${prev_time}"
+          # One stacked block, bottom-right
+          printf "Dialogue: 0,%s,%s,DVRight,,0,0,40,,%s\\N%s\n" \
+            "$start_str" "$end_str" "$prev_date" "$prev_time" >> "$ass_out"
+          (( dialogue_count++ ))
           ;;
         single)
-          # One-line: date and time separated by spaces
-          text="${prev_date}  ${prev_time}"
+          # Date bottom-left, time bottom-right on same baseline
+          printf "Dialogue: 0,%s,%s,DVLeft,,20,0,40,,%s\n" \
+            "$start_str" "$end_str" "$prev_date" >> "$ass_out"
+          printf "Dialogue: 0,%s,%s,DVRight,,0,20,40,,%s\n" \
+            "$start_str" "$end_str" "$prev_time" >> "$ass_out"
+          (( dialogue_count+=2 ))
           ;;
         *)
-          text="${prev_date}\\N${prev_time}"
+          printf "Dialogue: 0,%s,%s,DVRight,,0,0,40,,%s\\N%s\n" \
+            "$start_str" "$end_str" "$prev_date" "$prev_time" >> "$ass_out"
+          (( dialogue_count++ ))
           ;;
       esac
-
-      printf "Dialogue: 0,%s,%s,DVOSD,,0,0,40,,%s\n" \
-        "$start_str" "$end_str" "$text" >> "$ass_out"
-      (( dialogue_count++ ))
     fi
 
     prev_start_sec="$t_sec"
@@ -783,26 +787,30 @@ EOF
 
   # Close the last subtitle segment
   if [[ -n "$prev_dt" && -n "$prev_start_sec" ]]; then
-    local start_str end_str end_sec text
+    local start_str end_str end_sec
     start_str=$(seconds_to_ass_time "$prev_start_sec")
     end_sec=$(awk -v start="$prev_start_sec" -v step="$frame_step" 'BEGIN{printf "%.6f", start+step}')
     end_str=$(seconds_to_ass_time "$end_sec")
 
     case "$layout" in
       stacked)
-        text="${prev_date}\\N${prev_time}"
+        printf "Dialogue: 0,%s,%s,DVRight,,0,0,40,,%s\\N%s\n" \
+          "$start_str" "$end_str" "$prev_date" "$prev_time" >> "$ass_out"
+        (( dialogue_count++ ))
         ;;
       single)
-        text="${prev_date}  ${prev_time}"
+        printf "Dialogue: 0,%s,%s,DVLeft,,20,0,40,,%s\n" \
+          "$start_str" "$end_str" "$prev_date" >> "$ass_out"
+        printf "Dialogue: 0,%s,%s,DVRight,,0,20,40,,%s\n" \
+          "$start_str" "$end_str" "$prev_time" >> "$ass_out"
+        (( dialogue_count+=2 ))
         ;;
       *)
-        text="${prev_date}\\N${prev_time}"
+        printf "Dialogue: 0,%s,%s,DVRight,,0,0,40,,%s\\N%s\n" \
+          "$start_str" "$end_str" "$prev_date" "$prev_time" >> "$ass_out"
+        (( dialogue_count++ ))
         ;;
     esac
-
-    printf "Dialogue: 0,%s,%s,DVOSD,,0,0,40,,%s\n" \
-      "$start_str" "$end_str" "$text" >> "$ass_out"
-    (( dialogue_count++ ))
   fi
 
   if [[ ${timeline_entries:-0} -gt 0 ]]; then
@@ -1010,38 +1018,19 @@ process_file() {
       esac
     fi
 
-    # We have a valid ASS file – mux it
-    local out_subbed="${base}_dvsub.${out_ext}"
-    local subtitle_codec
-    local -a sub_video_args=()
+    # We have a valid ASS file – mux it as MKV with true ASS subtitles
+    local out_subbed="${base}_dvsub.mkv"
+    local -a sub_video_args=(
+      -c:v mpeg4 -qscale:v 2
+      -c:a aac -b:a 192k
+    )
+    local subtitle_codec="ass"
 
-    case "$format" in
-      mov)
-        # Keep original DV video/audio, use mov_text subs for compatibility
-        sub_video_args=(-c:v copy -c:a copy)
-        subtitle_codec="mov_text"
-        ;;
-      mp4)
-        # Reuse the format-specific video/audio encoders, mov_text subs
-        sub_video_args=("${codec_args[@]}")
-        subtitle_codec="mov_text"
-        ;;
-      *)
-        echo "[ERROR] Unknown format '$format' in subtitleTrack mode" >&2
-        manifest_status="error"
-        write_versions_file "$versions_file"
-        write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" \
-          "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" \
-          "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
-        return 1
-        ;;
-    esac
-
-    echo "[INFO] Adding DV metadata subtitle track to: $out_subbed"
+    echo "[INFO] Adding DV metadata ASS subtitle track to MKV: $out_subbed"
     debug_log "Merging subtitle track with codec: $subtitle_codec (video args: ${sub_video_args[*]})"
 
     set -x
-     "$ffmpeg_bin" -y \
+    "$ffmpeg_bin" -y \
       -i "$in" \
       -f ass -i "$ass_artifact" \
       "${sub_video_args[@]}" \
@@ -1049,7 +1038,6 @@ process_file() {
       -map 0:v -map 0:a\? -map 1:0 \
       -metadata:s:s:0 language=eng \
       "$out_subbed"
-
     set +x
 
     exit_status=$?
