@@ -241,8 +241,14 @@ build_rdt_from_log() {
   fi
 
   awk '
+    BEGIN {
+      last_dt_key = ""
+    }
+
     # Expect lines like: "1 00:02:41;06 2025-11-11 08:29:35"
-    NF >= 4 && $3 ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/ {
+    NF >= 4 &&
+    $3 ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/ &&
+    $4 ~ /^[0-9]{2}:[0-9]{2}:[0-9]{2}$/ {
       frame_idx = $1
       date_part = $3
       time_part = $4
@@ -287,7 +293,7 @@ build_rdt_tmp() {
 
   local log_rows
   log_rows=$(wc -l < "$tmp_path" | tr -d " ")
-  debug_log "RDT rows from dvrescue log: $log_rows"
+  debug_log "RDT rows from ${source}: $log_rows"
 
   local -i final_rows
   final_rows=$log_rows
