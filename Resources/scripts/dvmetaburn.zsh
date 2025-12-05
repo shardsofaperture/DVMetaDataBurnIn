@@ -762,8 +762,8 @@ make_timestamp_cmd() {
   while IFS=$'\t' read -r start_sec end_sec date_part time_part; do
     local ts text
     ts="${date_part} ${time_part}"
-    text=$(printf "%s" "$ts" | sed 's/:/\\\\:/g')
-    printf "%0.6f drawtext@dvmeta reinit text='\''%s'\'';\n" "$start_sec" "$text" >> "$cmdfile"
+    text="${ts//:/\\\\:}"
+    printf "%0.6f drawtext@dvmeta reinit text='%s';\n" "$start_sec" "$text" >> "$cmdfile"
   done < "$segments_tmp"
 
   local -i cmd_lines=0
