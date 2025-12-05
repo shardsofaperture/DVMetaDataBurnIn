@@ -242,7 +242,11 @@ extract_rdt_from_log() {
 
   awk '
     NF >= 4 && $3 ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/ {
-      printf "%s\t%s\t%s\n", $1, $3, $4
+      dt_key = $3 " " $4
+      if (dt_key != last_dt_key) {
+        printf "%s\t%s\t%s\n", $1, $3, $4
+        last_dt_key = dt_key
+      }
     }
   ' "$log_path"
 }
@@ -980,6 +984,7 @@ process_file() {
     finish_run 1 "error" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
     return 1
   fi
+  last_detected_fps="$fps"
   debug_log "Detected FPS: $fps"
 
   local dv_status=0
