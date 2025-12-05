@@ -229,6 +229,85 @@ extract_rdt_from_xml() {
   ' "$xml_path"
 }
 
+# Fallback extractor: parse dvrescue log output for per-frame RDT entries when
+# XML extraction is missing or truncated. Expected log lines look like:
+#   1 00:00:00;00 2024-01-01 12:34:56
+extract_rdt_from_log() {
+  local log_path="$1"
+
+  if [[ -z "$log_path" || ! -s "$log_path" ]]; then
+    echo "[ERROR] dvrescue log missing or empty: $log_path" >&2
+    return 1
+  fi
+
+  awk '
+    /^[[:space:]]*[0-9]+[[:space:]]+[0-9]{2}:[0-9]{2}:[0-9]{2};[0-9]{2}[[:space:]]+[0-9]{4}-[0-9]{2}-[0-9]{2}[[:space:]]+[0-9]{2}:[0-9]{2}:[0-9]{2}/ {
+      idx = $1
+      date = $3
+      time = $4
+
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", idx)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", date)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", time)
+
+      if (idx == "" || date == "" || time == "") {
+        next
+      }
+
+      # dvrescue frame numbers start at 1; convert to zero-based to align with
+      # the XML parser output.
+      printf "%d %s %s\n", (idx - 1), date, time
+    }
+  ' "$log_path"
+}
+
+# Try to generate an RDT TSV using XML first, then fall back to the dvrescue
+# log when XML appears incomplete. Outputs the chosen temp path and source
+# ("xml" or "log") via name references.
+build_rdt_tmp() {
+  local xml_path="$1"
+  local log_path="$2"
+  local tmp_var="$3"
+  local source_var="$4"
+
+  local tmp_path source="xml"
+  tmp_path=$(make_temp_file dvmeta_rdt ".tsv") || return 1
+
+  local -i xml_rows=0 log_rows=0
+
+  if extract_rdt_from_xml "$xml_path" >"$tmp_path"; then
+    xml_rows=$( (wc -l <"$tmp_path" 2>/dev/null) || echo 0 )
+  else
+    xml_rows=0
+  fi
+
+  debug_log "RDT rows from XML: $xml_rows"
+
+  if (( xml_rows < 2 )) && extract_rdt_from_log "$log_path" >"$tmp_path"; then
+    log_rows=$( (wc -l <"$tmp_path" 2>/dev/null) || echo 0 )
+    debug_log "RDT rows from dvrescue log: $log_rows"
+    if (( log_rows > xml_rows )); then
+      source="log"
+    else
+      source="xml"
+    fi
+  elif (( xml_rows >= 2 )); then
+    source="xml"
+  fi
+
+  local -i final_rows
+  final_rows=$( (wc -l <"$tmp_path" 2>/dev/null) || echo 0 )
+
+  if (( final_rows == 0 )); then
+    echo "[WARN] Unable to derive RDT timeline from XML or dvrescue log" >&2
+    return 2
+  fi
+
+  printf -v "$tmp_var" '%s' "$tmp_path"
+  printf -v "$source_var" '%s' "$source"
+  return 0
+}
+
 build_sendcmd_from_rdt() {
   local fps="$1"
   awk -v fps="$fps" '
@@ -608,12 +687,10 @@ make_timestamp_cmd() {
     return 1
   fi
 
-  local rdt_tmp
-  rdt_tmp=$(make_temp_file dvmeta_rdt ".tsv") || return 1
-
-  if ! extract_rdt_from_xml "$xml_file" > "$rdt_tmp"; then
-    echo "[WARN] Unable to extract per-frame RDT from XML: $xml_file" >&2
-    last_parse_frame_source="xml"
+  local rdt_tmp rdt_source
+  if ! build_rdt_tmp "$xml_file" "$dv_log" rdt_tmp rdt_source; then
+    echo "[WARN] Unable to extract per-frame RDT data (source: $rdt_source)" >&2
+    last_parse_frame_source="${rdt_source:-unknown}"
     last_parse_raw_rows=0
     last_parse_valid_rows=0
     last_parse_skipped_rows=0
@@ -661,14 +738,14 @@ make_timestamp_cmd() {
       "$frame_idx" "$t_sec" "$date_part" "$time_part" "$dt_key" "$segment_change" >> "$timeline_debug"
   done < "$rdt_tmp"
 
-  last_parse_frame_source="xml"
+  last_parse_frame_source="$rdt_source"
   last_parse_raw_rows=$raw_rows
   last_parse_valid_rows=$valid_rows
   last_parse_skipped_rows=$skipped_rows
   last_parse_timeline_entries=$valid_rows
 
   local summary_line
-  summary_line="[INFO] Frame parse summary (source=xml): rows=$raw_rows, valid=$valid_rows, skipped=$skipped_rows, unique_dt_keys=$unique_dt_keys, segment_count=$segment_count"
+  summary_line="[INFO] Frame parse summary (source=$rdt_source): rows=$raw_rows, valid=$valid_rows, skipped=$skipped_rows, unique_dt_keys=$unique_dt_keys, segment_count=$segment_count"
   echo "$summary_line" >&2
   debug_log "$summary_line"
 
@@ -757,12 +834,10 @@ Style: DVOSD,${subtitle_font_safe},24,&H00FFFFFF,&H00000000,&H00000000,&H0000000
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 EOF
 
-  local rdt_tmp
-  rdt_tmp=$(make_temp_file dvmeta_rdt ".tsv") || return 1
-
-  if ! extract_rdt_from_xml "$xml_file" > "$rdt_tmp"; then
-    echo "[WARN] Unable to extract per-frame RDT from XML: $xml_file" >&2
-    last_parse_frame_source="xml"
+  local rdt_tmp rdt_source
+  if ! build_rdt_tmp "$xml_file" "$dv_log" rdt_tmp rdt_source; then
+    echo "[WARN] Unable to extract per-frame RDT data (source: $rdt_source)" >&2
+    last_parse_frame_source="${rdt_source:-unknown}"
     last_parse_raw_rows=0
     last_parse_valid_rows=0
     last_parse_skipped_rows=0
@@ -828,14 +903,14 @@ EOF
     (( dialogue_count++ ))
   done < "$segments_tmp"
 
-  last_parse_frame_source="xml"
+  last_parse_frame_source="$rdt_source"
   last_parse_raw_rows=$raw_rows
   last_parse_valid_rows=$valid_rows
   last_parse_skipped_rows=$skipped_rows
   last_parse_timeline_entries=$valid_rows
 
   local summary_line
-  summary_line="[INFO] Subtitle parse summary (source=xml): rows=$raw_rows, valid=$valid_rows, skipped=$skipped_rows, unique_dt_keys=$unique_dt_keys, segment_count=$segment_count, dialogue_count=$dialogue_count"
+  summary_line="[INFO] Subtitle parse summary (source=$rdt_source): rows=$raw_rows, valid=$valid_rows, skipped=$skipped_rows, unique_dt_keys=$unique_dt_keys, segment_count=$segment_count, dialogue_count=$dialogue_count"
   echo "$summary_line" >&2
   debug_log "$summary_line"
 
