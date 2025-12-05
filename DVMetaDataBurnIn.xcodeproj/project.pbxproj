@@ -105,6 +105,13 @@
 			path = DVMetaDataBurnIn;
 			sourceTree = "<group>";
 		};
+		9244F84A2EE39C6000B583A2 /* Images */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Images;
+			sourceTree = "<group>";
+		};
 		92908F732ED9603D00A9A38A /* bin */ = {
 			isa = PBXGroup;
 			children = (
@@ -151,6 +158,7 @@
 		92908F842ED9603D00A9A38A /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				9244F84A2EE39C6000B583A2 /* Images */,
 				92908F832ED9603D00A9A38A /* scripts */,
 				92908F732ED9603D00A9A38A /* bin */,
 				92908F772ED9603D00A9A38A /* fonts */,
