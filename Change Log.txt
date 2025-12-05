@@ -1,4 +1,17 @@
 ## Change Log
+--12/5/2025
+
+* Tool tips added
+
+* Stubtitles added (these now result in a contianer file with track 1 subs based on the format and font chosen)
+
+* Timestamp "rolls" the way it is suppsoed to for single clips
+
+* Fixed issues where multiple day uncut clips timestamp didn't "jump" to the proper day.
+
+* Splash Screen now 2 seconds 
+
+
 
 
 --- 12/1/25
