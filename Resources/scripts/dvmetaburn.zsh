@@ -711,7 +711,8 @@ make_ass_subs() {
   subtitle_font_safe=${subtitle_font_name//\\/\\\\}
   subtitle_font_safe=${subtitle_font_safe//\$/\\$}
 
-  cat >> "$ass_out" <<EOF
+
+cat >> "$ass_out" <<EOF
 [Script Info]
 Title: DV Metadata Burn-In
 ScriptType: v4.00+
@@ -721,11 +722,14 @@ PlayResY: 480
 Timer: 100.0000
 
 [V4+ Styles]
-Style: DVOSD,${subtitle_font_safe},24,&H00FFFFFF,&H00000000,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,0,0,0,2,20,20,20,1
+; white text, no outline, bottom-right
+Style: DVOSD,${subtitle_font_safe},24,&H00FFFFFF,&H00000000,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,0,0,3,20,20,20,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 EOF
+
+
 
   local frame_step
   frame_step=$(awk -v fps="$fps" 'BEGIN{if (fps<=0) {exit 1} printf "%.6f", 1/fps}') || {
@@ -753,12 +757,20 @@ EOF
       end_str=$(seconds_to_ass_time "$t_sec")
 
       case "$layout" in
-        stacked) text="${prev_date}\\N${prev_time}" ;;
-        single)  text="${prev_date}  ${prev_time}" ;;
-        *)       text="${prev_date}\\N${prev_time}" ;;
+        stacked)
+          # Two-line block: date over time
+          text="${prev_date}\\N${prev_time}"
+          ;;
+        single)
+          # One-line: date and time separated by spaces
+          text="${prev_date}  ${prev_time}"
+          ;;
+        *)
+          text="${prev_date}\\N${prev_time}"
+          ;;
       esac
 
-      printf "Dialogue: 0,%s,%s,DVOSD,,0,0,20,,%s\n" \
+      printf "Dialogue: 0,%s,%s,DVOSD,,0,0,40,,%s\n" \
         "$start_str" "$end_str" "$text" >> "$ass_out"
       (( dialogue_count++ ))
     fi
@@ -769,6 +781,7 @@ EOF
     prev_dt="$dt_key"
   done < "$timeline_debug"
 
+  # Close the last subtitle segment
   if [[ -n "$prev_dt" && -n "$prev_start_sec" ]]; then
     local start_str end_str end_sec text
     start_str=$(seconds_to_ass_time "$prev_start_sec")
@@ -776,12 +789,18 @@ EOF
     end_str=$(seconds_to_ass_time "$end_sec")
 
     case "$layout" in
-      stacked) text="${prev_date}\\N${prev_time}" ;;
-      single)  text="${prev_date}  ${prev_time}" ;;
-      *)       text="${prev_date}\\N${prev_time}" ;;
+      stacked)
+        text="${prev_date}\\N${prev_time}"
+        ;;
+      single)
+        text="${prev_date}  ${prev_time}"
+        ;;
+      *)
+        text="${prev_date}\\N${prev_time}"
+        ;;
     esac
 
-    printf "Dialogue: 0,%s,%s,DVOSD,,0,0,20,,%s\n" \
+    printf "Dialogue: 0,%s,%s,DVOSD,,0,0,40,,%s\n" \
       "$start_str" "$end_str" "$text" >> "$ass_out"
     (( dialogue_count++ ))
   fi
@@ -998,12 +1017,12 @@ process_file() {
 
     case "$format" in
       mov)
-        # DV-in-MOV is fine; stream-copy the original DV and audio, keep ASS as ASS
+        # Keep original DV video/audio, use mov_text subs for compatibility
         sub_video_args=(-c:v copy -c:a copy)
-        subtitle_codec="ass"
+        subtitle_codec="mov_text"
         ;;
       mp4)
-        # MP4 cannot carry dvvideo; reuse format-specific codec_args (mpeg4/aac)
+        # Reuse the format-specific video/audio encoders, mov_text subs
         sub_video_args=("${codec_args[@]}")
         subtitle_codec="mov_text"
         ;;
@@ -1021,15 +1040,16 @@ process_file() {
     echo "[INFO] Adding DV metadata subtitle track to: $out_subbed"
     debug_log "Merging subtitle track with codec: $subtitle_codec (video args: ${sub_video_args[*]})"
 
-   set -x
-    "$ffmpeg_bin" -y \
+    set -x
+     "$ffmpeg_bin" -y \
       -i "$in" \
       -f ass -i "$ass_artifact" \
       "${sub_video_args[@]}" \
       -c:s "$subtitle_codec" \
-      -map 0:v -map '0:a?' -map 1:0 \
+      -map 0:v -map 0:a\? -map 1:0 \
       -metadata:s:s:0 language=eng \
       "$out_subbed"
+
     set +x
 
     exit_status=$?
