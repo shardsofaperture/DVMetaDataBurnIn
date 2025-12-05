@@ -266,6 +266,12 @@ build_rdt_from_log() {
 # Try to generate an RDT TSV using XML first, then fall back to the dvrescue
 # log when XML appears incomplete. Outputs the chosen temp path and source
 # ("xml" or "log") via name references.
+#
+# Offline smoke test (no ffmpeg/dvrescue needed):
+#   1) Place sample dvrescue.xml and dvrescue.log in /tmp.
+#   2) Run: RUN_OFFLINE_TEST=1 TMPDIR=/tmp zsh Resources/scripts/dvmetaburn.zsh
+#      (or call offline_smoke_test /tmp/dvrescue.xml /tmp/dvrescue.log 29.97)
+#   3) Inspect /tmp/timeline.debug.tsv and /tmp/timestamp.cmd to confirm non-empty entries.
 build_rdt_tmp() {
   local xml_path="$1"
   local log_path="$2"
@@ -310,7 +316,8 @@ build_rdt_tmp() {
     log_rows=$xml_rows
   fi
 
-  debug_log "build_rdt_tmp xml_path=$xml_path log_path=$log_path xml_rows=$xml_rows log_rows=$log_rows source=$source final_rows=$final_rows"
+  echo "[INFO] build_rdt_tmp xml_path=$xml_path log_path=$log_path xml_rows=$xml_rows log_rows=$log_rows source=$source final_rows=$final_rows" >&2
+  debug_log "build_rdt_tmp (detailed) xml_path=$xml_path log_path=$log_path xml_rows=$xml_rows log_rows=$log_rows source=$source final_rows=$final_rows"
 
   if (( final_rows == 0 )); then
     echo "[WARN] Unable to derive RDT timeline from XML or dvrescue log" >&2
@@ -674,8 +681,10 @@ generate_segments_from_tsv() {
   local prev_start=""
   local frame_step
   frame_step=$(awk -v fps="$fps" 'BEGIN{printf "%.6f", 1/fps}')
+  local -i segment_rows=0 raw_rows=0
 
-  while read -r frame_idx date_part time_part; do
+  while read -r frame_idx date_part time_part || [[ -n "${frame_idx:-}" ]]; do
+    (( raw_rows++ ))
     local dt_key="${date_part} ${time_part}"
     local start_sec
     start_sec=$(awk -v f="$frame_idx" -v fps="$fps" 'BEGIN{printf "%.6f", f/fps}')
@@ -690,6 +699,7 @@ generate_segments_from_tsv() {
 
     if [[ "$dt_key" != "$prev_dt" ]]; then
       printf "%s\t%s\t%s\t%s\n" "$prev_start" "$start_sec" "$prev_date" "$prev_time"
+      (( segment_rows++ ))
       prev_dt="$dt_key"
       prev_date="$date_part"
       prev_time="$time_part"
@@ -701,7 +711,10 @@ generate_segments_from_tsv() {
     local end_sec
     end_sec=$(awk -v start="$prev_start" -v step="$frame_step" 'BEGIN{printf "%.6f", start+step}')
     printf "%s\t%s\t%s\t%s\n" "$prev_start" "$end_sec" "$prev_date" "$prev_time"
+    (( segment_rows++ ))
   fi
+
+  debug_log "generate_segments_from_tsv rows_in=$raw_rows rows_out=$segment_rows source_tsv=$rdt_tsv fps=$fps"
 }
 
 ########################################################
@@ -752,7 +765,7 @@ make_timestamp_cmd() {
   local -F frame_step
   frame_step=$((1.0 / fps))
 
-  while read -r frame_idx date_part time_part; do
+  while read -r frame_idx date_part time_part || [[ -n "${frame_idx:-}" ]]; do
     (( raw_rows++ ))
 
     if [[ -z "$date_part" || -z "$time_part" ]]; then
@@ -803,11 +816,13 @@ make_timestamp_cmd() {
   generate_segments_from_tsv "$rdt_tmp" "$fps" > "$segments_tmp"
 
   : > "$cmdfile"
-  while IFS=$'\t' read -r start_sec end_sec date_part time_part; do
+  local -i segment_lines=0
+  while IFS=$'\t' read -r start_sec end_sec date_part time_part || [[ -n "${start_sec:-}" ]]; do
     local ts text
     ts="${date_part} ${time_part}"
     text=${ts//:/\\:}
     printf "%0.6f drawtext@dvmeta reinit text='%s';\n" "$start_sec" "$text" >> "$cmdfile"
+    (( segment_lines++ ))
   done < "$segments_tmp"
 
   local lines
@@ -819,6 +834,8 @@ make_timestamp_cmd() {
   fi
 
   debug_log "sendcmd lines for $in: $lines"
+  debug_log "segment lines emitted: $segment_lines"
+  last_parse_timeline_entries=$lines
 
   return 0
 }
@@ -970,14 +987,32 @@ EOF
 
 # Offline smoke test (no dvrescue/ffmpeg required):
 #   1) Place sample dvrescue.xml and dvrescue.log in /tmp (or set TMPDIR).
-#   2) Run: make_timestamp_cmd "/tmp/fake.avi" \
-#        "/tmp/timestamp.cmd" \
-#        "/tmp/dvrescue.xml" \
-#        "/tmp/dvrescue.log" \
-#        "/tmp/timeline.debug.tsv" \
-#        "29.97"
+#   2) Run inside zsh:
+#        build_rdt_tmp /tmp/dvrescue.xml /tmp/dvrescue.log rdt_tmp src && \
+#        make_timestamp_cmd "offline.avi" /tmp/timestamp.cmd /tmp/dvrescue.xml /tmp/dvrescue.log /tmp/timeline.debug.tsv 29.97
 #   3) Inspect /tmp/timeline.debug.tsv and /tmp/timestamp.cmd to confirm
 #      they contain parsed timestamps and drawtext commands.
+
+offline_smoke_test() {
+  local xml="${1:-/tmp/dvrescue.xml}"
+  local log="${2:-/tmp/dvrescue.log}"
+  local fps="${3:-29.97}"
+  local cmdfile="${4:-/tmp/timestamp.cmd}"
+  local timeline="${5:-/tmp/timeline.debug.tsv}"
+  local rdt_tmp rdt_source
+
+  if ! build_rdt_tmp "$xml" "$log" rdt_tmp rdt_source; then
+    echo "[ERROR] offline_smoke_test could not parse RDT data (xml=$xml log=$log)" >&2
+    return 1
+  fi
+
+  if ! make_timestamp_cmd "offline_sample" "$cmdfile" "$xml" "$log" "$timeline" "$fps"; then
+    echo "[ERROR] offline_smoke_test failed to build timestamp command file" >&2
+    return 1
+  fi
+
+  echo "[INFO] offline_smoke_test artifacts: timeline=$timeline sendcmd=$cmdfile (source=$rdt_source fps=$fps)" >&2
+}
 
 
 ########################################################
@@ -1337,6 +1372,11 @@ drawtext@dvmeta=fontfile='${font}':text='':fontcolor=white:fontsize=24:x=w-tw-40
 ########################################################
 # Mode routing
 ########################################################
+
+if [[ "${RUN_OFFLINE_TEST:-0}" == "1" ]]; then
+  offline_smoke_test
+  exit $?
+fi
 
 if [[ "$mode" == "single" ]]; then
   if [[ $# -ne 1 ]]; then
