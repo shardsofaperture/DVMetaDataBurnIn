@@ -275,28 +275,42 @@ build_rdt_tmp() {
   local tmp_path source="xml"
   tmp_path=$(make_temp_file dvmeta_rdt ".tsv") || return 1
 
-  extract_rdt_from_xml "$xml_path" > "$tmp_path"
+  local xml_rows=0 log_rows=0
 
-  local xml_rows
-  xml_rows=$(wc -l < "$tmp_path" | tr -d " ")
-
-  debug_log "RDT rows from XML: $xml_rows"
-
-  if (( xml_rows < 3 )); then
-    debug_log "XML RDT too sparse, falling back to dvrescue log"
-    if build_rdt_from_log "$log_path" > "$tmp_path"; then
-      source="log"
-    else
-      source="xml"
+  if [[ -n "$xml_path" && -s "$xml_path" ]]; then
+    if ! extract_rdt_from_xml "$xml_path" > "$tmp_path"; then
+      debug_log "extract_rdt_from_xml failed for $xml_path; continuing to log fallback"
+      : > "$tmp_path"
     fi
+    xml_rows=$(wc -l < "$tmp_path" | tr -d " ")
+  else
+    debug_log "XML path missing or empty; skipping XML parse (xml_path=$xml_path)"
+    : > "$tmp_path"
   fi
 
-  local log_rows
-  log_rows=$(wc -l < "$tmp_path" | tr -d " ")
-  debug_log "RDT rows from ${source}: $log_rows"
-
   local -i final_rows
-  final_rows=$log_rows
+  final_rows=$xml_rows
+
+  if (( xml_rows < 3 )); then
+    debug_log "XML RDT too sparse ($xml_rows rows), falling back to dvrescue log"
+    if [[ -n "$log_path" && -s "$log_path" ]]; then
+      if build_rdt_from_log "$log_path" > "$tmp_path"; then
+        source="log"
+      else
+        debug_log "build_rdt_from_log failed for $log_path"
+      fi
+    else
+      debug_log "dvrescue log missing or empty; cannot use log fallback (log_path=$log_path)"
+    fi
+    log_rows=$(wc -l < "$tmp_path" | tr -d " ")
+    final_rows=$log_rows
+  fi
+
+  if [[ $log_rows -eq 0 && $source == "xml" ]]; then
+    log_rows=$xml_rows
+  fi
+
+  debug_log "build_rdt_tmp xml_path=$xml_path log_path=$log_path xml_rows=$xml_rows log_rows=$log_rows source=$source final_rows=$final_rows"
 
   if (( final_rows == 0 )); then
     echo "[WARN] Unable to derive RDT timeline from XML or dvrescue log" >&2
@@ -304,6 +318,38 @@ build_rdt_tmp() {
   fi
 
   printf -v "$tmp_var" '%s' "$tmp_path"
+  printf -v "$source_var" '%s' "$source"
+  return 0
+}
+
+# Utility: grab the first available recordingDateTime entry from XML or log.
+# Populates the provided variable names with the datetime string and source.
+extract_first_rdt() {
+  local xml_path="$1"
+  local log_path="$2"
+  local dt_var="$3"
+  local source_var="$4"
+
+  local dt="" source="unknown"
+
+  if [[ -n "$xml_path" && -s "$xml_path" ]]; then
+    dt=$(perl -ne 'if (/rdt=\"([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2})\"/) { print $1; exit }' "$xml_path")
+    if [[ -z "$dt" ]]; then
+      dt=$(perl -0777 -ne 'if (/<recordingDateTime[^>]*>.*?<date>([^<]+)<\/date>.*?<time>([^<]+)<\/time>/s) {print "$1 $2"; exit}' "$xml_path")
+    fi
+    [[ -n "$dt" ]] && source="xml"
+  fi
+
+  if [[ -z "$dt" && -n "$log_path" && -s "$log_path" ]]; then
+    dt=$(grep -m1 -E '[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}' "$log_path" | awk '{for (i=1;i<NF;i++) if ($i ~ /^[0-9]{4}-/ && $(i+1) ~ /^[0-9]{2}:/) {print $i " " $(i+1); exit}}')
+    [[ -n "$dt" ]] && source="log"
+  fi
+
+  if [[ -z "$dt" ]]; then
+    return 1
+  fi
+
+  printf -v "$dt_var" '%s' "$dt"
   printf -v "$source_var" '%s' "$source"
   return 0
 }
@@ -672,14 +718,12 @@ make_timestamp_cmd() {
 
   : > "$cmdfile"
 
-  if [[ -z "$xml_file" || ! -s "$xml_file" || $last_dvrescue_status -ne 0 ]]; then
-    echo "[WARN] Missing or invalid dvrescue XML for $in (xml: $xml_file, log: $dv_log)" >&2
-    last_parse_frame_source="xml"
-    last_parse_raw_rows=0
-    last_parse_valid_rows=0
-    last_parse_skipped_rows=0
-    last_parse_timeline_entries=0
-    return 2
+  if [[ -z "$xml_file" || ! -s "$xml_file" ]]; then
+    echo "[WARN] dvrescue XML missing; attempting log-based timestamp extraction (xml: $xml_file, log: $dv_log)" >&2
+  fi
+
+  if (( last_dvrescue_status != 0 )); then
+    echo "[WARN] dvrescue exited with status $last_dvrescue_status; attempting to parse available artifacts" >&2
   fi
 
   if [[ -z "$fps" ]]; then
@@ -924,6 +968,17 @@ EOF
   return 0
 }
 
+# Offline smoke test (no dvrescue/ffmpeg required):
+#   1) Place sample dvrescue.xml and dvrescue.log in /tmp (or set TMPDIR).
+#   2) Run: make_timestamp_cmd "/tmp/fake.avi" \
+#        "/tmp/timestamp.cmd" \
+#        "/tmp/dvrescue.xml" \
+#        "/tmp/dvrescue.log" \
+#        "/tmp/timeline.debug.tsv" \
+#        "29.97"
+#   3) Inspect /tmp/timeline.debug.tsv and /tmp/timestamp.cmd to confirm
+#      they contain parsed timestamps and drawtext commands.
+
 
 ########################################################
 # Main per-file processing
@@ -1109,6 +1164,68 @@ process_file() {
   if ! make_timestamp_cmd "$in" "$cmdfile" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$fps"; then
     ts_status=$?
     if (( ts_status == 2 )); then
+      local fallback_dt fallback_source
+      if extract_first_rdt "$dvrescue_xml" "$dvrescue_log" fallback_dt fallback_source; then
+        debug_log "Using fallback RDT for burn-in: $fallback_dt (source: $fallback_source)"
+
+        local date_part time_part date_label
+        date_part="${fallback_dt% *}"
+        time_part="${fallback_dt#* }"
+
+        if ! date_label=$(date -j -f "%Y-%m-%d" "$date_part" "+%b %e %Y" 2>/dev/null); then
+          date_label=$(date -d "$date_part" "+%b %e %Y" 2>/dev/null || echo "$date_part")
+        fi
+
+        local hour minute second
+        IFS=: read -r hour minute second <<< "$time_part"
+        local -i offset_sec
+        offset_sec=$((10#$hour * 3600 + 10#$minute * 60 + 10#$second))
+
+        : > "$timeline_debug"
+        echo "$timeline_header" >> "$timeline_debug"
+        printf "0\t0.000000\t%s\t%s\t%s\t1\n" "$date_part" "$time_part" "$fallback_dt" >> "$timeline_debug"
+
+        : > "$cmdfile"
+        echo "# fallback overlay; no sendcmd timeline available" >> "$cmdfile"
+
+        last_parse_frame_source="${fallback_source:-fallback}"
+        if (( last_parse_raw_rows < 1 )); then
+          last_parse_raw_rows=1
+          last_parse_valid_rows=1
+          last_parse_skipped_rows=0
+          last_parse_timeline_entries=1
+        fi
+
+        local vf_fallback
+        case "$layout" in
+          stacked)
+            vf_fallback="drawtext=fontfile='${font}':text='${date_label}':fontcolor=white:fontsize=24:x=w-tw-20:y=h-60,drawtext=fontfile='${font}':text='%{pts\\:gmtime:${offset_sec}:%r}':fontcolor=white:fontsize=24:x=w-tw-20:y=h-30"
+            ;;
+          single)
+            vf_fallback="drawtext=fontfile='${font}':text='${date_label} %{pts\\:gmtime:${offset_sec}:%r}':fontcolor=white:fontsize=24:x=w-tw-40:y=h-30"
+            ;;
+          *)
+            vf_fallback="drawtext=fontfile='${font}':text='${date_label}':fontcolor=white:fontsize=24:x=w-tw-20:y=h-60,drawtext=fontfile='${font}':text='%{pts\\:gmtime:${offset_sec}:%r}':fontcolor=white:fontsize=24:x=w-tw-20:y=h-30"
+            ;;
+        esac
+
+        local out_fallback="${base}_dateburn.${out_ext}"
+        echo "[INFO] Using fallback DV metadata overlay for $in" >&2
+        "$ffmpeg_bin" -y -i "$in" \
+          -vf "$vf_fallback" \
+          "${codec_args[@]}" \
+          "$out_fallback"
+
+        exit_status=$?
+        manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
+        burn_output="$out_fallback"
+        write_versions_file "$versions_file"
+        write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+        if [[ "$manifest_status" == "success" ]]; then
+          emit_debug_snapshots "$timeline_debug" "$cmdfile"
+        fi
+        return $exit_status
+      fi
       case "$missing_meta" in
         skip_burnin_convert)
           echo "[WARN] Missing timestamp metadata for $in; converting without burn-in." >&2
