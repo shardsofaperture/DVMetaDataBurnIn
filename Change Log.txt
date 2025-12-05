@@ -1,9 +1,6 @@
 ## Change Log
 
 
---12/3/2025
-*redid all the metadata parsing to use JQ so the rolling timestamp issue is getting fixed
-
 --- 12/1/25
 --- Calling this 1.0 Beta!
 

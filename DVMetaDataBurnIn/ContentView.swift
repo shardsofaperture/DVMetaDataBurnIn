@@ -497,11 +497,7 @@ struct ContentView: View {
         guard let dvrescueURL = findResource(named: "dvrescue") else {
             throw NSError(domain: "DVMeta", code: 5,
                           userInfo: [NSLocalizedDescriptionKey: "ERROR: Could not find dvrescue in app bundle."])
-        }
 
-        guard let jqURL = findResource(named: "jq") else {
-            throw NSError(domain: "DVMeta", code: 7,
-                          userInfo: [NSLocalizedDescriptionKey: "ERROR: Could not find jq in app bundle."])
         }
 
         guard let fontURL = findResource(named: "UAV-OSD-Mono.ttf") else {
@@ -561,7 +557,6 @@ struct ContentView: View {
 
         var env = ProcessInfo.processInfo.environment
         env["TMPDIR"] = tempDir.path
-        env["DVMETABURN_JQ"] = jqURL.path
         process.environment = env
         process.currentDirectoryURL = tempDir
 

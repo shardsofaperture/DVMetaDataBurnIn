@@ -12,12 +12,6 @@ Licensed under the BSD 3-Clause License.
 See dvrescue_LICENSE.txt or:
 https://mediaarea.net/DVRescue
 
-jq, © Stephen Dolan and Contributors
-
-Licensed under the MIT License.
-See jq_LICENSE.txt or:
-https://github.com/jqlang/jq
-
 UAV OSD Font, by Nicholas Kruse
 Distributed as free for personal and commercial use by the author.
 Source: https://www.dafont.com/uav-osd.font
