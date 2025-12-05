@@ -241,22 +241,8 @@ extract_rdt_from_log() {
   fi
 
   awk '
-    /^[[:space:]]*[0-9]+[[:space:]]+[0-9]{2}:[0-9]{2}:[0-9]{2};[0-9]{2}[[:space:]]+[0-9]{4}-[0-9]{2}-[0-9]{2}[[:space:]]+[0-9]{2}:[0-9]{2}:[0-9]{2}/ {
-      idx = $1
-      date = $3
-      time = $4
-
-      gsub(/^[[:space:]]+|[[:space:]]+$/, "", idx)
-      gsub(/^[[:space:]]+|[[:space:]]+$/, "", date)
-      gsub(/^[[:space:]]+|[[:space:]]+$/, "", time)
-
-      if (idx == "" || date == "" || time == "") {
-        next
-      }
-
-      # dvrescue frame numbers start at 1; convert to zero-based to align with
-      # the XML parser output.
-      printf "%d %s %s\n", (idx - 1), date, time
+    NF >= 4 && $3 ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/ {
+      printf "%s\t%s\t%s\n", $1, $3, $4
     }
   ' "$log_path"
 }
@@ -283,15 +269,13 @@ build_rdt_tmp() {
 
   debug_log "RDT rows from XML: $xml_rows"
 
-  if (( xml_rows < 2 )) && extract_rdt_from_log "$log_path" >"$tmp_path"; then
+  if (( xml_rows < 3 )) && extract_rdt_from_log "$log_path" >"$tmp_path"; then
     log_rows=$( (wc -l <"$tmp_path" 2>/dev/null) || echo 0 )
     debug_log "RDT rows from dvrescue log: $log_rows"
-    if (( log_rows > xml_rows )); then
+    if (( log_rows > 0 )); then
       source="log"
-    else
-      source="xml"
     fi
-  elif (( xml_rows >= 2 )); then
+  elif (( xml_rows >= 3 )); then
     source="xml"
   fi
 
@@ -762,7 +746,7 @@ make_timestamp_cmd() {
   while IFS=$'\t' read -r start_sec end_sec date_part time_part; do
     local ts text
     ts="${date_part} ${time_part}"
-    text="${ts//:/\\\\:}"
+    text=${ts//:/$'\\:'}
     printf "%0.6f drawtext@dvmeta reinit text='%s';\n" "$start_sec" "$text" >> "$cmdfile"
   done < "$segments_tmp"
 
