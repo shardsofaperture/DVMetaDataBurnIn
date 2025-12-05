@@ -253,9 +253,35 @@ build_sendcmd_from_rdt() {
 make_temp_file() {
   local prefix="${1:-dvmeta}"
   local ext="${2:-}"
-  local path
+  local path tmpdir mktemp_cmd
 
-  path=$(mktemp "${TMPDIR:-/tmp}/${prefix}.XXXXXX") || return 127
+  tmpdir="${TMPDIR:-/tmp}"
+  tmpdir="${tmpdir%/}"
+
+  if mktemp_cmd="$(command -v mktemp 2>/dev/null)" && [[ -n "$mktemp_cmd" ]]; then
+    :
+  else
+    mktemp_cmd=""
+  fi
+
+  [[ -z "$mktemp_cmd" && -x /usr/bin/mktemp ]] && mktemp_cmd="/usr/bin/mktemp"
+
+  if [[ -n "$mktemp_cmd" ]]; then
+    debug_log "make_temp_file using mktemp: $mktemp_cmd"
+    path=$("$mktemp_cmd" "${tmpdir}/${prefix}.XXXXXX") || return 127
+  else
+    debug_log "make_temp_file using manual fallback in ${tmpdir}"
+    local i candidate
+    for i in {1..10}; do
+      candidate="${tmpdir}/${prefix}.$(date +%s).${RANDOM}${RANDOM}"
+      if (set -o noclobber; : >"$candidate") 2>/dev/null; then
+        path="$candidate"
+        break
+      fi
+    done
+
+    [[ -n "${path:-}" ]] || return 127
+  fi
 
   if [[ -n "$ext" ]]; then
     local new_path="${path}${ext}"
