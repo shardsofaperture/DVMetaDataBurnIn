@@ -47,6 +47,8 @@ fontname="UAV-OSD-Mono"
 ffmpeg_bin="ffmpeg"
 dvrescue_bin="dvrescue"
 artifact_root="${HOME}/Library/Logs/DVMeta"
+# Controls how densely timestamps are emitted into the timeline
+burn_granularity="per_second"  # "per_second" or "per_frame"
 # Opt-in verbose logging for troubleshooting
 debug_mode=0
 
@@ -187,238 +189,105 @@ detect_fps() {
 
 
 ########################################################
-# XML / LOG helpers
+# LOG helpers
 ########################################################
 
-extract_rdt_from_xml() {
-  local xml_path="$1"
-
-  if [[ -z "$xml_path" || ! -s "$xml_path" ]]; then
-    echo "[ERROR] XML payload missing or empty: $xml_path" >&2
-    return 1
-  fi
-
-  perl -0777 -ne '
-    my $idx = 0;
-    while (/<frame\b([^>]*?)(?:\/>|>(.*?)<\/frame>)/sg) {
-      my ($attrs, $body) = ($1, $2 // q{});
-
-      my ($date, $time);
-
-      if ($attrs =~ /\brdt=\"([^\"]+)\"/) {
-        my $rdt = $1;
-        ($date, $time) = split(/\s+/, $rdt, 2);
-      } elsif ($body =~ /<recordingDateTime[^>]*>.*?<date>([^<]*)<\/date>.*?<time>([^<]*)<\/time>/s) {
-        ($date, $time) = ($1, $2);
-      } elsif ($body =~ /<recordingDateTime[^>]*>.*?<time>([^<]*)<\/time>.*?<date>([^<]*)<\/date>/s) {
-        ($time, $date) = ($1, $2);
-      }
-
-      next unless defined $date && defined $time;
-
-      $date =~ s/^\s+|\s+$//g;
-      $time =~ s/^\s+|\s+$//g;
-
-      next if $date eq q{} || $time eq q{};
-
-      my $frame = $idx;
-      if ($attrs =~ /\bn=\"([0-9]+)\"/) {
-        $frame = $1;
-      }
-
-      printf "%d\t%s\t%s\n", $frame, $date, $time;
-      $idx++;
-    }
-  ' "$xml_path"
-}
-
-normalize_rdt_tsv() {
-  local src_tsv="$1"
-  local fps="$2"
-  local dst_tsv="$3"
-
-  if [[ -z "$fps" ]]; then
-    echo "[WARN] normalize_rdt_tsv: fps missing; unable to compute timestamps" >&2
-    : > "$dst_tsv"
-    return 1
-  fi
-
-  awk -v fps="$fps" 'BEGIN{OFS="\t"}
-    NF >= 3 {
-      frame = $1 + 0
-      date  = $2
-      time  = $3
-      if (fps <= 0) { next }
-      if (date == "" || time == "") { next }
-      t_sec = frame / fps
-      printf "%d\t%.6f\t%s\t%s\t%s %s\n", frame, t_sec, date, time, date, time
-    }
-  ' "$src_tsv" > "$dst_tsv"
-}
-
-# PRIMARY SOURCE: parse dvrescue log into frame / date / time TSV.
-build_rdt_from_log() {
+# Parse dvrescue log into a timeline debug TSV. This is the only
+# metadata source for rolling timestamps.
+build_timeline_from_log() {
   local log_path="$1"
   local fps="$2"
-  local out_tsv="$3"
+  local granularity="$3"
+  local timeline_out="$4"
+  local stats_var="$5"
 
   if [[ ! -s "$log_path" ]]; then
-    echo "[WARN] build_rdt_from_log: log missing or empty: $log_path" >&2
-    return 1
-  fi
-
-  if [[ -z "$fps" ]]; then
-    echo "[WARN] build_rdt_from_log: fps missing; cannot compute timeline" >&2
-    return 1
-  fi
-
-  # Parse lines like:
-  #   309 00:02:59;12 2025-11-12 09:17:29
-  # into:
-  #   <frame_index_0_based>\t<t_sec>\t<YYYY-MM-DD>\t<HH:MM:SS>\t<dt_key>
-  awk -v fps="$fps" '
-    /^[[:space:]]*[0-9]+[[:space:]]+[0-9]{2}:[0-9]{2}:[0-9]{2};[0-9]{2}[[:space:]]+[0-9]{4}-[0-9]{2}-[0-9]{2}[[:space:]][0-9]{2}:[0-9]{2}:[0-9]{2}$/ {
-      idx  = $1 + 0
-      date = $3
-      time = $4
-      frame_index = idx - 1
-      if (fps <= 0) { next }
-      t_sec = frame_index / fps
-      printf "%d\t%.6f\t%s\t%s\t%s %s\n", frame_index, t_sec, date, time, date, time
-    }
-  ' "$log_path" > "$out_tsv"
-
-  local rows
-  rows=$(wc -l < "$out_tsv" | tr -d '[:space:]')
-  if [[ "$rows" -eq 0 ]]; then
-    echo "[WARN] build_rdt_from_log: produced 0 rows from $log_path" >&2
-    if (( debug_mode == 1 )); then
-      log_file_excerpt "dvrescue log sample" "$log_path" 5
-    fi
-    return 1
-  fi
-
-  echo "[INFO] build_rdt_from_log rows=$rows" >&2
-  if (( debug_mode == 1 )); then
-    debug_log "First 5 rows from log-derived RDT TSV ($out_tsv):"
-    head -n 5 "$out_tsv" | while IFS= read -r line; do
-      debug_log "  $line"
-    done
-  fi
-  return 0
-}
-
-
-
-# Try XML then log, but prefer LOG when it has usable rows.
-build_rdt_tmp() {
-  local xml_path="$1"
-  local log_path="$2"
-  local fps="$3"
-  local tmp_var="$4"
-  local source_var="$5"
-
-  local frame_source="unknown"
-  local -i final_rows=0
-  local -i xml_rows=0 log_rows=0
-  local -i log_min_rows=10
-  local prefer_log=0
-
-  local xml_tmp="" xml_norm="" log_tmp="" tmp_path=""
-
-  if (( last_dvrescue_status == 0 )) && [[ -n "$log_path" && -s "$log_path" ]]; then
-    prefer_log=1
-  fi
-
-  if [[ -n "$xml_path" && -s "$xml_path" ]]; then
-    xml_tmp=$(make_temp_file dvmeta_rdt_xml_raw ".tsv") || return 1
-    xml_norm=$(make_temp_file dvmeta_rdt_xml_norm ".tsv") || return 1
-    if ! extract_rdt_from_xml "$xml_path" > "$xml_tmp"; then
-      debug_log "extract_rdt_from_xml failed for $xml_path; continuing to log evaluation"
-      : > "$xml_tmp"
-    fi
-    normalize_rdt_tsv "$xml_tmp" "$fps" "$xml_norm"
-    xml_rows=$(wc -l < "$xml_norm" | tr -d " ")
-  else
-    debug_log "XML path missing or empty; skipping XML parse (xml_path=$xml_path)"
-  fi
-
-  if [[ -n "$log_path" && -s "$log_path" ]]; then
-    log_tmp=$(make_temp_file dvmeta_rdt_log ".tsv") || return 1
-    if ! build_rdt_from_log "$log_path" "$fps" "$log_tmp"; then
-      debug_log "build_rdt_from_log failed for $log_path"
-      : > "$log_tmp"
-    fi
-    log_rows=$(wc -l < "$log_tmp" | tr -d ' ')
-    if (( debug_mode == 1 && log_rows > 0 )); then
-      debug_log "First 5 rows from log-derived RDT TSV ($log_tmp):"
-      head -n 5 "$log_tmp" | while IFS= read -r line; do
-        debug_log "  $line"
-      done
-    fi
-  else
-    debug_log "dvrescue log missing or empty; skipping log parse (log_path=$log_path)"
-  fi
-
-  if (( prefer_log == 1 && log_rows >= log_min_rows )); then
-    frame_source="log"
-    final_rows=$log_rows
-    tmp_path="$log_tmp"
-  elif (( log_rows > 0 )); then
-    frame_source="log"
-    final_rows=$log_rows
-    tmp_path="$log_tmp"
-  elif (( xml_rows > 0 )); then
-    frame_source="xml"
-    final_rows=$xml_rows
-    tmp_path="$xml_norm"
-  else
-    tmp_path=$(make_temp_file dvmeta_rdt ".tsv") || return 1
-    : > "$tmp_path"
-  fi
-
-  echo "[INFO] build_rdt_tmp xml_path=$xml_path log_path=$log_path xml_rows=$xml_rows log_rows=$log_rows source=$frame_source final_rows=$final_rows" >&2
-  debug_log "build_rdt_tmp (detailed) xml_rows=$xml_rows log_rows=$log_rows final_rows=$final_rows source=$frame_source"
-
-  if (( final_rows == 0 )); then
-    echo "[WARN] Unable to derive RDT timeline from XML or dvrescue log" >&2
+    echo "[ERROR] build_timeline_from_log: log missing or empty: $log_path" >&2
+    printf -v "$stats_var" '%s' $'0\t0\t0\t0'
     return 2
   fi
 
-  printf -v "$tmp_var" '%s' "$tmp_path"
-  printf -v "$source_var" '%s' "$frame_source"
-  return 0
-}
-
-# Optional: first available RDT (not currently used by burn-in)
-extract_first_rdt() {
-  local xml_path="$1"
-  local log_path="$2"
-  local dt_var="$3"
-  local source_var="$4"
-
-  local dt="" source="unknown"
-
-  if [[ -n "$xml_path" && -s "$xml_path" ]]; then
-    dt=$(perl -ne 'if (/rdt=\"([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2})\"/) { print $1; exit }' "$xml_path")
-    if [[ -z "$dt" ]]; then
-      dt=$(perl -0777 -ne 'if (/<recordingDateTime[^>]*>.*?<date>([^<]+)<\/date>.*?<time>([^<]+)<\/time>/s) {print "$1 $2"; exit}' "$xml_path")
-    fi
-    [[ -n "$dt" ]] && source="xml"
-  fi
-
-  if [[ -z "$dt" && -n "$log_path" && -s "$log_path" ]]; then
-    dt=$(grep -m1 -E '[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}' "$log_path" | \
-         awk '{for (i=1;i<NF;i++) if ($i ~ /^[0-9]{4}-/ && $(i+1) ~ /^[0-9]{2}:/) {print $i " " $(i+1); exit}}')
-    [[ -n "$dt" ]] && source="log"
-  fi
-
-  if [[ -z "$dt" ]]; then
+  if [[ -z "$fps" ]]; then
+    echo "[ERROR] build_timeline_from_log: fps missing; cannot compute timeline" >&2
+    printf -v "$stats_var" '%s' $'0\t0\t0\t0'
     return 1
   fi
 
-  printf -v "$dt_var" '%s' "$dt"
-  printf -v "$source_var" '%s' "$source"
+  if [[ -z "$granularity" ]]; then
+    granularity="per_second"
+  fi
+
+  : > "$timeline_out"
+  echo "$timeline_header" >> "$timeline_out"
+
+  local stats
+  stats=$(awk -v fps="$fps" -v gran="$granularity" -v timeline_out="$timeline_out" '
+    BEGIN {
+      OFS="\t";
+      raw=0; valid=0; skipped=0; events=0;
+      prev_dt="";
+    }
+
+    function emit_line(frame_idx, t_sec, date_part, time_part, dt_key) {
+      printf "%d\t%.6f\t%s\t%s\t%s\t1\n", frame_idx, t_sec, date_part, time_part, dt_key >> timeline_out;
+      events++;
+    }
+
+    /^[[:space:]]*$/ { next }
+    /^[[:space:]]*#/ { next }
+    {
+      raw++;
+      idx=$1 + 0;
+      date=$3;
+      time=$4;
+
+      if (fps <= 0) { skipped++; next }
+      if (idx == "" || date == "" || time == "") { skipped++; next }
+
+      frame_idx = idx - 1;
+      t_sec = frame_idx / fps;
+      dt_key = date " " time;
+      valid++;
+
+      if (gran == "per_frame") {
+        emit_line(frame_idx, t_sec, date, time, dt_key);
+      } else {
+        if (dt_key != prev_dt) {
+          emit_line(frame_idx, t_sec, date, time, dt_key);
+          prev_dt = dt_key;
+        }
+      }
+    }
+
+    END {
+      printf "%d\t%d\t%d\t%d\n", raw, valid, skipped, events;
+    }
+  ' "$log_path") || stats=$'0\t0\t0\t0'
+
+  local raw_rows valid_rows skipped_rows event_rows
+  IFS=$'\t' read -r raw_rows valid_rows skipped_rows event_rows <<< "$stats"
+
+  if [[ -z "$raw_rows" || -z "$event_rows" ]]; then
+    echo "[WARN] build_timeline_from_log: unable to parse log statistics" >&2
+    printf -v "$stats_var" '%s' $'0\t0\t0\t0'
+    return 1
+  fi
+
+  printf -v "$stats_var" '%s' "$stats"
+
+  if (( event_rows == 0 )); then
+    echo "[WARN] build_timeline_from_log: produced 0 events from log ($log_path)" >&2
+    return 2
+  fi
+
+  echo "[INFO] build_timeline_from_log rows=$raw_rows events=$event_rows granularity=$granularity" >&2
+  if (( debug_mode == 1 )); then
+    debug_log "First 5 timeline rows ($timeline_out):"
+    sed -n '2,6p' "$timeline_out" | while IFS= read -r line; do
+      debug_log "  $line"
+    done
+  fi
+
   return 0
 }
 
@@ -577,6 +446,7 @@ write_run_manifest() {
     "valid_rows": $last_parse_valid_rows,
     "skipped_rows": $last_parse_skipped_rows,
     "timeline_entries": $last_parse_timeline_entries,
+    "timeline_granularity": "$burn_granularity",
     "dvrescue_status": $last_dvrescue_status,
     "fps": "${last_detected_fps}"
   }
@@ -709,67 +579,13 @@ seconds_to_ass_time() {
 }
 
 ########################################################
-# Segment generator — shared by sendcmd + ASS
-########################################################
-
-generate_segments_from_tsv() {
-  local rdt_tsv="$1"
-  local fps="$2"
-
-  local prev_dt="" prev_date="" prev_time="" prev_frame=""
-  local prev_start_sec=""
-  local frame_step
-  frame_step=$(awk -v fps="$fps" 'BEGIN{printf "%.6f", 1/fps}')
-  local -i segment_rows=0 raw_rows=0 skipped_rows=0
-
-  while IFS=$'\t' read -r frame_idx t_sec date_part time_part dt_key || [[ -n "${frame_idx:-}" ]]; do
-    (( raw_rows++ ))
-
-    if [[ -z "$date_part" || -z "$time_part" || -z "$dt_key" || -z "$t_sec" ]]; then
-      (( skipped_rows++ ))
-      continue
-    fi
-
-    local start_sec="$t_sec"
-
-    if [[ -z "$prev_dt" ]]; then
-      prev_dt="$dt_key"
-      prev_date="$date_part"
-      prev_time="$time_part"
-      prev_start_sec="$start_sec"
-      prev_frame="$frame_idx"
-      continue
-    fi
-
-    if [[ "$dt_key" != "$prev_dt" ]]; then
-      printf "%s\t%s\t%s\t%s\t%s\t%s\n" "$prev_frame" "$prev_start_sec" "$start_sec" "$prev_date" "$prev_time" "$prev_dt"
-      (( segment_rows++ ))
-      prev_dt="$dt_key"
-      prev_date="$date_part"
-      prev_time="$time_part"
-      prev_start_sec="$start_sec"
-      prev_frame="$frame_idx"
-    fi
-  done < "$rdt_tsv"
-
-  if [[ -n "$prev_dt" && -n "$prev_start_sec" ]]; then
-    local end_sec
-    end_sec=$(awk -v start="$prev_start_sec" -v step="$frame_step" 'BEGIN{printf "%.6f", start+step}')
-    printf "%s\t%s\t%s\t%s\t%s\t%s\n" "$prev_frame" "$prev_start_sec" "$end_sec" "$prev_date" "$prev_time" "$prev_dt"
-    (( segment_rows++ ))
-  fi
-
-  debug_log "generate_segments_from_tsv rows_in=$raw_rows rows_out=$segment_rows skipped=$skipped_rows source_tsv=$rdt_tsv fps=$fps"
-}
-
-########################################################
-# Build sendcmd file from RDT
+# Build sendcmd file from dvrescue log timeline
 ########################################################
 
 make_timestamp_cmd() {
   local in="$1"
   local cmdfile="$2"
-  local xml_file="$3"
+  local _xml_unused="$3"
   local dv_log="$4"
   local timeline_debug="$5"
   local fps="$6"
@@ -781,70 +597,53 @@ make_timestamp_cmd() {
     return 1
   fi
 
-  local rdt_tmp rdt_source
-  if ! build_rdt_tmp "$xml_file" "$dv_log" "$fps" rdt_tmp rdt_source; then
-    echo "[WARN] Unable to extract per-frame RDT data (source: $rdt_source)" >&2
-    last_parse_frame_source="${rdt_source:-unknown}"
-    last_parse_raw_rows=0
-    last_parse_valid_rows=0
-    last_parse_skipped_rows=0
-    last_parse_timeline_entries=0
-    return 2
+  local timeline_stats="0\t0\t0\t0"
+  local build_status=0
+  if ! build_timeline_from_log "$dv_log" "$fps" "$burn_granularity" "$timeline_debug" timeline_stats; then
+    build_status=$?
   fi
 
-  : > "$timeline_debug"
-  echo "$timeline_header" >> "$timeline_debug"
+  local raw_rows=0 valid_rows=0 skipped_rows=0 event_rows=0
+  IFS=$'\t' read -r raw_rows valid_rows skipped_rows event_rows <<< "$timeline_stats"
 
-  local segments_tmp
-  segments_tmp=$(make_temp_file dvmeta_segments ".tsv") || return 1
-  generate_segments_from_tsv "$rdt_tmp" "$fps" > "$segments_tmp"
-
-  local -i raw_rows=0 valid_rows=0 skipped_rows=0
-  local -i unique_dt_keys=0 segment_count=0 segment_lines=0
-  local prev_dt=""
-  typeset -A dt_keys_seen=()
-
-  local segment_change_flag
-  while IFS=$'\t' read -r start_frame start_sec end_sec date_part time_part dt_key || [[ -n "${start_sec:-}" ]]; do
-    (( raw_rows++ ))
-    local dt_key_fallback="${date_part} ${time_part}"
-    [[ -z "$dt_key" ]] && dt_key="$dt_key_fallback"
-
-    if [[ "$dt_key" != "$prev_dt" ]]; then
-      (( segment_count++ ))
-      if [[ -z "${dt_keys_seen[$dt_key]:-}" ]]; then
-        dt_keys_seen[$dt_key]=1
-        (( unique_dt_keys++ ))
-      fi
-      prev_dt="$dt_key"
-    fi
-
-    (( valid_rows++ ))
-
-    segment_change_flag=$(( segment_lines == 0 ? 1 : 0 ))
-
-    # Escape colons for drawtext (double-escaped for ffmpeg sendcmd)
-    local text="${dt_key//:/\\\\:}"
-    printf "%0.6f drawtext@dvmeta reinit text='%s';\n" "$start_sec" "$text" >> "$cmdfile"
-    printf "%s\t%0.6f\t%s\t%s\t%s\t%d\n" \
-      "$start_frame" "$start_sec" "$date_part" "$time_part" "$dt_key" "$segment_change_flag" >> "$timeline_debug"
-    (( segment_lines++ ))
-  done < "$segments_tmp"
-
-  last_parse_frame_source="$rdt_source"
+  last_parse_frame_source="log"
   last_parse_raw_rows=$raw_rows
   last_parse_valid_rows=$valid_rows
   last_parse_skipped_rows=$skipped_rows
+  last_parse_timeline_entries=$event_rows
+
+  if (( build_status != 0 )); then
+    echo "[ERROR] No RDT rows parsed from dvrescue.log; skipping burn-in per --missing-meta=${missing_meta}" >&2
+    return 2
+  fi
+
+  local -i segment_lines=0
+  local line_no=0
+  while IFS=$'\t' read -r frame_idx t_sec date_part time_part dt_key segment_change_flag; do
+    (( line_no++ ))
+    if (( line_no == 1 )); then
+      continue  # skip header
+    fi
+
+    if [[ -z "$t_sec" || -z "$dt_key" ]]; then
+      continue
+    fi
+
+    local text="${dt_key//:/\\\\:}"
+    printf "%s drawtext@dvmeta reinit text='%s';\n" "$t_sec" "$text" >> "$cmdfile"
+    (( segment_lines++ ))
+  done < "$timeline_debug"
+
   last_parse_timeline_entries=$segment_lines
 
   local summary_line
-  summary_line="[INFO] Frame parse summary (source=$rdt_source): rows=$raw_rows, valid=$valid_rows, skipped=$skipped_rows, unique_dt_keys=$unique_dt_keys, segment_count=$segment_count"
+  summary_line="[INFO] Frame parse summary (source=log): rows=$raw_rows, valid=$valid_rows, skipped=$skipped_rows, timeline_entries=$segment_lines"
   echo "$summary_line" >&2
   debug_log "$summary_line"
 
   if (( segment_lines < 1 )); then
     echo "[WARN] Empty sendcmd generated for $in (lines=$segment_lines)" >&2
-    return 1
+    return 2
   fi
 
   debug_log "sendcmd lines for $in: $segment_lines"
@@ -852,14 +651,14 @@ make_timestamp_cmd() {
 }
 
 ########################################################
-# Build ASS subtitles from same timeline
+# Build ASS subtitles from log timeline
 ########################################################
 
 make_ass_subs() {
   local in="$1"
   local layout="$2"
   local ass_out="$3"
-  local xml_file="$4"
+  local _xml_unused="$4"
   local dv_log="$5"
   local timeline_debug="$6"
   local fps="$7"
@@ -870,18 +669,26 @@ make_ass_subs() {
   fi
 
   : > "$ass_out"
-  : > "$timeline_debug"
-  echo "$timeline_header" >> "$timeline_debug"
 
-  local rdt_tmp rdt_source
-  if ! build_rdt_tmp "$xml_file" "$dv_log" "$fps" rdt_tmp rdt_source; then
-    echo "[WARN] Unable to extract per-frame RDT data (source: $rdt_source)" >&2
-    return 2
+  local timeline_stats="0\t0\t0\t0"
+  local build_status=0
+  if ! build_timeline_from_log "$dv_log" "$fps" "$burn_granularity" "$timeline_debug" timeline_stats; then
+    build_status=$?
   fi
 
-  local segments_tmp
-  segments_tmp=$(make_temp_file dvmeta_segments ".tsv") || return 1
-  generate_segments_from_tsv "$rdt_tmp" "$fps" > "$segments_tmp"
+  local raw_rows=0 valid_rows=0 skipped_rows=0 event_rows=0
+  IFS=$'\t' read -r raw_rows valid_rows skipped_rows event_rows <<< "$timeline_stats"
+
+  last_parse_frame_source="log"
+  last_parse_raw_rows=$raw_rows
+  last_parse_valid_rows=$valid_rows
+  last_parse_skipped_rows=$skipped_rows
+  last_parse_timeline_entries=$event_rows
+
+  if (( build_status != 0 )); then
+    echo "[ERROR] No RDT rows parsed from dvrescue.log; skipping subtitle burn-in per --missing-meta=${missing_meta}" >&2
+    return 2
+  fi
 
   local subtitle_font_safe
   subtitle_font_safe=${subtitle_font_name//\/\\}
@@ -903,67 +710,77 @@ Style: DVOSD,${subtitle_font_safe},24,&H00FFFFFF,&H00000000,&H00000000,&H0000000
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 EOF
 
-  local -i raw_rows=0 valid_rows=0 skipped_rows=0
-  local -i unique_dt_keys=0 segment_count=0 dialogue_count=0
-  local prev_dt=""
-  typeset -A dt_keys_seen=()
+  local frame_step
+  frame_step=$(awk -v fps="$fps" 'BEGIN{if (fps<=0) {exit 1} printf "%.6f", 1/fps}') || {
+    echo "[ERROR] Unable to compute frame step for subtitles" >&2
+    return 1
+  }
 
-  local segment_change_flag
-  while IFS=$'\t' read -r start_frame start_sec end_sec date_part time_part dt_key || [[ -n "${start_sec:-}" ]]; do
-    (( raw_rows++ ))
+  local -i raw_lines=0 dialogue_count=0 skipped_lines=0
+  local prev_start_sec="" prev_date="" prev_time="" prev_dt=""
 
-    if [[ -z "$date_part" || -z "$time_part" ]]; then
-      (( skipped_rows++ ))
+  while IFS=$'\t' read -r frame_idx t_sec date_part time_part dt_key segment_flag; do
+    (( raw_lines++ ))
+    if (( raw_lines == 1 )); then
+      continue  # header
+    fi
+
+    if [[ -z "$t_sec" || -z "$date_part" || -z "$time_part" ]]; then
+      (( skipped_lines++ ))
       continue
     fi
 
     local dt_key_fallback="${date_part} ${time_part}"
-    [[ -n "$dt_key_fallback" && -z "$dt_key" ]] && dt_key="$dt_key_fallback"
+    [[ -z "$dt_key" ]] && dt_key="$dt_key_fallback"
 
-    if [[ "$dt_key" != "$prev_dt" ]]; then
-      (( segment_count++ ))
-      if [[ -z "${dt_keys_seen[$dt_key]:-}" ]]; then
-        dt_keys_seen[$dt_key]=1
-        (( unique_dt_keys++ ))
-      fi
-      prev_dt="$dt_key"
+    if [[ -n "$prev_dt" ]]; then
+      local start_str end_str text
+      start_str="$(seconds_to_ass_time "$prev_start_sec")"
+      end_str="$(seconds_to_ass_time "$t_sec")"
+
+      case "$layout" in
+        stacked) text="${prev_date}\\N${prev_time}" ;;
+        single)  text="${prev_date}  ${prev_time}" ;;
+        *)       text="${prev_date}\\N${prev_time}" ;;
+      esac
+
+      printf "Dialogue: 0,%s,%s,DVOSD,,0,0,20,,%s\n" \
+        "$start_str" "$end_str" "$text" >> "$ass_out"
+      (( dialogue_count++ ))
     fi
 
-    (( valid_rows++ ))
+    prev_start_sec="$t_sec"
+    prev_date="$date_part"
+    prev_time="$time_part"
+    prev_dt="$dt_key"
+  done < "$timeline_debug"
 
-    segment_change_flag=$(( dialogue_count == 0 ? 1 : 0 ))
-
-    local start_str end_str text
-    start_str="$(seconds_to_ass_time "$start_sec")"
+  if [[ -n "$prev_dt" && -n "$prev_start_sec" ]]; then
+    local start_str end_str end_sec text
+    start_str="$(seconds_to_ass_time "$prev_start_sec")"
+    end_sec=$(awk -v start="$prev_start_sec" -v step="$frame_step" 'BEGIN{printf "%.6f", start+step}')
     end_str="$(seconds_to_ass_time "$end_sec")"
 
     case "$layout" in
-      stacked) text="${date_part}\\N${time_part}" ;;
-      single)  text="${date_part}  ${time_part}" ;;
-      *)       text="${date_part}\\N${time_part}" ;;
+      stacked) text="${prev_date}\\N${prev_time}" ;;
+      single)  text="${prev_date}  ${prev_time}" ;;
+      *)       text="${prev_date}\\N${prev_time}" ;;
     esac
 
     printf "Dialogue: 0,%s,%s,DVOSD,,0,0,20,,%s\n" \
       "$start_str" "$end_str" "$text" >> "$ass_out"
-    ((dialogue_count++))
+    (( dialogue_count++ ))
+  fi
 
-    printf "%s\t%0.6f\t%s\t%s\t%s\t%d\n" \
-      "$start_frame" "$start_sec" "$date_part" "$time_part" "$dt_key" "$segment_change_flag" >> "$timeline_debug"
-  done < "$segments_tmp"
-
-  last_parse_frame_source="$rdt_source"
-  last_parse_raw_rows=$raw_rows
-  last_parse_valid_rows=$valid_rows
-  last_parse_skipped_rows=$skipped_rows
   last_parse_timeline_entries=$dialogue_count
 
   local summary_line
-  summary_line="[INFO] Subtitle parse summary (source=$rdt_source): rows=$raw_rows, valid=$valid_rows, skipped=$skipped_rows, unique_dt_keys=$unique_dt_keys, segment_count=$segment_count, dialogue_count=$dialogue_count"
+  summary_line="[INFO] Subtitle parse summary (source=log): rows=$raw_rows, valid=$valid_rows, skipped=$skipped_rows, timeline_entries=$dialogue_count"
   echo "$summary_line" >&2
   debug_log "$summary_line"
 
   if (( dialogue_count < 1 )); then
-    echo "[WARN] No valid subtitle timestamps found in RDT data" >&2
+    echo "[WARN] No valid subtitle timestamps found in dvrescue log" >&2
     return 2
   fi
 
@@ -971,24 +788,18 @@ EOF
 }
 
 offline_smoke_test() {
-  local xml="${1:-/tmp/dvrescue.xml}"
+  local _xml_unused="${1:-/tmp/dvrescue.xml}"
   local log="${2:-/tmp/dvrescue.log}"
   local fps="${3:-29.97}"
   local cmdfile="${4:-/tmp/timestamp.cmd}"
   local timeline="${5:-/tmp/timeline.debug.tsv}"
-  local rdt_tmp rdt_source
 
-  if ! build_rdt_tmp "$xml" "$log" "$fps" rdt_tmp rdt_source; then
-    echo "[ERROR] offline_smoke_test could not parse RDT data (xml=$xml log=$log)" >&2
-    return 1
-  fi
-
-  if ! make_timestamp_cmd "offline_sample" "$cmdfile" "$xml" "$log" "$timeline" "$fps"; then
+  if ! make_timestamp_cmd "offline_sample" "$cmdfile" "$log" "$log" "$timeline" "$fps"; then
     echo "[ERROR] offline_smoke_test failed to build timestamp command file" >&2
     return 1
   fi
 
-  echo "[INFO] offline_smoke_test artifacts: timeline=$timeline sendcmd=$cmdfile (source=$rdt_source fps=$fps)" >&2
+  echo "[INFO] offline_smoke_test artifacts: timeline=$timeline sendcmd=$cmdfile (source=log fps=$fps)" >&2
 }
 
 ########################################################
