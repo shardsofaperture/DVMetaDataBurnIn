@@ -211,7 +211,7 @@ build_timeline_from_log() {
     granularity="per_second"
   fi
 
-  awk -v fps="$fps" -v granularity="$granularity" '
+  tr '\r' '\n' < "$log_path" | awk -v fps="$fps" -v granularity="$granularity" '
     BEGIN {
       raw_rows = 0;
       valid_rows = 0;
@@ -219,7 +219,11 @@ build_timeline_from_log() {
       prev_dt_key = "";
     }
 
-    NF >= 4 {
+    # Expect lines like:
+    #  1 00:02:49;04 2025-11-12 09:17:19
+    NF < 4 { next }
+
+    {
       raw_rows++;
 
       idx  = $1;
@@ -234,11 +238,15 @@ build_timeline_from_log() {
         valid_rows++;
 
         if (granularity == "per_frame") {
-          printf("%d\t%.6f\t%s\t%s\t%s\n", frame_index, t_sec, date, time, dt_key);
+          # one entry per frame
+          printf("%d\t%.6f\t%s\t%s\t%s\n",
+                 frame_index, t_sec, date, time, dt_key);
           timeline_entries++;
         } else {
+          # per_second: only when the dt_key changes
           if (dt_key != prev_dt_key) {
-            printf("%d\t%.6f\t%s\t%s\t%s\n", frame_index, t_sec, date, time, dt_key);
+            printf("%d\t%.6f\t%s\t%s\t%s\n",
+                   frame_index, t_sec, date, time, dt_key);
             timeline_entries++;
             prev_dt_key = dt_key;
           }
@@ -254,10 +262,11 @@ build_timeline_from_log() {
         exit 2;
       }
     }
-  ' "$log_path" > "$timeline_out"
+  ' > "$timeline_out"
 
   return $?
 }
+
 
 build_sendcmd_from_timeline() {
   local tsv_path="$1"
@@ -268,16 +277,37 @@ build_sendcmd_from_timeline() {
     return 1
   fi
 
-  awk -F "\t" '
-    NF >= 5 {
-      t_sec  = $2;
-      dt_key = $5;
+  : > "$sendcmd_path"   # truncate file
 
-      gsub(/:/, "\\\\:", dt_key);
+  awk -F '\t' '
+    # Expect: frame_index \t t_sec \t date \t time \t dt_key
+    NF >= 4 {
+      frame_idx = $1
+      t_sec     = $2 + 0
+      date      = $3
+      time      = $4
 
-      printf("%.6f drawtext@dvmeta reinit text='\''%s'\'';\n", t_sec, dt_key);
+      # Build "YYYY-MM-DD HH:MM:SS"
+      text = date " " time
+
+      # Strip any stray CRs that came through
+      gsub(/\r/, "", text)
+
+      # Escape backslashes
+      gsub(/\\/, "\\\\", text)
+
+      # Escape colons for drawtext
+      gsub(/:/, "\\\\:", text)
+
+      # Escape spaces so the whole timestamp is one token:
+      #   2025-11-12\ 09\\:17\\:19
+      gsub(/ /, "\\ ", text)
+
+      # Final line:
+      # 0.000000 drawtext@dvmeta reinit text=2025-11-12\ 09\\:17\\:19;
+      printf("%.6f drawtext@dvmeta reinit text=%s;\n", t_sec, text)
     }
-  ' "$tsv_path" > "$sendcmd_path"
+  ' "$tsv_path" >> "$sendcmd_path"
 
   local lines
   lines=$(wc -l < "$sendcmd_path" | tr -d "[:space:]")
@@ -285,6 +315,10 @@ build_sendcmd_from_timeline() {
 
   return 0
 }
+
+
+
+
 
 # Allocate a temporary file in TMPDIR
 make_temp_file() {
@@ -907,68 +941,115 @@ process_file() {
     subtitle_font_name="UAV OSD Mono"
   fi
   subtitle_font_name="${subtitle_font_name//,/ }"
-
-  # Subtitle track mode
+  
+  # Subtitle track mode: generate ASS from timeline and mux into container
   if [[ "$burn_mode" == "subtitleTrack" || "$burn_mode" == "subtitle_track" || "$burn_mode" == "subtitle" ]]; then
     local sub_status=0
+
+    # Build ASS subtitles from the dvrescue timeline
     if ! make_ass_subs "$in" "$layout" "$ass_artifact" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$fps"; then
       sub_status=$?
-      if (( sub_status == 2 )); then
-        case "$missing_meta" in
-          skip_burnin_convert)
-            echo "[WARN] Missing timestamp metadata for $in; converting without subtitle track." >&2
-            local out_passthrough="${base}_conv.${out_ext}"
-            "$ffmpeg_bin" -y -i "$in" \
-              "${codec_args[@]}" \
-              "$out_passthrough"
-            exit_status=$?
-            manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
-            passthrough_output="$out_passthrough"
-            write_versions_file "$versions_file"
-            write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
-            if [[ "$manifest_status" == "success" ]]; then
-              emit_debug_snapshots "$timeline_debug" "$cmdfile"
-            fi
-            return $exit_status
-            ;;
-          skip_file)
-            echo "[WARN] Missing timestamp metadata for $in; skipping file." >&2
-            manifest_status="skipped"
-            write_versions_file "$versions_file"
-            write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
-            return 0
-            ;;
-          *)
-            ;;
-        esac
-      fi
-
-      echo "[ERROR] Failed to build subtitles for $in" >&2
-      write_versions_file "$versions_file"
-      write_run_manifest "$run_manifest" "error" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
-      return 1
     fi
 
+    # Handle missing / bad metadata according to --missing-meta
+    if (( sub_status != 0 )); then
+      echo "[WARN] Failed to build subtitles; honoring --missing-meta=$missing_meta (status=$sub_status)" >&2
+      case "$missing_meta" in
+        skip_burnin_convert)
+          echo "[WARN] Missing timestamp metadata for $in; converting without subtitle track." >&2
+          local out_passthrough="${base}_conv.${out_ext}"
+          "$ffmpeg_bin" -y -i "$in" \
+            "${codec_args[@]}" \
+            "$out_passthrough"
+          exit_status=$?
+          manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
+          passthrough_output="$out_passthrough"
+          write_versions_file "$versions_file"
+          write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" \
+            "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" \
+            "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+          if [[ "$manifest_status" == "success" ]]; then
+            emit_debug_snapshots "$timeline_debug" "$cmdfile"
+          fi
+          return $exit_status
+          ;;
+        skip_file)
+          echo "[WARN] Missing timestamp metadata for $in; skipping file." >&2
+          manifest_status="skipped"
+          write_versions_file "$versions_file"
+          write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" \
+            "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" \
+            "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+          return 0
+          ;;
+        error|*)
+          echo "[ERROR] Missing timestamp metadata and --missing-meta=error; aborting subtitle mode." >&2
+          manifest_status="error"
+          write_versions_file "$versions_file"
+          write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" \
+            "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" \
+            "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+          return 1
+          ;;
+      esac
+    fi
+
+    # We have a valid ASS file – mux it
     local out_subbed="${base}_dvsub.${out_ext}"
-    local subtitle_codec="mov_text"
+    local subtitle_codec
+    local -a sub_video_args=()
+
+    case "$format" in
+      mov)
+        # DV-in-MOV is fine; stream-copy the original DV and audio, keep ASS as ASS
+        sub_video_args=(-c:v copy -c:a copy)
+        subtitle_codec="ass"
+        ;;
+      mp4)
+        # MP4 cannot carry dvvideo; reuse format-specific codec_args (mpeg4/aac)
+        sub_video_args=("${codec_args[@]}")
+        subtitle_codec="mov_text"
+        ;;
+      *)
+        echo "[ERROR] Unknown format '$format' in subtitleTrack mode" >&2
+        manifest_status="error"
+        write_versions_file "$versions_file"
+        write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" \
+          "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" \
+          "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+        return 1
+        ;;
+    esac
 
     echo "[INFO] Adding DV metadata subtitle track to: $out_subbed"
-    debug_log "Merging subtitle track with codec: $subtitle_codec"
-    "$ffmpeg_bin" -y -i "$in" -i "$ass_artifact" \
-      -c:v copy -c:a copy -c:s "$subtitle_codec" -map 0 -map 1 \
-      -metadata:s:s:0 language=eng \
-      "$out_subbed"
+    debug_log "Merging subtitle track with codec: $subtitle_codec (video args: ${sub_video_args[*]})"
+# Inside process_file(), under: if [[ "$burn_mode" == "burnin" ]]; then ...
 
-    exit_status=$?
-    manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
-    subtitle_output="$out_subbed"
-    write_versions_file "$versions_file"
-    write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
-    if [[ "$manifest_status" == "success" ]]; then
-      emit_debug_snapshots "$timeline_debug" "$cmdfile"
-    fi
-    return $exit_status
+  local out_burn="${base}_dateburn.${out_ext}"
+
+  echo "[INFO] Burning DV metadata into: $out_burn"
+  debug_log "Burn-in ffmpeg filter: sendcmd=f=$cmdfile,drawtext@dvmeta=..."
+
+  "$ffmpeg_bin" -y \
+    -i "$in" \
+    -vf "sendcmd=f=$cmdfile,drawtext@dvmeta=fontfile=$fontfile:text=' ':fontsize=24:fontcolor=white:x=(w-tw)/2:y=h-th-32:box=1:boxcolor=black@0.6:boxborderw=4" \
+    "${codec_args[@]}" \
+    "$out_burn"
+
+  exit_status=$?
+  manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
+  burn_output="$out_burn"
+  write_versions_file "$versions_file"
+  write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" \
+    "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" \
+    "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+
+  if [[ "$manifest_status" == "success" ]]; then
+    emit_debug_snapshots "$timeline_debug" "$cmdfile"
   fi
+
+  return $exit_status
+fi
 
   # Burn-in mode
   local timeline_fail=0
