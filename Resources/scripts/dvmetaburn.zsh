@@ -232,23 +232,29 @@ extract_rdt_from_xml() {
 # Fallback extractor: parse dvrescue log output for per-frame RDT entries when
 # XML extraction is missing or truncated. Expected log lines look like:
 #   1 00:00:00;00 2024-01-01 12:34:56
-extract_rdt_from_log() {
-  local log_path="$1"
+build_rdt_from_log() {
+  local log="$1"
 
-  if [[ -z "$log_path" || ! -s "$log_path" ]]; then
-    echo "[ERROR] dvrescue log missing or empty: $log_path" >&2
+  if [[ -z "$log" || ! -s "$log" ]]; then
+    echo "[ERROR] dvrescue log missing or empty: $log" >&2
     return 1
   fi
 
   awk '
+    # Expect lines like: "1 00:02:41;06 2025-11-11 08:29:35"
     NF >= 4 && $3 ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/ {
-      dt_key = $3 " " $4
+      frame_idx = $1
+      date_part = $3
+      time_part = $4
+      dt_key    = date_part " " time_part
+
+      # Emit ONE row per unique (date+time) change
       if (dt_key != last_dt_key) {
-        printf "%s\t%s\t%s\n", $1, $3, $4
+        printf "%s\t%s\t%s\n", frame_idx, date_part, time_part
         last_dt_key = dt_key
       }
     }
-  ' "$log_path"
+  ' "$log"
 }
 
 # Try to generate an RDT TSV using XML first, then fall back to the dvrescue
@@ -263,28 +269,28 @@ build_rdt_tmp() {
   local tmp_path source="xml"
   tmp_path=$(make_temp_file dvmeta_rdt ".tsv") || return 1
 
-  local -i xml_rows=0 log_rows=0
+  extract_rdt_from_xml "$xml_path" > "$tmp_path"
 
-  if extract_rdt_from_xml "$xml_path" >"$tmp_path"; then
-    xml_rows=$( (wc -l <"$tmp_path" 2>/dev/null) || echo 0 )
-  else
-    xml_rows=0
-  fi
+  local xml_rows
+  xml_rows=$(wc -l < "$tmp_path" | tr -d " ")
 
   debug_log "RDT rows from XML: $xml_rows"
 
-  if (( xml_rows < 3 )) && extract_rdt_from_log "$log_path" >"$tmp_path"; then
-    log_rows=$( (wc -l <"$tmp_path" 2>/dev/null) || echo 0 )
-    debug_log "RDT rows from dvrescue log: $log_rows"
-    if (( log_rows > 0 )); then
+  if (( xml_rows < 3 )); then
+    debug_log "XML RDT too sparse, falling back to dvrescue log"
+    if build_rdt_from_log "$log_path" > "$tmp_path"; then
       source="log"
+    else
+      source="xml"
     fi
-  elif (( xml_rows >= 3 )); then
-    source="xml"
   fi
 
+  local log_rows
+  log_rows=$(wc -l < "$tmp_path" | tr -d " ")
+  debug_log "RDT rows from dvrescue log: $log_rows"
+
   local -i final_rows
-  final_rows=$( (wc -l <"$tmp_path" 2>/dev/null) || echo 0 )
+  final_rows=$log_rows
 
   if (( final_rows == 0 )); then
     echo "[WARN] Unable to derive RDT timeline from XML or dvrescue log" >&2
@@ -352,7 +358,7 @@ make_temp_file() {
 
   if [[ -n "$ext" ]]; then
     local new_path="${path}${ext}"
-    mv "$path" "$new_path"
+    /bin/mv "$path" "$new_path"
     path="$new_path"
   fi
 
@@ -750,17 +756,19 @@ make_timestamp_cmd() {
   while IFS=$'\t' read -r start_sec end_sec date_part time_part; do
     local ts text
     ts="${date_part} ${time_part}"
-    text=${ts//:/$'\\:'}
+    text=${ts//:/\\:}
     printf "%0.6f drawtext@dvmeta reinit text='%s';\n" "$start_sec" "$text" >> "$cmdfile"
   done < "$segments_tmp"
 
-  local -i cmd_lines=0
-  cmd_lines=$( (grep -c 'drawtext@dvmeta' "$cmdfile" 2>/dev/null) || echo 0 )
+  local lines
+  lines=$(wc -l < "$cmdfile" | tr -d " ")
 
-  if [[ ! -s "$cmdfile" || $cmd_lines -lt 2 ]]; then
-    echo "[WARN] Empty or insufficient sendcmd generated for $in (lines=$cmd_lines)" >&2
-    return 2
+  if (( lines == 0 )); then
+    echo "[WARN] Empty sendcmd generated for $in (lines=$lines)" >&2
+    return 1
   fi
+
+  debug_log "sendcmd lines for $in: $lines"
 
   return 0
 }
