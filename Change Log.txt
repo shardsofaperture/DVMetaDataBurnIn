@@ -24,7 +24,7 @@
 
 * Fixed batch handling issue where it broke after just a couple files.
 
-* Recursive folder batch handling (subfolders will also convert)
+* Recursive folder batch handling (subfolders will also convert, max depth 3)
 
 * Added button to open temp folder
 

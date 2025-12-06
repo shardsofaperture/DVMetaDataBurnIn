@@ -1196,7 +1196,7 @@ if [[ "$mode" == "batch" ]]; then
   folder="${folder:A}"
 
   echo "Batch mode: scanning $folder"
-  debug_log "Scanning batch folder for AVI/DV files (non-recursive)"
+  debug_log "Scanning batch folder for AVI/DV files (maxdepth 3)"
 
   typeset -i any_found=0
 
@@ -1217,7 +1217,7 @@ if [[ "$mode" == "batch" ]]; then
     fi
   done < <(
     cd "$folder" && \
-      find . -maxdepth 1 -type f \
+      find . -maxdepth 3 -type f \
         \( -iname '*.avi' -o -iname '*.dv' \) \
         -print0
   )
