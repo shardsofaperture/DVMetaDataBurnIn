@@ -46,6 +46,21 @@ struct ContentView: View {
     @State private var selectedOutputFolder: String?
     @State private var debugMode: Bool = false
     
+        //font preview handling
+    private var activeFontPreviewName: String? {
+        // If hovering another font, show THAT preview
+        if let hover = hoveredFontPreviewName {
+            return hover
+        }
+
+        // Otherwise show preview for currently selected font
+        if let selected = displayedFonts.first(where: { $0.path == selectedFontPath }) {
+            return selected.previewAssetName
+        }
+
+        return nil
+    }
+
     // Add this helper somewhere inside ContentView:
 
     private var activeLayoutPreviewName: String? {
@@ -70,7 +85,7 @@ struct ContentView: View {
     private let camcorderFontPreviews: [String: String] = [
         "UAV-OSD-Mono.ttf": "FontPreview_UAVOSDMono",
         "UAV-OSD-Sans-Mono.ttf": "FontPreview_UAVOSDSANS",
-        "VCR_OSD_MONO_1.001.ttf": "FontPreview_VCROSDMONO"
+        "VCR_OSD_MONO.ttf": "FontPreview_VCROSDMONO"
     ]
 
     var body: some View {
@@ -107,33 +122,46 @@ struct ContentView: View {
             }
             
             // Layout: stacked vs single bar
-            HStack(alignment: .center, spacing: 12) {
-                Text("Layout:")
-                Picker("", selection: $layout) {
-                    Text("Stacked (date over time)")
-                        .tag("stacked")
-                        .onHover { hovering in
-                            hoveredLayoutPreviewName = hovering ? "OverlayPreview_Stacked" : nil
-                        }
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 12) {
+                    Text("Layout:")
 
-                    Text("Single line")
-                        .tag("single")
-                        .onHover { hovering in
-                            hoveredLayoutPreviewName = hovering ? "OverlayPreview_Bar" : nil
-                        }
+                    Picker("", selection: $layout) {
+                        Text("Stacked (date over time)")
+                            .tag("stacked")
+                            .onHover { hovering in
+                                hoveredLayoutPreviewName = hovering ? "OverlayPreview_Stacked" : nil
+                            }
+
+                        Text("Single line")
+                            .tag("single")
+                            .onHover { hovering in
+                                hoveredLayoutPreviewName = hovering ? "OverlayPreview_Bar" : nil
+                            }
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                    .frame(width: 320)
+                    .help("Select how the burned-in date and time are arranged on screen.")
                 }
-                .pickerStyle(SegmentedPickerStyle())
-                .frame(width: 320)
-                .help("Select how the burned-in date and time are arranged on screen.")
 
+                // Big, clean preview under the picker
                 if let preview = activeLayoutPreviewName {
-                    Image(preview)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(height: 80)
-                        .transition(.opacity)
+                    HStack {
+                        Spacer().frame(width: 72)   // indent to roughly line up under the picker
+                        Image(preview)
+                            .resizable()
+                            .aspectRatio(4/3, contentMode: .fit)
+                            .frame(width: 260, height: 150)
+                            .cornerRadius(4)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                            )
+                    }
+                    .transition(.opacity)
                 }
             }
+
 
 
             
@@ -149,23 +177,25 @@ struct ContentView: View {
                 .help("Pick the container format for the output file.")
             }
             
-            // NEW: Output mode (burn-in vs convert only)
+            // NEW: Output mode (burn-in vs convert only vs container with subs)
             VStack(alignment: .leading, spacing: 4) {
-                Text("Output mode:")
                 Picker("Burn-in output mode", selection: $burnMode) {
                     Text("Burn in metadata").tag(BurnMode.burnin)
                     Text("Convert only (no burn-in)").tag(BurnMode.passthrough)
-                    Text("Embed subtitle track (soft subs)").tag(BurnMode.subtitleTrack)
+                    Text("Embed subtitle track in MKV)").tag(BurnMode.subtitleTrack)
                 }
-                .pickerStyle(SegmentedPickerStyle())
-                .frame(maxWidth: .infinity)
+                .pickerStyle(.menu)              // ⬅️ dropdown instead of segmented
+                .frame(width: 340, alignment: .leading)
                 .help("Choose between burning metadata into the image, keeping video unchanged, or adding a subtitle track.")
             }
+
             
             // Subtitle font selector
             VStack(alignment: .leading, spacing: 8) {
                 Text("Subtitle font:")
-                HStack(alignment: .top, spacing: 12) {
+
+                HStack(alignment: .center, spacing: 16) {
+                    // Compact dropdown on the left
                     Menu {
                         Section("Camcorder fonts") {
                             ForEach(camcorderFonts) { option in
@@ -183,42 +213,43 @@ struct ContentView: View {
                     } label: {
                         HStack {
                             Text(currentFontSelectionName())
-                            if includeSystemFonts {
-                                Text("(+ system)")
-                                    .foregroundColor(.secondary)
-                                    .font(.footnote)
-                            }
-                            Spacer()
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+
+                            Spacer(minLength: 4)
+
                             Image(systemName: "chevron.down")
                                 .foregroundColor(.secondary)
                         }
-                        .frame(maxWidth: 320)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 6)
-                        .background(RoundedRectangle(cornerRadius: 6).stroke(Color.gray.opacity(0.2)))
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .stroke(Color.gray.opacity(0.2))
+                        )
+                    }
+                    .frame(width: 220, alignment: .leading)      // ⬅️ keeps the menu short
+                    .onHover { hovering in
+                        if !hovering { hoveredFontPreviewName = nil }
                     }
                     .disabled(displayedFonts.isEmpty)
-                    .help("Pick the font used for the burned-in or subtitle text.")
-                    .onHover { hovering in
-                        if !hovering {
-                            hoveredFontPreviewName = nil
-                        }
-                    }
 
-                    if let preview = hoveredFontPreviewName {
+                    // Big static preview on the right
+                    if let preview = activeFontPreviewName {
                         Image(preview)
                             .resizable()
-                            .scaledToFit()
-                            .frame(width: 160)
-                            .transition(.opacity)
+                            .aspectRatio(4/1, contentMode: .fit)
+                            .frame(width: 260, height: 80)       // ⬅️ nice readable size
+                            .clipped()
                     }
+
+                    Spacer(minLength: 0)
                 }
 
                 Toggle("Include system fonts", isOn: $includeSystemFonts)
                     .onChange(of: includeSystemFonts) { _ in
                         normalizeSelectedFont()
                     }
-                    .help("Append system-installed fonts to the camcorder set.")
 
                 if displayedFonts.isEmpty {
                     Text("No subtitle fonts found in app bundle or system.")
@@ -227,43 +258,7 @@ struct ContentView: View {
                 }
             }
 
-            // NEW: Missing metadata behavior
-            VStack(alignment: .leading) {
-                Text("If DV date/time is missing:")
-                Picker("", selection: $missingMetaMode) {
-                    Text("Stop with error").tag(MissingMetaMode.error)
-                    Text("Convert without burn-in").tag(MissingMetaMode.skipBurninConvert)
-                    Text("Skip file").tag(MissingMetaMode.skipFile)
-                }
-                .pickerStyle(SegmentedPickerStyle())
-                .frame(width: 420)
-                .help("Pick what to do when a clip is missing DV metadata.")
-            }
 
-            // Debug logging toggle to help capture more details
-            Toggle("Enable debug logging", isOn: $debugMode)
-                .help("Adds extra diagnostic output before and during processing to help troubleshoot failures.")
-
-            Toggle("Output to location folder", isOn: Binding(
-                get: { outputToLocationFolder },
-                set: { newValue in
-                    outputToLocationFolder = newValue
-                    if newValue {
-                        if !promptForOutputFolder() {
-                            outputToLocationFolder = false
-                        }
-                    } else {
-                        selectedOutputFolder = nil
-                    }
-                }
-            ))
-            .help("Save processed files to a chosen folder instead of beside the source clip.")
-
-            if let selectedOutputFolder {
-                Text("Destination: \(selectedOutputFolder)")
-                    .font(.footnote)
-                    .foregroundColor(.secondary)
-            }
 
             // Run + dvrescue debug + Stop + Clear / Save buttons
             HStack {
@@ -732,30 +727,20 @@ struct ContentView: View {
         let fm = FileManager.default
         let resourceRoot = Bundle.main.resourceURL ?? Bundle.main.bundleURL
 
-        let bundleFontDirs = [
-            resourceRoot.appendingPathComponent("fonts"),
-            resourceRoot.appendingPathComponent("scripts/fonts")
-        ]
-
-        let systemFontDirs = [
-            URL(fileURLWithPath: "/System/Library/Fonts"),
-            URL(fileURLWithPath: "/Library/Fonts"),
-            URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Fonts"),
-            URL(fileURLWithPath: "/usr/share/fonts"),
-            URL(fileURLWithPath: "/usr/local/share/fonts")
-        ]
-
         let extensions = ["ttf", "otf", "ttc"]
         var camcorderResults: [SubtitleFontOption] = []
         var systemResults: [SubtitleFontOption] = []
 
-        for dir in bundleFontDirs {
-            guard let contents = try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { continue }
-            for file in contents where extensions.contains(file.pathExtension.lowercased()) {
+        // 🔹 Scan the entire app Resources tree for our known camcorder fonts
+        if let enumerator = fm.enumerator(at: resourceRoot, includingPropertiesForKeys: nil) {
+            for case let file as URL in enumerator {
+                guard extensions.contains(file.pathExtension.lowercased()) else { continue }
                 guard camcorderFontPreviews.keys.contains(file.lastPathComponent) else { continue }
+
                 let descriptors = CTFontManagerCreateFontDescriptorsFromURL(file as CFURL) as? [CTFontDescriptor]
                 let descriptor = descriptors?.first
-                let displayName = (descriptor.flatMap { CTFontDescriptorCopyAttribute($0, kCTFontDisplayNameAttribute) as? String })
+                let displayName =
+                    (descriptor.flatMap { CTFontDescriptorCopyAttribute($0, kCTFontDisplayNameAttribute) as? String })
                     ?? file.deletingPathExtension().lastPathComponent
 
                 if !camcorderResults.contains(where: { $0.path == file.path }) {
@@ -771,13 +756,24 @@ struct ContentView: View {
             }
         }
 
+        // 🔹 System fonts block stays as-is
+        let systemFontDirs = [
+            URL(fileURLWithPath: "/System/Library/Fonts"),
+            URL(fileURLWithPath: "/Library/Fonts"),
+            URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Fonts"),
+            URL(fileURLWithPath: "/usr/share/fonts"),
+            URL(fileURLWithPath: "/usr/local/share/fonts")
+        ]
+
         for dir in systemFontDirs {
             guard let contents = try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { continue }
             for file in contents where extensions.contains(file.pathExtension.lowercased()) {
                 if camcorderResults.contains(where: { $0.path == file.path }) { continue }
+
                 let descriptors = CTFontManagerCreateFontDescriptorsFromURL(file as CFURL) as? [CTFontDescriptor]
                 let descriptor = descriptors?.first
-                let displayName = (descriptor.flatMap { CTFontDescriptorCopyAttribute($0, kCTFontDisplayNameAttribute) as? String })
+                let displayName =
+                    (descriptor.flatMap { CTFontDescriptorCopyAttribute($0, kCTFontDisplayNameAttribute) as? String })
                     ?? file.deletingPathExtension().lastPathComponent
 
                 if !systemResults.contains(where: { $0.path == file.path }) {
@@ -800,6 +796,7 @@ struct ContentView: View {
         systemFonts = systemResults
         normalizeSelectedFont()
     }
+
 
     private func resolvedFontPath() -> String {
         let fm = FileManager.default
