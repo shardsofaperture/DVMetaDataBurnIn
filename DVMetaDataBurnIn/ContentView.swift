@@ -1,6 +1,8 @@
 import SwiftUI
+import AppKit
 import UniformTypeIdentifiers   // for logoutput to txt
 import CoreText
+
 // MARK: - Mode enums
 
 enum BurnMode: String, CaseIterable, Identifiable {
@@ -49,44 +51,37 @@ struct ContentView: View {
     @State private var defaultOutputFolder: String? =
         UserDefaults.standard.string(forKey: "DVMetaDefaultOutputFolder")
     
-        //font preview handling
+    //font preview handling
     private var activeFontPreviewName: String? {
-        // If hovering another font, show THAT preview
         if let hover = hoveredFontPreviewName {
             return hover
         }
-
-        // Otherwise show preview for currently selected font
         if let selected = displayedFonts.first(where: { $0.path == selectedFontPath }) {
             return selected.previewAssetName
         }
-
         return nil
     }
+    
     private func registerFontIfNeeded(at path: String) {
         let url = URL(fileURLWithPath: path)
         var error: Unmanaged<CFError>?
         let ok = CTFontManagerRegisterFontsForURL(url as CFURL, .process, &error)
         if !ok {
-            // It's probably already registered; you could log error if you care.
             _ = error?.takeRetainedValue()
         }
     }
-    // Add this helper somewhere inside ContentView:
+
     private var previewFontName: String? {
         if let selected = displayedFonts.first(where: { $0.path == selectedFontPath }) {
-            // Prefer explicit fontName (PostScript), fallback to displayName
             return selected.fontName ?? selected.displayName
         }
         return nil
     }
+    
     private var activeLayoutPreviewName: String? {
         if let hover = hoveredLayoutPreviewName {
-            // If you're hovering something, that wins
             return hover
         }
-        
-        // Otherwise fall back to the currently selected layout
         switch layout {
         case "stacked":
             return "OverlayPreview_Stacked"
@@ -96,6 +91,7 @@ struct ContentView: View {
             return nil
         }
     }
+    
     private var displayedFonts: [SubtitleFontOption] {
         camcorderFonts + (includeSystemFonts ? systemFonts : [])
     }
@@ -112,8 +108,6 @@ struct ContentView: View {
                 .font(.title2)
                 .bold()
             
-            
-
             // Input picker
             HStack {
                 Text("Input:")
@@ -162,10 +156,9 @@ struct ContentView: View {
                     .help("Select how the burned-in date and time are arranged on screen.")
                 }
 
-                // Big, clean preview under the picker
                 if let preview = activeLayoutPreviewName {
                     HStack {
-                        Spacer().frame(width: 72)   // indent to roughly line up under the picker
+                        Spacer().frame(width: 72)
                         Image(preview)
                             .resizable()
                             .aspectRatio(4/3, contentMode: .fit)
@@ -179,9 +172,6 @@ struct ContentView: View {
                     .transition(.opacity)
                 }
             }
-
-
-
             
             // Format: mov vs mp4
             HStack {
@@ -194,19 +184,26 @@ struct ContentView: View {
                 .frame(width: 320)
                 .help("Pick the container format for the output file.")
             }
-            
-            // NEW: Output mode (burn-in vs convert only vs container with subs)
+
+            // Output location toggle (stays up here)
+            VStack(alignment: .leading, spacing: 4) {
+                Toggle("Choose output folder before processing",
+                       isOn: $outputToLocationFolder)
+                    .help("When enabled, ask where to save all outputs instead of using the source folder.")
+            }
+            .padding(.top, 4)
+
+            // Output mode (burn-in vs convert only vs subs)
             VStack(alignment: .leading, spacing: 4) {
                 Picker("Burn-in output mode", selection: $burnMode) {
                     Text("Burn in metadata").tag(BurnMode.burnin)
                     Text("Transcode only (no burn-in)").tag(BurnMode.passthrough)
-                    Text("Embed subtitle track in MKV)").tag(BurnMode.subtitleTrack)
+                    Text("Embed subtitle track (soft subs in MKV)").tag(BurnMode.subtitleTrack)
                 }
-                .pickerStyle(.menu)              // ⬅️ dropdown instead of segmented
+                .pickerStyle(.menu)
                 .frame(width: 340, alignment: .leading)
                 .help("Choose between burning metadata into the image, keeping video unchanged, or adding a subtitle track.")
             }
-
             
             // Subtitle font selector
             HStack(alignment: .top, spacing: 24) {
@@ -282,40 +279,91 @@ struct ContentView: View {
                 Spacer(minLength: 0)
             }
 
-            // Run + dvrescue debug + Stop + Clear / Save buttons
-            HStack {
-                Button("Clear Log") {
-                    logText = ""
-                    fullLogText = ""
-                }
-                .help("Remove all log output from the window.")
+            // Controls: log buttons on left, run controls on right
+            HStack(alignment: .top) {
+                // Left: Clear / dvrescue, Open temp / Save log
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Button("Clear Log") {
+                            logText = ""
+                            fullLogText = ""
+                        }
+                        .help("Remove all log output from the window.")
 
-                Button("Save Log…") {
-                    saveLogToFile()
+                        Button("dvrescue debug only") {
+                            runDVRescueDebug()
+                        }
+                        .disabled(isRunning)
+                        .help("Run dvrescue to inspect metadata without creating output.")
+                    }
+
+                    HStack {
+                        Button("Open temp folder") {
+                            openTempFolder()
+                        }
+                        .help("Open the DVMeta log/artifact folder in Finder.")
+
+                        Button("Save Log…") {
+                            saveLogToFile()
+                        }
+                        .help("Save the full session log to a text file.")
+                    }
                 }
-                .help("Save the full session log to a text file.")
 
                 Spacer()
 
-                Button("dvrescue debug only") {
-                    runDVRescueDebug()
-                }
-                .disabled(isRunning)
-                .help("Run dvrescue to inspect metadata without creating output.")
+                // Right: Stop / Start, then choose output folder button under them
+                VStack(alignment: .trailing, spacing: 4) {
 
-                Button("Stop") {
-                    stopCurrentProcess()
-                }
-                .disabled(!isRunning || currentProcess == nil)
-                .help("Terminate the current process.")
+                    HStack(spacing: 8) {
+                        let coneOrange = Color(red: 1.0, green: 0.4, blue: 0.0)
 
-                Button(isRunning ? "Running…" : "Start Burn/Encode") {
-                    runBurn()
+                        // START button — cone orange
+                        Button(action: { runBurn() }) {
+                            Text(isRunning ? "Running…" : "Start Burn/Encode")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(.black)
+                                .frame(width: 150, height: 22)   // FIXED HEIGHT
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill((isRunning || inputPath.isEmpty)
+                                              ? coneOrange.opacity(0.45)
+                                              : coneOrange)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(isRunning || inputPath.isEmpty)
+
+                        // STOP button — match *same height + corner radius*
+                        Button(action: { stopCurrentProcess() }) {
+                            Text("Stop")
+                                .font(.system(size: 13))
+                                .foregroundColor(.white)
+                                .frame(width: 70, height: 22)   // EXACT SAME HEIGHT
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(isRunning ? Color.red : Color.gray.opacity(0.5))
+                                )
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(!isRunning || currentProcess == nil)
+                    }
+
+                    // existing button – leave this as-is
+                    Button("Choose output folder…") {
+                        if promptForOutputFolder() {
+                            outputToLocationFolder = true
+                        }
+                    }
+                    .disabled(isRunning)
+                    .help("Pick a destination folder for processed files.")
                 }
-                .disabled(isRunning || inputPath.isEmpty)
-                .help(isRunning ? "Processing in progress." : "Start burn/encode with the selected options.")
             }
 
+            // Enhanced debug toggle lives near the log now
+            Toggle("Enhanced debug logging", isOn: $debugMode)
+                .help("Include extra script settings and debug details at the top of the log.")
+                .padding(.top, 4)
 
             // Log output
             Text("Log:")
@@ -325,7 +373,7 @@ struct ContentView: View {
                 Text(logText)
                     .font(.system(.footnote, design: .monospaced))
                     .frame(maxWidth: .infinity, alignment: .topLeading)
-                    .textSelection(.enabled)   // allow copy/paste
+                    .textSelection(.enabled)
             }
             .border(Color.gray.opacity(0.4))
             .help("Live output from dvrescue, ffmpeg, and script diagnostics.")
@@ -345,7 +393,7 @@ struct ContentView: View {
             AboutView()
         }
         .onAppear(perform: loadAvailableFonts)
-    }   // <-- this closes var body
+    }
     
     // MARK: - Save log
 
@@ -354,7 +402,7 @@ struct ContentView: View {
         panel.title = "Save Log"
         panel.nameFieldStringValue = "DVMetaLog.txt"
         panel.canCreateDirectories = true
-        panel.allowedContentTypes = [.plainText]   // modern API
+        panel.allowedContentTypes = [.plainText]
 
         if panel.runModal() == .OK, let url = panel.url {
             do {
@@ -363,6 +411,22 @@ struct ContentView: View {
                 appendToLog("\n\n[ERROR saving log: \(error.localizedDescription)]\n", capped: true)
             }
         }
+    }
+
+    // MARK: - Open temp / artifact folder
+
+    private func openTempFolder() {
+        let fm = FileManager.default
+        let base = fm.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library")
+            .appendingPathComponent("Logs")
+            .appendingPathComponent("DVMeta")
+
+        if !fm.fileExists(atPath: base.path) {
+            try? fm.createDirectory(at: base, withIntermediateDirectories: true)
+        }
+
+        NSWorkspace.shared.open(base)
     }
 
     // MARK: - File / folder picker
@@ -384,37 +448,42 @@ struct ContentView: View {
     }
 
     // MARK: - Output folder picker
+
     @discardableResult
     private func promptForOutputFolder() -> Bool {
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = true
         panel.prompt = "Choose"
 
-        // Priority for initial location:
-        // 1) currently selected folder
-        // 2) default folder
-        // 3) folder of inputPath
-        if let selected = selectedOutputFolder {
-            panel.directoryURL = URL(fileURLWithPath: selected)
-        } else if let def = defaultOutputFolder {
-            panel.directoryURL = URL(fileURLWithPath: def)
+        if let def = defaultOutputFolder, !def.isEmpty {
+            panel.directoryURL = URL(fileURLWithPath: def, isDirectory: true)
+        } else if let existing = selectedOutputFolder, !existing.isEmpty {
+            panel.directoryURL = URL(fileURLWithPath: existing, isDirectory: true)
         } else {
-            let trimmed = inputPath.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmed.isEmpty {
-                var baseURL = URL(fileURLWithPath: trimmed)
-                if !baseURL.hasDirectoryPath {
-                    baseURL.deleteLastPathComponent()
+            let trimmedInput = inputPath.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmedInput.isEmpty {
+                let inputURL = URL(fileURLWithPath: trimmedInput)
+                if inputURL.hasDirectoryPath {
+                    panel.directoryURL = inputURL
+                } else {
+                    panel.directoryURL = inputURL.deletingLastPathComponent()
                 }
-                panel.directoryURL = baseURL
             }
         }
 
         if panel.runModal() == .OK, let url = panel.url {
             let path = url.path
             selectedOutputFolder = path
+
             UserDefaults.standard.set(path, forKey: "DVMetaLastOutputFolder")
+
+            if defaultOutputFolder == nil {
+                defaultOutputFolder = path
+                UserDefaults.standard.set(path, forKey: "DVMetaDefaultOutputFolder")
+            }
             return true
         }
 
@@ -431,12 +500,10 @@ struct ContentView: View {
            fm.fileExists(atPath: inputPath) {
             let url = URL(fileURLWithPath: inputPath)
             if !url.hasDirectoryPath {
-                // Use the already-selected file in the top bar
                 debugURL = url
             }
         }
 
-        // If we still don't have a file (no input or it was a folder) → ask the user
         if debugURL == nil {
             let panel = NSOpenPanel()
             panel.canChooseFiles = true
@@ -445,7 +512,6 @@ struct ContentView: View {
 
             if panel.runModal() == .OK, let url = panel.url {
                 debugURL = url
-                // also reflect it in the UI input field
                 inputPath = url.path
                 mode = "single"
             }
@@ -533,25 +599,23 @@ struct ContentView: View {
     // MARK: - Log helper
 
     private func appendToLog(_ chunk: String, capped: Bool = true) {
-        // Always keep the full log
         fullLogText.append(chunk)
 
-        // If we don't want capping (dvrescue debug), just mirror fullLogText
         guard capped else {
             logText = fullLogText
             return
         }
 
-        // Normal path: append & cap what the UI shows
         logText.append(chunk)
 
-        let maxChars = 50_000  // tweak if you want
+        let maxChars = 50_000
         if logText.count > maxChars {
             let overflow = logText.count - maxChars
             let idx = logText.index(logText.startIndex, offsetBy: overflow)
             logText.removeSubrange(logText.startIndex..<idx)
         }
     }
+
     // MARK: - Stop current process
 
     private func stopCurrentProcess() {
@@ -562,6 +626,7 @@ struct ContentView: View {
         }
         isRunning = false
     }
+
     // MARK: - Run script
 
     private func runBurn() {
@@ -572,7 +637,7 @@ struct ContentView: View {
 
         if outputToLocationFolder && (selectedOutputFolder?.isEmpty ?? true) {
             if !promptForOutputFolder() {
-                logText = "Please choose an output folder or disable the location override before running."
+                logText = "Output cancelled. Please choose an output folder or disable the location override."
                 return
             }
         }
@@ -581,7 +646,6 @@ struct ContentView: View {
         fullLogText = ""
         isRunning = true
 
-        // Capture a detailed snapshot of inputs when debug logging is enabled
         if debugMode {
             appendToLog(debugSnapshot(), capped: false)
         }
@@ -633,9 +697,7 @@ struct ContentView: View {
     // MARK: - Process builder
 
     private func makeProcess() throws -> (Process, Pipe) {
-        // Use resourceURL if available, otherwise fall back to bundleURL
         let bundleRoot = Bundle.main.resourceURL ?? Bundle.main.bundleURL
-
         let fm = FileManager.default
 
         func findResource(named name: String) -> URL? {
@@ -675,7 +737,6 @@ struct ContentView: View {
         guard let dvrescueURL = findResource(named: "dvrescue") else {
             throw NSError(domain: "DVMeta", code: 5,
                           userInfo: [NSLocalizedDescriptionKey: "ERROR: Could not find dvrescue in app bundle."])
-
         }
 
         guard let fontURL = findResource(named: "UAV-OSD-Mono.ttf") else {
@@ -684,15 +745,12 @@ struct ContentView: View {
         }
         _ = fontURL
 
-        // --- Copy script to a writable temp location ---
         let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
         let tempScriptURL = tempDir.appendingPathComponent("dvmetaburn_run.zsh")
 
-        // Remove any previous copy
         _ = try? fm.removeItem(at: tempScriptURL)
         try fm.copyItem(at: bundledScriptURL, to: tempScriptURL)
 
-        // Make sure it's executable
         let attrs: [FileAttributeKey: Any] = [
             .posixPermissions: NSNumber(value: Int16(0o755))
         ]
@@ -701,7 +759,6 @@ struct ContentView: View {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/zsh")
 
-        // Map MissingMetaMode to the strings the script expects
         let missingMetaArg: String
         switch missingMetaMode {
         case .error:
@@ -717,8 +774,8 @@ struct ContentView: View {
             "--mode=\(mode)",
             "--layout=\(layout)",
             "--format=\(format)",
-            "--burn-mode=\(burnMode.rawValue)",   // burnin / passthrough / subtitleTrack
-            "--missing-meta=\(missingMetaArg)",   // error / skip_burnin_convert / skip_file
+            "--burn-mode=\(burnMode.rawValue)",
+            "--missing-meta=\(missingMetaArg)",
             "--fontfile=\(resolvedFontPath())",
             "--fontname=\(resolvedFontName())",
             "--ffmpeg=\(ffmpegURL.path)",
@@ -761,8 +818,8 @@ struct ContentView: View {
         let displayName: String
         let path: String
         let source: SubtitleFontSource
-        let previewAssetName: String?   // still used if you want images for camcorder fonts
-        let fontName: String?           // PostScript / usable font name
+        let previewAssetName: String?
+        let fontName: String?
     }
 
     private func loadAvailableFonts() {
@@ -773,7 +830,6 @@ struct ContentView: View {
         var camcorderResults: [SubtitleFontOption] = []
         var systemResults: [SubtitleFontOption] = []
 
-        // 🔹 Scan the entire app Resources tree for our known camcorder fonts
         if let enumerator = fm.enumerator(at: resourceRoot, includingPropertiesForKeys: nil) {
             for case let file as URL in enumerator {
                 guard extensions.contains(file.pathExtension.lowercased()) else { continue }
@@ -800,11 +856,9 @@ struct ContentView: View {
                         )
                     )
                 }
-
             }
         }
 
-        // 🔹 System fonts block stays as-is
         let systemFontDirs = [
             URL(fileURLWithPath: "/System/Library/Fonts"),
             URL(fileURLWithPath: "/Library/Fonts"),
@@ -839,7 +893,6 @@ struct ContentView: View {
                         )
                     )
                 }
-
             }
         }
 
@@ -851,14 +904,12 @@ struct ContentView: View {
         normalizeSelectedFont()
     }
 
-
     private func resolvedFontPath() -> String {
         let fm = FileManager.default
         if let selected = selectedFontPath, fm.fileExists(atPath: selected) {
             return selected
         }
 
-        // Fallback to bundled font
         let bundleRoot = Bundle.main.resourceURL ?? Bundle.main.bundleURL
         let bundledFont = bundleRoot.appendingPathComponent("fonts/UAV-OSD-Mono.ttf")
         return bundledFont.path
@@ -913,9 +964,9 @@ struct ContentView: View {
             }
         }
     }
+
     // MARK: - Debug helpers
 
-    /// Build a human-readable snapshot of the current settings to aid debugging.
     private func debugSnapshot() -> String {
         var lines: [String] = []
         let fm = FileManager.default

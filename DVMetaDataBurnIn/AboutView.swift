@@ -4,7 +4,7 @@ struct AboutView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Title
-            Text("DVMetaDataBurnIn Ver. 1.0.1B 12-5-2025")
+            Text("DVMetaDataBurnIn Ver. 1.0.2B 12-5-2025")
                 .font(.title2)
                 .bold()
 
