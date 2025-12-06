@@ -1,8 +1,25 @@
-## Change Log
+## Change Log 1.0.1B
+
+--12/5/2025
+
+* Tool tips added
+
+* Stubtitles added (these now result in a contianer file with track 1 subs based on the format and font chosen)
+
+* Timestamp "rolls" the way it is suppsoed to for single clips
+
+* Fixed issues where multiple day uncut clips timestamp didn't "jump" to the proper day.
+
+* Splash Screen now 2 seconds
+
+* UI Updates
+
+* Font Selector Added
+
+* Added the ability to convert only to mp4 for modern devices or pass though AVI to MOV.
 
 
---12/3/2025
-*redid all the metadata parsing to use JQ so the rolling timestamp issue is getting fixed
+
 
 --- 12/1/25
 --- Calling this 1.0 Beta!

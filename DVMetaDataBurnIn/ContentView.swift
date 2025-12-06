@@ -1,10 +1,12 @@
 import SwiftUI
 import UniformTypeIdentifiers   // for logoutput to txt
+import CoreText
 // MARK: - Mode enums
 
 enum BurnMode: String, CaseIterable, Identifiable {
     case burnin
     case passthrough
+    case subtitleTrack
 
     var id: String { rawValue }
 }
@@ -34,6 +36,9 @@ struct ContentView: View {
     // NEW OPTIONS
     @State private var burnMode: BurnMode = .burnin
     @State private var missingMetaMode: MissingMetaMode = .skipBurninConvert
+    @State private var availableFonts: [SubtitleFontOption] = []
+    @State private var selectedFontPath: String?
+    @State private var debugMode: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -46,12 +51,14 @@ struct ContentView: View {
                 Text("Input:")
                 TextField("File or folder path", text: $inputPath)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .help("Enter a single DV file or a folder of DV files to process.")
 
                 Button("Choose…") {
                     chooseInput()
                 }
+                .help("Browse for a DV file or folder.")
             }
-
+            
             // Mode: single vs batch
             HStack {
                 Text("Mode:")
@@ -61,8 +68,9 @@ struct ContentView: View {
                 }
                 .pickerStyle(SegmentedPickerStyle())
                 .frame(width: 240)
+                .help("Choose whether to process one file or every DV file in a folder.")
             }
-
+            
             // Layout: stacked vs single bar
             HStack {
                 Text("Layout:")
@@ -72,8 +80,9 @@ struct ContentView: View {
                 }
                 .pickerStyle(SegmentedPickerStyle())
                 .frame(width: 320)
+                .help("Select how the burned-in date and time are arranged on screen.")
             }
-
+            
             // Format: mov vs mp4
             HStack {
                 Text("Format:")
@@ -83,17 +92,44 @@ struct ContentView: View {
                 }
                 .pickerStyle(SegmentedPickerStyle())
                 .frame(width: 320)
+                .help("Pick the container format for the output file.")
             }
-
+            
             // NEW: Output mode (burn-in vs convert only)
-            HStack {
-                Text("Output:")
-                Picker("", selection: $burnMode) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Output mode:")
+                Picker("Burn-in output mode", selection: $burnMode) {
                     Text("Burn in metadata").tag(BurnMode.burnin)
                     Text("Convert only (no burn-in)").tag(BurnMode.passthrough)
+                    Text("Embed subtitle track (soft subs)").tag(BurnMode.subtitleTrack)
                 }
                 .pickerStyle(SegmentedPickerStyle())
-                .frame(width: 320)
+                .frame(maxWidth: .infinity)
+                .help("Choose between burning metadata into the image, keeping video unchanged, or adding a subtitle track.")
+            }
+            
+            // Subtitle font selector
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Subtitle font:")
+                Picker("Subtitle font selection", selection: Binding(
+                    get: { selectedFontPath ?? availableFonts.first?.path ?? "" },
+                    set: { selectedFontPath = $0.isEmpty ? nil : $0 }
+                )) {
+                    ForEach(availableFonts) { option in
+                        Text(option.displayName).tag(option.path)
+                    }
+                }
+                .pickerStyle(MenuPickerStyle())
+                .frame(maxWidth: 320)
+                .disabled(availableFonts.isEmpty)
+                .labelsHidden()
+                .help("Pick the font used for the burned-in or subtitle text.")
+
+                if availableFonts.isEmpty {
+                    Text("No subtitle fonts found in app bundle or system.")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                }
             }
 
             // NEW: Missing metadata behavior
@@ -106,7 +142,12 @@ struct ContentView: View {
                 }
                 .pickerStyle(SegmentedPickerStyle())
                 .frame(width: 420)
+                .help("Pick what to do when a clip is missing DV metadata.")
             }
+
+            // Debug logging toggle to help capture more details
+            Toggle("Enable debug logging", isOn: $debugMode)
+                .help("Adds extra diagnostic output before and during processing to help troubleshoot failures.")
 
             // Run + dvrescue debug + Stop + Clear / Save buttons
             HStack {
@@ -114,10 +155,12 @@ struct ContentView: View {
                     logText = ""
                     fullLogText = ""
                 }
+                .help("Remove all log output from the window.")
 
                 Button("Save Log…") {
                     saveLogToFile()
                 }
+                .help("Save the full session log to a text file.")
 
                 Spacer()
 
@@ -125,16 +168,19 @@ struct ContentView: View {
                     runDVRescueDebug()
                 }
                 .disabled(isRunning)
+                .help("Run dvrescue to inspect metadata without creating output.")
 
                 Button("Stop") {
                     stopCurrentProcess()
                 }
                 .disabled(!isRunning || currentProcess == nil)
+                .help("Terminate the current process.")
 
                 Button(isRunning ? "Running…" : "Run Burn-In") {
                     runBurn()
                 }
                 .disabled(isRunning || inputPath.isEmpty)
+                .help("Start processing with the selected options.")
             }
 
 
@@ -149,6 +195,7 @@ struct ContentView: View {
                     .textSelection(.enabled)   // allow copy/paste
             }
             .border(Color.gray.opacity(0.4))
+            .help("Live output from dvrescue, ffmpeg, and script diagnostics.")
 
             // About & Licenses button
             HStack {
@@ -156,6 +203,7 @@ struct ContentView: View {
                 Button("About & Licenses") {
                     showingAbout = true
                 }
+                .help("View app version info and license details.")
             }
         }
         .padding()
@@ -163,6 +211,7 @@ struct ContentView: View {
         .sheet(isPresented: $showingAbout) {
             AboutView()
         }
+        .onAppear(perform: loadAvailableFonts)
     }   // <-- this closes var body
     
     // MARK: - Save log
@@ -354,6 +403,11 @@ struct ContentView: View {
         fullLogText = ""
         isRunning = true
 
+        // Capture a detailed snapshot of inputs when debug logging is enabled
+        if debugMode {
+            appendToLog(debugSnapshot(), capped: false)
+        }
+
         DispatchQueue.global(qos: .userInitiated).async {
             do {
                 let (process, pipe) = try self.makeProcess()
@@ -443,17 +497,14 @@ struct ContentView: View {
         guard let dvrescueURL = findResource(named: "dvrescue") else {
             throw NSError(domain: "DVMeta", code: 5,
                           userInfo: [NSLocalizedDescriptionKey: "ERROR: Could not find dvrescue in app bundle."])
-        }
 
-        guard let jqURL = findResource(named: "jq") else {
-            throw NSError(domain: "DVMeta", code: 7,
-                          userInfo: [NSLocalizedDescriptionKey: "ERROR: Could not find jq in app bundle."])
         }
 
         guard let fontURL = findResource(named: "UAV-OSD-Mono.ttf") else {
             throw NSError(domain: "DVMeta", code: 6,
                           userInfo: [NSLocalizedDescriptionKey: "ERROR: Could not find UAV-OSD-Mono.ttf in app bundle."])
         }
+        _ = fontURL
 
         // --- Copy script to a writable temp location ---
         let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
@@ -483,23 +534,29 @@ struct ContentView: View {
             missingMetaArg = "skip_file"
         }
 
-        process.arguments = [
+        var args: [String] = [
             tempScriptURL.path,
             "--mode=\(mode)",
             "--layout=\(layout)",
             "--format=\(format)",
-            "--burn-mode=\(burnMode.rawValue)",   // "burnin" or "passthrough"
+            "--burn-mode=\(burnMode.rawValue)",   // burnin / passthrough / subtitleTrack
             "--missing-meta=\(missingMetaArg)",   // error / skip_burnin_convert / skip_file
-            "--fontfile=\(fontURL.path)",
+            "--fontfile=\(resolvedFontPath())",
+            "--fontname=\(resolvedFontName())",
             "--ffmpeg=\(ffmpegURL.path)",
-            "--dvrescue=\(dvrescueURL.path)",
-            "--",
-            inputPath
+            "--dvrescue=\(dvrescueURL.path)"
         ]
+
+        if debugMode {
+            args.append("--debug")
+        }
+
+        args.append(contentsOf: ["--", inputPath])
+
+        process.arguments = args
 
         var env = ProcessInfo.processInfo.environment
         env["TMPDIR"] = tempDir.path
-        env["DVMETABURN_JQ"] = jqURL.path
         process.environment = env
         process.currentDirectoryURL = tempDir
 
@@ -508,5 +565,94 @@ struct ContentView: View {
         process.standardError = pipe
 
         return (process, pipe)
+    }
+
+    // MARK: - Font discovery
+
+    private struct SubtitleFontOption: Identifiable {
+        let id = UUID()
+        let displayName: String
+        let path: String
+    }
+
+    private func loadAvailableFonts() {
+        var results: [SubtitleFontOption] = []
+        let fm = FileManager.default
+        let resourceRoot = Bundle.main.resourceURL ?? Bundle.main.bundleURL
+
+        let bundleFontDirs = [
+            resourceRoot.appendingPathComponent("fonts"),
+            resourceRoot.appendingPathComponent("scripts/fonts")
+        ]
+
+        let systemFontDirs = [
+            URL(fileURLWithPath: "/System/Library/Fonts"),
+            URL(fileURLWithPath: "/Library/Fonts"),
+            URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Fonts"),
+            URL(fileURLWithPath: "/usr/share/fonts"),
+            URL(fileURLWithPath: "/usr/local/share/fonts")
+        ]
+
+        let searchDirs = bundleFontDirs + systemFontDirs
+        let extensions = ["ttf", "otf", "ttc"]
+
+        for dir in searchDirs {
+            guard let contents = try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { continue }
+            for file in contents where extensions.contains(file.pathExtension.lowercased()) {
+                let descriptors = CTFontManagerCreateFontDescriptorsFromURL(file as CFURL) as? [CTFontDescriptor]
+                let descriptor = descriptors?.first
+                let displayName = (descriptor.flatMap { CTFontDescriptorCopyAttribute($0, kCTFontDisplayNameAttribute) as? String })
+                    ?? file.deletingPathExtension().lastPathComponent
+
+                if !results.contains(where: { $0.path == file.path }) {
+                    results.append(SubtitleFontOption(displayName: displayName, path: file.path))
+                }
+            }
+        }
+
+        results.sort { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
+
+        availableFonts = results
+        if selectedFontPath == nil {
+            if let uavFont = results.first(where: { $0.path.localizedCaseInsensitiveContains("uav-osd-mono") }) {
+                selectedFontPath = uavFont.path
+            } else {
+                selectedFontPath = results.first?.path
+            }
+        }
+    }
+
+    private func resolvedFontPath() -> String {
+        let fm = FileManager.default
+        if let selected = selectedFontPath, fm.fileExists(atPath: selected) {
+            return selected
+        }
+
+        // Fallback to bundled font
+        let bundleRoot = Bundle.main.resourceURL ?? Bundle.main.bundleURL
+        let bundledFont = bundleRoot.appendingPathComponent("fonts/UAV-OSD-Mono.ttf")
+        return bundledFont.path
+    }
+
+    private func resolvedFontName() -> String {
+        if let match = availableFonts.first(where: { $0.path == selectedFontPath }) {
+            return match.displayName
+        }
+        return "UAV-OSD-Mono"
+    }
+
+    // MARK: - Debug helpers
+
+    /// Build a human-readable snapshot of the current settings to aid debugging.
+    private func debugSnapshot() -> String {
+        var lines: [String] = []
+        let fm = FileManager.default
+        lines.append("[DEBUG] Input path: \(inputPath)")
+        lines.append("[DEBUG] Input exists: \(fm.fileExists(atPath: inputPath) ? "yes" : "no")")
+        lines.append("[DEBUG] Mode: \(mode) | Layout: \(layout) | Format: \(format)")
+        lines.append("[DEBUG] Burn mode: \(burnMode.rawValue) | Missing metadata handling: \(missingMetaMode.rawValue)")
+        lines.append("[DEBUG] Font path: \(resolvedFontPath()) | Font name: \(resolvedFontName())")
+        lines.append("[DEBUG] Debug flag passed to script: on")
+        return lines.joined(separator: "\n") + "\n\n"
     }
 }

@@ -44,8 +44,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         splashWindow = window
 
-        // Fade out after 5s
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+        // Fade out after 2s
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
             self?.hideSplash()
         }
     }
@@ -64,15 +64,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         })
     }
 
-    // MARK: - SwiftUI app entry
-    
-    @main
-    struct DVMetaDataBurnInApp: App {
-        @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-        var body: some Scene {
-            WindowGroup {
-                ContentView()   // NOT SplashView anymore?()
-            }
+}
+
+// MARK: - SwiftUI app entry
+
+@main
+struct DVMetaDataBurnInApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
+    var body: some Scene {
+        WindowGroup {
+            ContentView()   // NOT SplashView anymore?()
         }
     }
 }

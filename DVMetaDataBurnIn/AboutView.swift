@@ -4,7 +4,7 @@ struct AboutView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Title
-            Text("DVMetaDataBurnIn Ver. 1.0.0B 12-1-2025")
+            Text("DVMetaDataBurnIn Ver. 1.0.1B 12-5-2025")
                 .font(.title2)
                 .bold()
 
@@ -19,7 +19,7 @@ struct AboutView: View {
                     .font(.headline)
 
                 Text("""
-                Copyright (c) 2025 Zach Zarzycki
+                Copyright (c) 2025 The Polish
 
                 Permission is hereby granted, free of charge, to any person obtaining a copy
                 of this software and associated documentation files (the \"Software\"), to deal
