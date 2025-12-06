@@ -36,9 +36,25 @@ struct ContentView: View {
     // NEW OPTIONS
     @State private var burnMode: BurnMode = .burnin
     @State private var missingMetaMode: MissingMetaMode = .skipBurninConvert
-    @State private var availableFonts: [SubtitleFontOption] = []
+    @State private var camcorderFonts: [SubtitleFontOption] = []
+    @State private var systemFonts: [SubtitleFontOption] = []
     @State private var selectedFontPath: String?
+    @State private var includeSystemFonts: Bool = false
+    @State private var hoveredFontPreviewName: String?
+    @State private var hoveredLayoutPreviewName: String?
+    @State private var outputToLocationFolder: Bool = false
+    @State private var selectedOutputFolder: String?
     @State private var debugMode: Bool = false
+
+    private var displayedFonts: [SubtitleFontOption] {
+        camcorderFonts + (includeSystemFonts ? systemFonts : [])
+    }
+
+    private let camcorderFontPreviews: [String: String] = [
+        "UAV-OSD-Mono.ttf": "FontPreview_UAVOSDMono",
+        "UAV-OSD-Sans-Mono.ttf": "FontPreview_UAVOSDSANS",
+        "VCR_OSD_MONO_1.001.ttf": "FontPreview_VCROSDMONO"
+    ]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -72,17 +88,41 @@ struct ContentView: View {
             }
             
             // Layout: stacked vs single bar
-            HStack {
+            HStack(alignment: .center, spacing: 12) {
                 Text("Layout:")
                 Picker("", selection: $layout) {
-                    Text("Stacked (date over time)").tag("stacked")
-                    Text("Single line").tag("single")
+                    Text("Stacked (date over time)")
+                        .tag("stacked")
+                        .onHover { hovering in
+                            hoveredLayoutPreviewName = hovering ? "OverlayPreview_Stacked" : nil
+                        }
+                        .focusable()
+                        .onFocusChange { focused in
+                            hoveredLayoutPreviewName = focused ? "OverlayPreview_Stacked" : nil
+                        }
+                    Text("Single line")
+                        .tag("single")
+                        .onHover { hovering in
+                            hoveredLayoutPreviewName = hovering ? "OverlayPreview_Bar" : nil
+                        }
+                        .focusable()
+                        .onFocusChange { focused in
+                            hoveredLayoutPreviewName = focused ? "OverlayPreview_Bar" : nil
+                        }
                 }
                 .pickerStyle(SegmentedPickerStyle())
                 .frame(width: 320)
                 .help("Select how the burned-in date and time are arranged on screen.")
+
+                if let preview = hoveredLayoutPreviewName {
+                    Image(preview)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(height: 80)
+                        .transition(.opacity)
+                }
             }
-            
+
             // Format: mov vs mp4
             HStack {
                 Text("Format:")
@@ -109,23 +149,64 @@ struct ContentView: View {
             }
             
             // Subtitle font selector
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text("Subtitle font:")
-                Picker("Subtitle font selection", selection: Binding(
-                    get: { selectedFontPath ?? availableFonts.first?.path ?? "" },
-                    set: { selectedFontPath = $0.isEmpty ? nil : $0 }
-                )) {
-                    ForEach(availableFonts) { option in
-                        Text(option.displayName).tag(option.path)
+                HStack(alignment: .top, spacing: 12) {
+                    Menu {
+                        Section("Camcorder fonts") {
+                            ForEach(camcorderFonts) { option in
+                                fontMenuItem(option)
+                            }
+                        }
+
+                        if includeSystemFonts {
+                            Section("System fonts") {
+                                ForEach(systemFonts) { option in
+                                    fontMenuItem(option)
+                                }
+                            }
+                        }
+                    } label: {
+                        HStack {
+                            Text(currentFontSelectionName())
+                            if includeSystemFonts {
+                                Text("(+ system)")
+                                    .foregroundColor(.secondary)
+                                    .font(.footnote)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.down")
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: 320)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 6)
+                        .background(RoundedRectangle(cornerRadius: 6).stroke(Color.gray.opacity(0.2)))
+                    }
+                    .disabled(displayedFonts.isEmpty)
+                    .help("Pick the font used for the burned-in or subtitle text.")
+                    .onHover { hovering in
+                        if !hovering {
+                            hoveredFontPreviewName = nil
+                        }
+                    }
+
+                    if let preview = hoveredFontPreviewName {
+                        Image(preview)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 160)
+                            .transition(.opacity)
                     }
                 }
-                .pickerStyle(MenuPickerStyle())
-                .frame(maxWidth: 320)
-                .disabled(availableFonts.isEmpty)
-                .labelsHidden()
-                .help("Pick the font used for the burned-in or subtitle text.")
 
-                if availableFonts.isEmpty {
+                Toggle("Include system fonts", isOn: $includeSystemFonts)
+                    .onChange(of: includeSystemFonts) { _ in
+                        normalizeSelectedFont()
+                    }
+                    .help("Append system-installed fonts to the camcorder set.")
+
+                if displayedFonts.isEmpty {
                     Text("No subtitle fonts found in app bundle or system.")
                         .font(.footnote)
                         .foregroundColor(.secondary)
@@ -148,6 +229,27 @@ struct ContentView: View {
             // Debug logging toggle to help capture more details
             Toggle("Enable debug logging", isOn: $debugMode)
                 .help("Adds extra diagnostic output before and during processing to help troubleshoot failures.")
+
+            Toggle("Output to location folder", isOn: Binding(
+                get: { outputToLocationFolder },
+                set: { newValue in
+                    outputToLocationFolder = newValue
+                    if newValue {
+                        if !promptForOutputFolder() {
+                            outputToLocationFolder = false
+                        }
+                    } else {
+                        selectedOutputFolder = nil
+                    }
+                }
+            ))
+            .help("Save processed files to a chosen folder instead of beside the source clip.")
+
+            if let selectedOutputFolder {
+                Text("Destination: \(selectedOutputFolder)")
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+            }
 
             // Run + dvrescue debug + Stop + Clear / Save buttons
             HStack {
@@ -176,11 +278,11 @@ struct ContentView: View {
                 .disabled(!isRunning || currentProcess == nil)
                 .help("Terminate the current process.")
 
-                Button(isRunning ? "Running…" : "Run Burn-In") {
+                Button(isRunning ? "Running…" : "Start Burn/Encode") {
                     runBurn()
                 }
                 .disabled(isRunning || inputPath.isEmpty)
-                .help("Start processing with the selected options.")
+                .help(isRunning ? "Processing in progress." : "Start burn/encode with the selected options.")
             }
 
 
@@ -248,6 +350,25 @@ struct ContentView: View {
                 mode = "single"
             }
         }
+    }
+
+    // MARK: - Output folder picker
+
+    @discardableResult
+    private func promptForOutputFolder() -> Bool {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Choose"
+
+        if panel.runModal() == .OK, let url = panel.url {
+            selectedOutputFolder = url.path
+            return true
+        }
+
+        selectedOutputFolder = nil
+        return false
     }
 
     // MARK: - dvrescue debug only
@@ -397,6 +518,13 @@ struct ContentView: View {
         guard !inputPath.isEmpty else {
             logText = "Please choose an input file or folder first."
             return
+        }
+
+        if outputToLocationFolder && (selectedOutputFolder?.isEmpty ?? true) {
+            if !promptForOutputFolder() {
+                logText = "Please choose an output folder or disable the location override before running."
+                return
+            }
         }
 
         logText = ""
@@ -551,6 +679,10 @@ struct ContentView: View {
             args.append("--debug")
         }
 
+        if outputToLocationFolder, let destination = selectedOutputFolder, !destination.isEmpty {
+            args.append("--dest-dir=\(destination)")
+        }
+
         args.append(contentsOf: ["--", inputPath])
 
         process.arguments = args
@@ -569,14 +701,20 @@ struct ContentView: View {
 
     // MARK: - Font discovery
 
+    private enum SubtitleFontSource {
+        case camcorder
+        case system
+    }
+
     private struct SubtitleFontOption: Identifiable {
         let id = UUID()
         let displayName: String
         let path: String
+        let source: SubtitleFontSource
+        let previewAssetName: String?
     }
 
     private func loadAvailableFonts() {
-        var results: [SubtitleFontOption] = []
         let fm = FileManager.default
         let resourceRoot = Bundle.main.resourceURL ?? Bundle.main.bundleURL
 
@@ -593,33 +731,60 @@ struct ContentView: View {
             URL(fileURLWithPath: "/usr/local/share/fonts")
         ]
 
-        let searchDirs = bundleFontDirs + systemFontDirs
         let extensions = ["ttf", "otf", "ttc"]
+        var camcorderResults: [SubtitleFontOption] = []
+        var systemResults: [SubtitleFontOption] = []
 
-        for dir in searchDirs {
+        for dir in bundleFontDirs {
             guard let contents = try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { continue }
             for file in contents where extensions.contains(file.pathExtension.lowercased()) {
+                guard camcorderFontPreviews.keys.contains(file.lastPathComponent) else { continue }
                 let descriptors = CTFontManagerCreateFontDescriptorsFromURL(file as CFURL) as? [CTFontDescriptor]
                 let descriptor = descriptors?.first
                 let displayName = (descriptor.flatMap { CTFontDescriptorCopyAttribute($0, kCTFontDisplayNameAttribute) as? String })
                     ?? file.deletingPathExtension().lastPathComponent
 
-                if !results.contains(where: { $0.path == file.path }) {
-                    results.append(SubtitleFontOption(displayName: displayName, path: file.path))
+                if !camcorderResults.contains(where: { $0.path == file.path }) {
+                    camcorderResults.append(
+                        SubtitleFontOption(
+                            displayName: displayName,
+                            path: file.path,
+                            source: .camcorder,
+                            previewAssetName: camcorderFontPreviews[file.lastPathComponent]
+                        )
+                    )
                 }
             }
         }
 
-        results.sort { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
+        for dir in systemFontDirs {
+            guard let contents = try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { continue }
+            for file in contents where extensions.contains(file.pathExtension.lowercased()) {
+                if camcorderResults.contains(where: { $0.path == file.path }) { continue }
+                let descriptors = CTFontManagerCreateFontDescriptorsFromURL(file as CFURL) as? [CTFontDescriptor]
+                let descriptor = descriptors?.first
+                let displayName = (descriptor.flatMap { CTFontDescriptorCopyAttribute($0, kCTFontDisplayNameAttribute) as? String })
+                    ?? file.deletingPathExtension().lastPathComponent
 
-        availableFonts = results
-        if selectedFontPath == nil {
-            if let uavFont = results.first(where: { $0.path.localizedCaseInsensitiveContains("uav-osd-mono") }) {
-                selectedFontPath = uavFont.path
-            } else {
-                selectedFontPath = results.first?.path
+                if !systemResults.contains(where: { $0.path == file.path }) {
+                    systemResults.append(
+                        SubtitleFontOption(
+                            displayName: displayName,
+                            path: file.path,
+                            source: .system,
+                            previewAssetName: nil
+                        )
+                    )
+                }
             }
         }
+
+        camcorderResults.sort { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
+        systemResults.sort { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
+
+        camcorderFonts = camcorderResults
+        systemFonts = systemResults
+        normalizeSelectedFont()
     }
 
     private func resolvedFontPath() -> String {
@@ -635,10 +800,55 @@ struct ContentView: View {
     }
 
     private func resolvedFontName() -> String {
-        if let match = availableFonts.first(where: { $0.path == selectedFontPath }) {
+        if let match = displayedFonts.first(where: { $0.path == selectedFontPath }) {
             return match.displayName
         }
         return "UAV-OSD-Mono"
+    }
+
+    private func currentFontSelectionName() -> String {
+        if let match = displayedFonts.first(where: { $0.path == selectedFontPath }) {
+            return match.displayName
+        }
+
+        if let uavDefault = camcorderFonts.first(where: { $0.path.localizedCaseInsensitiveContains("uav-osd-mono") }) {
+            return uavDefault.displayName
+        }
+
+        return "Choose font"
+    }
+
+    private func normalizeSelectedFont() {
+        let fm = FileManager.default
+        if let selectedFontPath,
+           displayedFonts.contains(where: { $0.path == selectedFontPath }),
+           fm.fileExists(atPath: selectedFontPath) {
+            return
+        }
+
+        if let uavFont = camcorderFonts.first(where: { $0.path.localizedCaseInsensitiveContains("uav-osd-mono") }) {
+            selectedFontPath = uavFont.path
+            return
+        }
+
+        selectedFontPath = displayedFonts.first?.path
+    }
+
+    @ViewBuilder
+    private func fontMenuItem(_ option: SubtitleFontOption) -> some View {
+        Button {
+            selectedFontPath = option.path
+        } label: {
+            HStack {
+                if selectedFontPath == option.path {
+                    Image(systemName: "checkmark")
+                }
+                Text(option.displayName)
+            }
+        }
+        .onHover { hovering in
+            hoveredFontPreviewName = hovering ? option.previewAssetName : nil
+        }
     }
 
     // MARK: - Debug helpers
@@ -647,12 +857,23 @@ struct ContentView: View {
     private func debugSnapshot() -> String {
         var lines: [String] = []
         let fm = FileManager.default
+        let inputExists = fm.fileExists(atPath: inputPath) ? "yes" : "no"
+        let systemFontsEnabled = includeSystemFonts ? "yes" : "no"
+        let debugFlag = debugMode ? "on" : "off"
+
         lines.append("[DEBUG] Input path: \(inputPath)")
-        lines.append("[DEBUG] Input exists: \(fm.fileExists(atPath: inputPath) ? "yes" : "no")")
+        lines.append("[DEBUG] Input exists: \(inputExists)")
         lines.append("[DEBUG] Mode: \(mode) | Layout: \(layout) | Format: \(format)")
         lines.append("[DEBUG] Burn mode: \(burnMode.rawValue) | Missing metadata handling: \(missingMetaMode.rawValue)")
         lines.append("[DEBUG] Font path: \(resolvedFontPath()) | Font name: \(resolvedFontName())")
-        lines.append("[DEBUG] Debug flag passed to script: on")
+        lines.append("[DEBUG] System fonts enabled: \(systemFontsEnabled)")
+        if outputToLocationFolder {
+            let destination = selectedOutputFolder ?? "(none chosen)"
+            lines.append("[DEBUG] Output destination: \(destination)")
+        } else {
+            lines.append("[DEBUG] Output destination: source folder")
+        }
+        lines.append("[DEBUG] Debug flag passed to script: \(debugFlag)")
         return lines.joined(separator: "\n") + "\n\n"
     }
 }
