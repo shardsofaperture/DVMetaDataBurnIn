@@ -5,7 +5,6 @@
 
 ## Known Issues
 
-- No way to tell it where to save the file (it saves in the same location as the original file)
 - File chooser doesn't limit to file types which the program will accept
 - Unknown issue if this will this work on m series mac. Was built / works on an intel mac.
 - Running a massive batch folder seems to overflow storage and cause other issues - most likely due to log handling - have to look into (ran 80 files) which resulted in the computer resetting at some point + breaking the RDT time burning in some videos (all conversions completed) with static time rather than rolling clock and an error saying low on space (that was not true after reset - thinking temp dir was full and caused a reboot)
@@ -26,16 +25,16 @@
 ## Features Roadmap (ideas)
 - Additional layouts for how the camcorder fonts are burned in
     - Maybe a gallery, maybe a preview function idk
-- Visual guides
-    - Same idea with visual layouts
-- Hide Debug in a tab or slider of sorts
-- Nicer UI
-- Custom FFMPEG Args
+- Visual guide improvement (overlay with font instead of static image with prerendered default font)
+- Hide debug in a tab or slider of sorts
+- Improve debug logs
+- Add clear temp directory button under debug 
+- Fix temp file handling / clearing
+- Organize UI better
+- Custom FFMPEG args
 - Better file browsing handling 
 - Progress bar
-- Better batch filding handling
-- Better temp file handling
-- Better debug logging handling
+- Auto chose batch or single file based on input field (.avi = single file, open folder = batch process)
 
 
 ---

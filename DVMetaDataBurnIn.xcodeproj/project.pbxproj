@@ -11,12 +11,13 @@
 		921798E12ED94A7B00913D40 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 921798E02ED94A7B00913D40 /* ContentView.swift */; };
 		921798E52ED94A7C00913D40 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 921798E42ED94A7C00913D40 /* Assets.xcassets */; };
 		921799402ED9567D00913D40 /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9217993F2ED9567D00913D40 /* AboutView.swift */; };
+		922023202EE3B8D40046F768 /* WindowSizeHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9220231F2EE3B8D40046F768 /* WindowSizeHelper.swift */; };
 		9226A4E12EDE59CA0041247E /* Change Log.txt in Resources */ = {isa = PBXBuildFile; fileRef = 9226A4E02EDE59CA0041247E /* Change Log.txt */; };
 		9260F2D92EDA9AFC00285ABB /* DVProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9260F2D82EDA9AFC00285ABB /* DVProcessor.swift */; };
 		92908F852ED9603D00A9A38A /* dvrescue in Resources */ = {isa = PBXBuildFile; fileRef = 92908F712ED9603D00A9A38A /* dvrescue */; };
 		92908F872ED9603D00A9A38A /* UAV-OSD-Mono.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 92908F742ED9603D00A9A38A /* UAV-OSD-Mono.ttf */; };
 		92908F882ED9603D00A9A38A /* UAV-OSD-Sans-Mono.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 92908F752ED9603D00A9A38A /* UAV-OSD-Sans-Mono.ttf */; };
-		92908F892ED9603D00A9A38A /* VCR_OSD_MONO_1.001.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 92908F762ED9603D00A9A38A /* VCR_OSD_MONO_1.001.ttf */; };
+		92908F892ED9603D00A9A38A /* VCR_OSD_MONO.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 92908F762ED9603D00A9A38A /* VCR_OSD_MONO.ttf */; };
 		92908F8A2ED9603D00A9A38A /* APP_LICENSE.txt in Resources */ = {isa = PBXBuildFile; fileRef = 92908F782ED9603D00A9A38A /* APP_LICENSE.txt */; };
 		92908F8B2ED9603D00A9A38A /* COPYING.GPLv2 in Resources */ = {isa = PBXBuildFile; fileRef = 92908F792ED9603D00A9A38A /* COPYING.GPLv2 */; };
 		92908F8C2ED9603D00A9A38A /* COPYING.GPLv3 in Resources */ = {isa = PBXBuildFile; fileRef = 92908F7A2ED9603D00A9A38A /* COPYING.GPLv3 */; };
@@ -39,12 +40,13 @@
 		921798E42ED94A7C00913D40 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		921798E62ED94A7C00913D40 /* DVMetaDataBurnIn.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DVMetaDataBurnIn.entitlements; sourceTree = "<group>"; };
 		9217993F2ED9567D00913D40 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
+		9220231F2EE3B8D40046F768 /* WindowSizeHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowSizeHelper.swift; sourceTree = "<group>"; };
 		9226A4E02EDE59CA0041247E /* Change Log.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Change Log.txt"; sourceTree = "<group>"; };
 		9260F2D82EDA9AFC00285ABB /* DVProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DVProcessor.swift; sourceTree = "<group>"; };
 		92908F712ED9603D00A9A38A /* dvrescue */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = dvrescue; sourceTree = "<group>"; };
 		92908F742ED9603D00A9A38A /* UAV-OSD-Mono.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "UAV-OSD-Mono.ttf"; sourceTree = "<group>"; };
 		92908F752ED9603D00A9A38A /* UAV-OSD-Sans-Mono.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "UAV-OSD-Sans-Mono.ttf"; sourceTree = "<group>"; };
-		92908F762ED9603D00A9A38A /* VCR_OSD_MONO_1.001.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = VCR_OSD_MONO_1.001.ttf; sourceTree = "<group>"; };
+		92908F762ED9603D00A9A38A /* VCR_OSD_MONO.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = VCR_OSD_MONO.ttf; sourceTree = "<group>"; };
 		92908F782ED9603D00A9A38A /* APP_LICENSE.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = APP_LICENSE.txt; sourceTree = "<group>"; };
 		92908F792ED9603D00A9A38A /* COPYING.GPLv2 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = COPYING.GPLv2; sourceTree = "<group>"; };
 		92908F7A2ED9603D00A9A38A /* COPYING.GPLv3 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = COPYING.GPLv3; sourceTree = "<group>"; };
@@ -101,6 +103,7 @@
 				921798E42ED94A7C00913D40 /* Assets.xcassets */,
 				921798E62ED94A7C00913D40 /* DVMetaDataBurnIn.entitlements */,
 				9217993F2ED9567D00913D40 /* AboutView.swift */,
+				9220231F2EE3B8D40046F768 /* WindowSizeHelper.swift */,
 			);
 			path = DVMetaDataBurnIn;
 			sourceTree = "<group>";
@@ -126,7 +129,7 @@
 			children = (
 				92908F742ED9603D00A9A38A /* UAV-OSD-Mono.ttf */,
 				92908F752ED9603D00A9A38A /* UAV-OSD-Sans-Mono.ttf */,
-				92908F762ED9603D00A9A38A /* VCR_OSD_MONO_1.001.ttf */,
+				92908F762ED9603D00A9A38A /* VCR_OSD_MONO.ttf */,
 			);
 			path = fonts;
 			sourceTree = "<group>";
@@ -230,7 +233,7 @@
 				92908F8D2ED9603D00A9A38A /* COPYING.LGPLv2.1 in Resources */,
 				92908F8F2ED9603D00A9A38A /* dvrescue_LICENSE.txt in Resources */,
 				92908F882ED9603D00A9A38A /* UAV-OSD-Sans-Mono.ttf in Resources */,
-				92908F892ED9603D00A9A38A /* VCR_OSD_MONO_1.001.ttf in Resources */,
+				92908F892ED9603D00A9A38A /* VCR_OSD_MONO.ttf in Resources */,
 				92908F922ED9603D00A9A38A /* README.md in Resources */,
 				92908F8B2ED9603D00A9A38A /* COPYING.GPLv2 in Resources */,
 				92908F902ED9603D00A9A38A /* LICENSE.md in Resources */,
@@ -253,6 +256,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				922023202EE3B8D40046F768 /* WindowSizeHelper.swift in Sources */,
 				9260F2D92EDA9AFC00285ABB /* DVProcessor.swift in Sources */,
 				921799402ED9567D00913D40 /* AboutView.swift in Sources */,
 				921798E12ED94A7B00913D40 /* ContentView.swift in Sources */,
@@ -406,7 +410,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 12.0;
-				MARKETING_VERSION = 1.0.1;
+				MARKETING_VERSION = 1.0.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.SML.DVMetaDataBurnIn;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -445,7 +449,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 12.0;
-				MARKETING_VERSION = 1.0.1;
+				MARKETING_VERSION = 1.0.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.SML.DVMetaDataBurnIn;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
