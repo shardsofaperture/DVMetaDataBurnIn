@@ -39,7 +39,6 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		921798DB2ED94A7A00913D40 /* DVMetaDataBurnIn.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = DVMetaDataBurnIn.app; path = "/Volumes/1 TB Storage/DVMetaDataBurnIn/DVMetaDataBurnIn/build/Debug/DVMetaDataBurnIn.app"; sourceTree = "<absolute>"; };
 		921798DE2ED94A7B00913D40 /* DVMetaDataBurnInApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DVMetaDataBurnInApp.swift; sourceTree = "<group>"; };
 		921798E02ED94A7B00913D40 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		921798E42ED94A7C00913D40 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -70,6 +69,7 @@
 		92908F9A2ED9743300A9A38A /* ffmpeg */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = ffmpeg; sourceTree = "<group>"; };
 		92908F9E2ED987C700A9A38A /* SplashContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashContentView.swift; sourceTree = "<group>"; };
 		92908FA22EDA720800A9A38A /* readme.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = readme.md; sourceTree = "<group>"; };
+		92B952412EE3EC4F00464FCA /* DVMetaDataBurnIn.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DVMetaDataBurnIn.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -98,6 +98,7 @@
 		921798DC2ED94A7A00913D40 /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				92B952412EE3EC4F00464FCA /* DVMetaDataBurnIn.app */,
 			);
 			name = Products;
 			path = ..;
@@ -201,7 +202,7 @@
 			);
 			name = DVMetaDataBurnIn;
 			productName = DVMetaDataBurnIn;
-			productReference = 921798DB2ED94A7A00913D40 /* DVMetaDataBurnIn.app */;
+			productReference = 92B952412EE3EC4F00464FCA /* DVMetaDataBurnIn.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -429,7 +430,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 12.0;
-				MARKETING_VERSION = 1.0.2;
+				MARKETING_VERSION = 1.0.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.SML.DVMetaDataBurnIn;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -468,7 +469,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 12.0;
-				MARKETING_VERSION = 1.0.2;
+				MARKETING_VERSION = 1.0.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.SML.DVMetaDataBurnIn;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;

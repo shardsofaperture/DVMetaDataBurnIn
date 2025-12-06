@@ -8,6 +8,7 @@
 - File chooser doesn't limit to file types which the program will accept
 - Unknown issue if this will this work on m series mac. Was built / works on an intel mac.
 - Running a massive batch folder seems to overflow storage and cause other issues - most likely due to log handling - have to look into (ran 80 files) which resulted in the computer resetting at some point + breaking the RDT time burning in some videos (all conversions completed) with static time rather than rolling clock and an error saying low on space (that was not true after reset - thinking temp dir was full and caused a reboot)
+- Having issues with batch skipping / missing some files still
 
 ---
 
