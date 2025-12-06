@@ -1,5 +1,9 @@
 ## Change Log 1.0.3B
 
+---12/6/2025
+* Fixed batch mode skipping valid files by replacing find -print0 with zsh recursive globbing, ensuring every AVI/DV file is reliably discovered on all macOS volumes.
+
+
 ---12/5/2025
 
 * Tool tips added
