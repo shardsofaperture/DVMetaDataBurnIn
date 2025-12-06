@@ -47,6 +47,7 @@ fontname="UAV-OSD-Mono"
 ffmpeg_bin="ffmpeg"
 dvrescue_bin="dvrescue"
 artifact_root="${HOME}/Library/Logs/DVMeta"
+dest_dir=""
 # Controls how densely timestamps are emitted into the timeline
 burn_granularity="per_second"  # "per_second" or "per_frame"
 # Opt-in verbose logging for troubleshooting
@@ -70,6 +71,7 @@ while [[ $# -gt 0 ]]; do
     --fontname=*) fontname="${1#*=}"; shift ;;
     --ffmpeg=*) ffmpeg_bin="${1#*=}"; shift ;;
     --dvrescue=*) dvrescue_bin="${1#*=}"; shift ;;
+    --dest-dir=*) dest_dir="${1#*=}"; shift ;;
     --debug) debug_mode=1; shift ;;
     --) shift; break ;;
     -*) fatal "Unknown option: $1" ;;
@@ -582,6 +584,11 @@ debug_log "Missing meta handling: $missing_meta"
 debug_log "Requested font name: ${subtitle_font_name:-<auto>}"
 debug_log "ffmpeg path: $ffmpeg_bin"
 debug_log "dvrescue path: $dvrescue_bin"
+if [[ -n "$dest_dir" ]]; then
+  debug_log "Destination override: $dest_dir"
+else
+  debug_log "Destination override: <source folder>"
+fi
 
 ########################################################
 # Helper: seconds (float) -> ASS time H:MM:SS.cc
@@ -862,6 +869,20 @@ process_file() {
   debug_log "Processing input file: $in"
 
   local base="${in%.*}"
+  local base_name="${in:t:r}"
+  local output_dir="${in:h}"
+  if [[ -n "$dest_dir" ]]; then
+    output_dir="${dest_dir%/}"
+    if [[ ! -d "$output_dir" ]]; then
+      if ! mkdir -p "$output_dir"; then
+        echo "[ERROR] Unable to create destination folder: $output_dir" >&2
+        return 1
+      fi
+    fi
+  fi
+
+  base="${output_dir}/${base_name}"
+  debug_log "Output base path: $base"
   local out_ext="$format"
   local artifact_dir dvrescue_xml dvrescue_log cmdfile timeline_debug ass_artifact run_manifest versions_file
   local burn_output="" subtitle_output="" passthrough_output=""
@@ -1171,12 +1192,11 @@ if [[ "$mode" == "batch" ]]; then
   fi
 
   echo "Batch mode: scanning $folder"
-  debug_log "Scanning batch folder for AVI/DV files"
-  for f in "$folder"/*.{avi,AVI,dv,DV}; do
-    [[ -f "$f" ]] || continue
+  debug_log "Scanning batch folder for AVI/DV files (recursive)"
+  while IFS= read -r -d '' f; do
     echo "Processing $f"
     process_file "$f"
-  done
+  done < <(find "$folder" -type f \( -iname "*.avi" -o -iname "*.dv" \) -print0)
 
   exit 0
 fi
