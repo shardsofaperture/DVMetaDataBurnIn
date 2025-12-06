@@ -61,7 +61,7 @@
 
 ## Usage
 
-1. **Download** the app (no releases yet — still iterating).  
+1. **Download** the app  
 2. **Launch** it.  
 2a. Tell apple you don't care about security becuase you got this from the internet.'
 3. **Select** a file or an entire folder of DV/Digital8 clips.  
