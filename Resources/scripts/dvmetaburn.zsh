@@ -1192,44 +1192,37 @@ if [[ "$mode" == "batch" ]]; then
     exit 1
   fi
 
-  folder="${folder:A}"
+  # Canonical absolute path
+  folder_abs="$(cd "$folder" && pwd)"
+  if [[ -z "$folder_abs" ]]; then
+    echo "ERROR: Failed to resolve folder path: $folder" >&2
+    exit 1
+  fi
 
-  echo "Batch mode: scanning $folder"
-  debug_log "Scanning batch folder for AVI/DV files (maxdepth 2)"
+  echo "Batch mode: scanning $folder_abs"
+  debug_log "Scanning batch folder with zsh globs (**/*.(avi|AVI|dv|DV))"
 
-  typeset -i any_found=0
+  # Use zsh’s recursive globbing; only existing regular files (.N)
+  setopt localoptions null_glob extended_glob
 
-  while IFS= read -r -d '' f; do
-    any_found=1
+  typeset -a files
+  files=("$folder_abs"/**/*.(avi|AVI|dv|DV)(.N))
 
-    # f will look like "./TD1-002-0001.avi" or "./Sub/TD1-002-0001.avi"
-    local rel="${f#./}"
-    local abs="${folder%/}/${rel}"
+  if (( ${#files[@]} == 0 )); then
+    echo "[WARN] No DV files found in: $folder_abs"
+    exit 0
+  fi
 
-    # Guard: if it somehow doesn’t exist, skip it instead of aborting
-    if [[ ! -f "$abs" ]]; then
-      echo "[WARN] Batch entry does not exist on disk, skipping: $abs (raw='$f')" >&2
-      continue
-    fi
-
+  for abs in "${files[@]}"; do
+    debug_log "Batch candidate path: '$abs'"
     echo "Processing $abs"
-    debug_log "Batch: processing file: rel='$rel' abs='$abs' raw='$f'"
 
     if ! process_file "$abs"; then
       echo "[ERROR] Failed while processing: $abs" >&2
-      # Keep going for other files instead of exit 1
+      # continue to next file instead of bailing
       continue
     fi
-  done < <(
-    cd "$folder" && \
-      find . -maxdepth 2 -type f \
-        \( -iname '*.avi' -o -iname '*.dv' \) \
-        -print0
-  )
-
-  if (( ! any_found )); then
-    echo "[WARN] No DV files found in: $folder"
-  fi
+  done
 
   exit 0
 fi
