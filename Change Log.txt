@@ -1,4 +1,4 @@
-## Change Log 1.0.1B
+## Change Log 1.0.2B
 
 ---12/5/2025
 
@@ -12,9 +12,9 @@
 
 * Splash Screen now 2 seconds
 
-* UI Updates with dropdowns and previews
+* UI Updates with dropdowns and text preview / format example
 
-* Font Selector Added with previews and the ability to include all user's system fonts
+* Font Selector with ability to include all user's system fonts
 
 * Added the ability to convert only to mp4 for modern devices or pass though AVI to MOV.
 
@@ -24,6 +24,11 @@
 
 * Fixed batch handling issue where it broke after just a couple files.
 
+* Recursive folder batch handling (subfolders will also convert, max depth 3)
+
+* Added button to open temp folder
+
+* Added ability to change output folder (it will default to the input folder if populated already)
 
 
 --- 12/1/25

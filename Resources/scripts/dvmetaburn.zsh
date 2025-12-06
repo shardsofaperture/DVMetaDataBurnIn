@@ -860,6 +860,7 @@ offline_smoke_test() {
 
 process_file() {
   local in="$1"
+  debug_log "process_file() received: '$in'"
 
   if [[ ! -f "$in" ]]; then
     echo "[ERROR] Input file not found: $in" >&2
@@ -1191,15 +1192,45 @@ if [[ "$mode" == "batch" ]]; then
     exit 1
   fi
 
+  # Normalize base folder to absolute path
+  folder="${folder:A}"
+
   echo "Batch mode: scanning $folder"
-  debug_log "Scanning batch folder for AVI/DV files (recursive)"
+  debug_log "Scanning batch folder for AVI/DV files (maxdepth 3)"
+
+  typeset -i any_found=0
+
+  # Non-recursive; remove -maxdepth 1 here if you want full recursion
   while IFS= read -r -d '' f; do
-    echo "Processing $f"
-    process_file "$f"
-  done < <(find "$folder" -type f \( -iname "*.avi" -o -iname "*.dv" \) -print0)
+    any_found=1
+
+    # f will look like "./TD3-006-0001.avi" or "./subdir/file.dv"
+    local rel="${f#./}"
+    local abs="${folder%/}/${rel}"
+
+    echo "Processing $abs"
+    debug_log "Batch: processing file: rel='$rel' abs='$abs' raw='$f'"
+
+    if ! process_file "$abs"; then
+      echo "[ERROR] Failed while processing: $abs" >&2
+      exit 1
+    fi
+  done < <(
+    cd "$folder" && \
+      find . -maxdepth 3 -type f \
+        \( -iname '*.avi' -o -iname '*.dv' \) \
+        -print0
+  )
+
+  if (( ! any_found )); then
+    echo "[WARN] No DV files found in: $folder"
+  fi
 
   exit 0
 fi
+
+
+
 
 echo "ERROR: Unknown mode: $mode" >&2
 exit 1
