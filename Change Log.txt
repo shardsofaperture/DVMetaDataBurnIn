@@ -1,10 +1,10 @@
 ## Change Log 1.0.1B
 
---12/5/2025
+---12/5/2025
 
 * Tool tips added
 
-* Stubtitles added (these now result in a contianer file with track 1 subs based on the format and font chosen)
+* Stubtitles creation fixed (these now result in a container file with track 1 subs based on the format and font chosen)
 
 * Timestamp "rolls" the way it is suppsoed to for single clips
 
@@ -12,23 +12,30 @@
 
 * Splash Screen now 2 seconds
 
-* UI Updates
+* UI Updates with dropdowns and previews
 
-* Font Selector Added
+* Font Selector Added with previews and the ability to include all user's system fonts
 
 * Added the ability to convert only to mp4 for modern devices or pass though AVI to MOV.
 
+* Set Default Window Size
+
+* Added a popup "save to" location when starting the file process
+
+* Fixed batch handling issue where it broke after just a couple files.
 
 
 
 --- 12/1/25
---- Calling this 1.0 Beta!
 
---- Now have actual RDT being read - no more trickery reading the first timestamp.
+*  Calling this 1.0 Beta!
+
+* Now have actual RDT being read - no more trickery reading the first timestamp.
 
 
 
 --- 11/30/25
+
 * Added passthrough (convert-only) mode alongside burn-in mode.
 
 * Added missing-metadata behavior options: stop with error, convert without burn-in, or skip file.

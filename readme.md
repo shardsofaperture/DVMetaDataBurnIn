@@ -26,16 +26,14 @@
 ## Features Roadmap (ideas)
 - Additional layouts for how the camcorder fonts are burned in
     - Maybe a gallery, maybe a preview function idk
-- Visual guides
-    - Same idea with visual layouts
-- Hide Debug in a tab or slider of sorts
-- Nicer UI
-- Custom FFMPEG Args
+- Visual guide improvement (overlay with font instead of static image with prerendered default font)
+- Hide debug in a tab or slider of sorts
+- Improve debug access 
+- Add open/clear temp directory button under debug 
+- Organize UI better
+- Custom FFMPEG args
 - Better file browsing handling 
 - Progress bar
-- Better batch filding handling
-- Better temp file handling
-- Better debug logging handling
 
 
 ---

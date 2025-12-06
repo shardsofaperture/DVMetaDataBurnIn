@@ -43,8 +43,11 @@ struct ContentView: View {
     @State private var hoveredFontPreviewName: String?
     @State private var hoveredLayoutPreviewName: String?
     @State private var outputToLocationFolder: Bool = false
-    @State private var selectedOutputFolder: String?
     @State private var debugMode: Bool = false
+    @State private var selectedOutputFolder: String? =
+        UserDefaults.standard.string(forKey: "DVMetaLastOutputFolder")
+    @State private var defaultOutputFolder: String? =
+        UserDefaults.standard.string(forKey: "DVMetaDefaultOutputFolder")
     
         //font preview handling
     private var activeFontPreviewName: String? {
@@ -60,14 +63,29 @@ struct ContentView: View {
 
         return nil
     }
-
+    private func registerFontIfNeeded(at path: String) {
+        let url = URL(fileURLWithPath: path)
+        var error: Unmanaged<CFError>?
+        let ok = CTFontManagerRegisterFontsForURL(url as CFURL, .process, &error)
+        if !ok {
+            // It's probably already registered; you could log error if you care.
+            _ = error?.takeRetainedValue()
+        }
+    }
     // Add this helper somewhere inside ContentView:
-
+    private var previewFontName: String? {
+        if let selected = displayedFonts.first(where: { $0.path == selectedFontPath }) {
+            // Prefer explicit fontName (PostScript), fallback to displayName
+            return selected.fontName ?? selected.displayName
+        }
+        return nil
+    }
     private var activeLayoutPreviewName: String? {
         if let hover = hoveredLayoutPreviewName {
             // If you're hovering something, that wins
             return hover
         }
+        
         // Otherwise fall back to the currently selected layout
         switch layout {
         case "stacked":
@@ -169,8 +187,8 @@ struct ContentView: View {
             HStack {
                 Text("Format:")
                 Picker("", selection: $format) {
-                    Text("MOV (DV, recommended)").tag("mov")
-                    Text("MP4 (MPEG-4)").tag("mp4")
+                    Text("MOV (DV, Passthough)").tag("mov")
+                    Text("MP4 (MPEG-4, Transcode)").tag("mp4")
                 }
                 .pickerStyle(SegmentedPickerStyle())
                 .frame(width: 320)
@@ -181,7 +199,7 @@ struct ContentView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Picker("Burn-in output mode", selection: $burnMode) {
                     Text("Burn in metadata").tag(BurnMode.burnin)
-                    Text("Convert only (no burn-in)").tag(BurnMode.passthrough)
+                    Text("Transcode only (no burn-in)").tag(BurnMode.passthrough)
                     Text("Embed subtitle track in MKV)").tag(BurnMode.subtitleTrack)
                 }
                 .pickerStyle(.menu)              // ⬅️ dropdown instead of segmented
@@ -191,74 +209,78 @@ struct ContentView: View {
 
             
             // Subtitle font selector
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Subtitle font:")
+            HStack(alignment: .top, spacing: 24) {
+                // Left column: label + picker + toggle
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        Text("Subtitle font:")
 
-                HStack(alignment: .center, spacing: 16) {
-                    // Compact dropdown on the left
-                    Menu {
-                        Section("Camcorder fonts") {
-                            ForEach(camcorderFonts) { option in
-                                fontMenuItem(option)
-                            }
-                        }
-
-                        if includeSystemFonts {
-                            Section("System fonts") {
-                                ForEach(systemFonts) { option in
+                        Menu {
+                            Section("Camcorder fonts") {
+                                ForEach(camcorderFonts) { option in
                                     fontMenuItem(option)
                                 }
                             }
+
+                            if includeSystemFonts {
+                                Section("System fonts") {
+                                    ForEach(systemFonts) { option in
+                                        fontMenuItem(option)
+                                    }
+                                }
+                            }
+                        } label: {
+                            HStack {
+                                Text(currentFontSelectionName())
+                                    .lineLimit(1)
+                                    .truncationMode(.tail)
+
+                                Spacer(minLength: 4)
+
+                                Image(systemName: "chevron.down")
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(Color.gray.opacity(0.2))
+                            )
                         }
-                    } label: {
-                        HStack {
-                            Text(currentFontSelectionName())
-                                .lineLimit(1)
-                                .truncationMode(.tail)
+                        .frame(width: 220, alignment: .leading)
+                        .disabled(displayedFonts.isEmpty)
+                    }
 
-                            Spacer(minLength: 4)
-
-                            Image(systemName: "chevron.down")
-                                .foregroundColor(.secondary)
+                    Toggle("Include system fonts", isOn: $includeSystemFonts)
+                        .onChange(of: includeSystemFonts) { _ in
+                            normalizeSelectedFont()
                         }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 6)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6)
-                                .stroke(Color.gray.opacity(0.2))
-                        )
-                    }
-                    .frame(width: 220, alignment: .leading)      // ⬅️ keeps the menu short
-                    .onHover { hovering in
-                        if !hovering { hoveredFontPreviewName = nil }
-                    }
-                    .disabled(displayedFonts.isEmpty)
-
-                    // Big static preview on the right
-                    if let preview = activeFontPreviewName {
-                        Image(preview)
-                            .resizable()
-                            .aspectRatio(4/1, contentMode: .fit)
-                            .frame(width: 260, height: 80)       // ⬅️ nice readable size
-                            .clipped()
-                    }
-
-                    Spacer(minLength: 0)
                 }
 
-                Toggle("Include system fonts", isOn: $includeSystemFonts)
-                    .onChange(of: includeSystemFonts) { _ in
-                        normalizeSelectedFont()
-                    }
+                // Right column: live font preview box
+                if let fontName = previewFontName {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.black)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                            )
 
-                if displayedFonts.isEmpty {
-                    Text("No subtitle fonts found in app bundle or system.")
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
+                        Text("12/22/2025\n08:29:35")
+                            .font(.custom(fontName, size: 24))
+                            .monospacedDigit()
+                            .foregroundColor(.white)
+                            .shadow(color: .black.opacity(0.9), radius: 2)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                    }
+                    .frame(width: 260, height: 90)
                 }
+
+                Spacer(minLength: 0)
             }
-
-
 
             // Run + dvrescue debug + Stop + Clear / Save buttons
             HStack {
@@ -362,7 +384,6 @@ struct ContentView: View {
     }
 
     // MARK: - Output folder picker
-
     @discardableResult
     private func promptForOutputFolder() -> Bool {
         let panel = NSOpenPanel()
@@ -371,12 +392,32 @@ struct ContentView: View {
         panel.allowsMultipleSelection = false
         panel.prompt = "Choose"
 
+        // Priority for initial location:
+        // 1) currently selected folder
+        // 2) default folder
+        // 3) folder of inputPath
+        if let selected = selectedOutputFolder {
+            panel.directoryURL = URL(fileURLWithPath: selected)
+        } else if let def = defaultOutputFolder {
+            panel.directoryURL = URL(fileURLWithPath: def)
+        } else {
+            let trimmed = inputPath.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                var baseURL = URL(fileURLWithPath: trimmed)
+                if !baseURL.hasDirectoryPath {
+                    baseURL.deleteLastPathComponent()
+                }
+                panel.directoryURL = baseURL
+            }
+        }
+
         if panel.runModal() == .OK, let url = panel.url {
-            selectedOutputFolder = url.path
+            let path = url.path
+            selectedOutputFolder = path
+            UserDefaults.standard.set(path, forKey: "DVMetaLastOutputFolder")
             return true
         }
 
-        selectedOutputFolder = nil
         return false
     }
 
@@ -720,7 +761,8 @@ struct ContentView: View {
         let displayName: String
         let path: String
         let source: SubtitleFontSource
-        let previewAssetName: String?
+        let previewAssetName: String?   // still used if you want images for camcorder fonts
+        let fontName: String?           // PostScript / usable font name
     }
 
     private func loadAvailableFonts() {
@@ -739,9 +781,13 @@ struct ContentView: View {
 
                 let descriptors = CTFontManagerCreateFontDescriptorsFromURL(file as CFURL) as? [CTFontDescriptor]
                 let descriptor = descriptors?.first
+
                 let displayName =
                     (descriptor.flatMap { CTFontDescriptorCopyAttribute($0, kCTFontDisplayNameAttribute) as? String })
                     ?? file.deletingPathExtension().lastPathComponent
+
+                let postScriptName =
+                    descriptor.flatMap { CTFontDescriptorCopyAttribute($0, kCTFontNameAttribute) as? String }
 
                 if !camcorderResults.contains(where: { $0.path == file.path }) {
                     camcorderResults.append(
@@ -749,10 +795,12 @@ struct ContentView: View {
                             displayName: displayName,
                             path: file.path,
                             source: .camcorder,
-                            previewAssetName: camcorderFontPreviews[file.lastPathComponent]
+                            previewAssetName: camcorderFontPreviews[file.lastPathComponent],
+                            fontName: postScriptName
                         )
                     )
                 }
+
             }
         }
 
@@ -772,9 +820,13 @@ struct ContentView: View {
 
                 let descriptors = CTFontManagerCreateFontDescriptorsFromURL(file as CFURL) as? [CTFontDescriptor]
                 let descriptor = descriptors?.first
+
                 let displayName =
                     (descriptor.flatMap { CTFontDescriptorCopyAttribute($0, kCTFontDisplayNameAttribute) as? String })
                     ?? file.deletingPathExtension().lastPathComponent
+
+                let postScriptName =
+                    descriptor.flatMap { CTFontDescriptorCopyAttribute($0, kCTFontNameAttribute) as? String }
 
                 if !systemResults.contains(where: { $0.path == file.path }) {
                     systemResults.append(
@@ -782,10 +834,12 @@ struct ContentView: View {
                             displayName: displayName,
                             path: file.path,
                             source: .system,
-                            previewAssetName: nil
+                            previewAssetName: nil,
+                            fontName: postScriptName
                         )
                     )
                 }
+
             }
         }
 
@@ -848,6 +902,7 @@ struct ContentView: View {
     @ViewBuilder
     private func fontMenuItem(_ option: SubtitleFontOption) -> some View {
         Button {
+            registerFontIfNeeded(at: option.path)
             selectedFontPath = option.path
         } label: {
             HStack {
@@ -857,11 +912,7 @@ struct ContentView: View {
                 Text(option.displayName)
             }
         }
-        .onHover { hovering in
-            hoveredFontPreviewName = hovering ? option.previewAssetName : nil
-        }
     }
-
     // MARK: - Debug helpers
 
     /// Build a human-readable snapshot of the current settings to aid debugging.

@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 final class WindowSizeConfigurator: NSObject, NSWindowDelegate {
-    let initialSize = NSSize(width: 900, height: 825)
+    let initialSize = NSSize(width: 700, height: 920)
     
     func windowDidBecomeMain(_ notification: Notification) {
         guard let window = notification.object as? NSWindow else { return }
