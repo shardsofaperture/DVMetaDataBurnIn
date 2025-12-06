@@ -1192,32 +1192,37 @@ if [[ "$mode" == "batch" ]]; then
     exit 1
   fi
 
-  # Normalize base folder to absolute path
   folder="${folder:A}"
 
   echo "Batch mode: scanning $folder"
-  debug_log "Scanning batch folder for AVI/DV files (maxdepth 3)"
+  debug_log "Scanning batch folder for AVI/DV files (maxdepth 2)"
 
   typeset -i any_found=0
 
-  # Non-recursive; remove -maxdepth 1 here if you want full recursion
   while IFS= read -r -d '' f; do
     any_found=1
 
-    # f will look like "./TD3-006-0001.avi" or "./subdir/file.dv"
+    # f will look like "./TD1-002-0001.avi" or "./Sub/TD1-002-0001.avi"
     local rel="${f#./}"
     local abs="${folder%/}/${rel}"
+
+    # Guard: if it somehow doesn’t exist, skip it instead of aborting
+    if [[ ! -f "$abs" ]]; then
+      echo "[WARN] Batch entry does not exist on disk, skipping: $abs (raw='$f')" >&2
+      continue
+    fi
 
     echo "Processing $abs"
     debug_log "Batch: processing file: rel='$rel' abs='$abs' raw='$f'"
 
     if ! process_file "$abs"; then
       echo "[ERROR] Failed while processing: $abs" >&2
-      exit 1
+      # Keep going for other files instead of exit 1
+      continue
     fi
   done < <(
     cd "$folder" && \
-      find . -maxdepth 3 -type f \
+      find . -maxdepth 2 -type f \
         \( -iname '*.avi' -o -iname '*.dv' \) \
         -print0
   )
@@ -1228,6 +1233,8 @@ if [[ "$mode" == "batch" ]]; then
 
   exit 0
 fi
+
+
 
 
 
