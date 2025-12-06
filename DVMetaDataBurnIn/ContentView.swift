@@ -19,8 +19,8 @@ enum MissingMetaMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
-// MARK: - Main view
 
+// MARK: - Main view
 struct ContentView: View {
     // UI state
     @State private var inputPath: String = ""
@@ -45,7 +45,24 @@ struct ContentView: View {
     @State private var outputToLocationFolder: Bool = false
     @State private var selectedOutputFolder: String?
     @State private var debugMode: Bool = false
+    
+    // Add this helper somewhere inside ContentView:
 
+    private var activeLayoutPreviewName: String? {
+        if let hover = hoveredLayoutPreviewName {
+            // If you're hovering something, that wins
+            return hover
+        }
+        // Otherwise fall back to the currently selected layout
+        switch layout {
+        case "stacked":
+            return "OverlayPreview_Stacked"
+        case "single":
+            return "OverlayPreview_Bar"
+        default:
+            return nil
+        }
+    }
     private var displayedFonts: [SubtitleFontOption] {
         camcorderFonts + (includeSystemFonts ? systemFonts : [])
     }
@@ -61,6 +78,8 @@ struct ContentView: View {
             Text("DV Metadata Date/Time Burn-In")
                 .font(.title2)
                 .bold()
+            
+            
 
             // Input picker
             HStack {
@@ -96,25 +115,18 @@ struct ContentView: View {
                         .onHover { hovering in
                             hoveredLayoutPreviewName = hovering ? "OverlayPreview_Stacked" : nil
                         }
-                        .focusable()
-                        .onFocusChange { focused in
-                            hoveredLayoutPreviewName = focused ? "OverlayPreview_Stacked" : nil
-                        }
+
                     Text("Single line")
                         .tag("single")
                         .onHover { hovering in
                             hoveredLayoutPreviewName = hovering ? "OverlayPreview_Bar" : nil
-                        }
-                        .focusable()
-                        .onFocusChange { focused in
-                            hoveredLayoutPreviewName = focused ? "OverlayPreview_Bar" : nil
                         }
                 }
                 .pickerStyle(SegmentedPickerStyle())
                 .frame(width: 320)
                 .help("Select how the burned-in date and time are arranged on screen.")
 
-                if let preview = hoveredLayoutPreviewName {
+                if let preview = activeLayoutPreviewName {
                     Image(preview)
                         .resizable()
                         .scaledToFit()
@@ -123,6 +135,8 @@ struct ContentView: View {
                 }
             }
 
+
+            
             // Format: mov vs mp4
             HStack {
                 Text("Format:")
