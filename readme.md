@@ -4,10 +4,9 @@
 ---
 
 ## Known Issues
-- No progress bar (just says running)
+
 - No way to tell it where to save the file (it saves in the same location as the original file)
-- May make splash screen shorter, I just wanted one like the old Sony software had
-- File chooser doesn't limit to file types
+- File chooser doesn't limit to file types which the program will accept
 - Unknown issue if this will this work on m series mac. Was built / works on an intel mac.
 - Running a massive batch folder seems to overflow storage and cause other issues - most likely due to log handling - have to look into (ran 80 files) which resulted in the computer resetting at some point + breaking the RDT time burning in some videos (all conversions completed) with static time rather than rolling clock and an error saying low on space (that was not true after reset - thinking temp dir was full and caused a reboot)
 
@@ -24,15 +23,19 @@
 
 ---
 
-## Features (future maybe)
-- Font drop down selector
-- Pasthough to just convert from AVI1 to mp4 for sharing to modern devices
+## Features Roadmap (ideas)
 - Additional layouts for how the camcorder fonts are burned in
-- Visual guide
+    - Maybe a gallery, maybe a preview function idk
+- Visual guides
+    - Same idea with visual layouts
 - Hide Debug in a tab or slider of sorts
 - Nicer UI
-- Ability to save as containerized video w/ subtitles rather than burnin as an option.
 - Custom FFMPEG Args
+- Better file browsing handling 
+- Progress bar
+- Better batch filding handling
+- Better temp file handling
+- Better debug logging handling
 
 
 ---
