@@ -36,6 +36,26 @@
 - Progress bar
 - Auto chose batch or single file based on input field (.avi = single file, open folder = batch process)
 
+---
+## Screenshots
+### Splash Screen
+![Splash Screen](Resources/Screenshots/Splash_Screen.png)
+
+### Main Window
+![Main Window](Resources/Screenshots/Main_Window.png)
+
+### Main Window (Alternate View)
+![Main Window Two](Resources/Screenshots/Main_Window_Two.png)
+
+### Camcorder Only Overview
+![Fonts](Resources/Screenshots/Fonts.png)
+
+### Font Picker
+![Font Picker](Resources/Screenshots/Font_Picker.png)
+
+
+
+
 
 ---
 
