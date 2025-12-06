@@ -1,4 +1,4 @@
-## Change Log 1.0.2B
+## Change Log 1.0.3B
 
 ---12/5/2025
 
@@ -24,7 +24,7 @@
 
 * Fixed batch handling issue where it broke after just a couple files.
 
-* Recursive folder batch handling (subfolders will also convert, max depth 3)
+* Recursive folder batch handling (subfolders will also convert, max depth 2)
 
 * Added button to open temp folder
 
