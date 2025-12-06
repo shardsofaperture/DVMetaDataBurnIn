@@ -12,6 +12,11 @@
 		921798E52ED94A7C00913D40 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 921798E42ED94A7C00913D40 /* Assets.xcassets */; };
 		921799402ED9567D00913D40 /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9217993F2ED9567D00913D40 /* AboutView.swift */; };
 		922023202EE3B8D40046F768 /* WindowSizeHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9220231F2EE3B8D40046F768 /* WindowSizeHelper.swift */; };
+		922023272EE3E2C30046F768 /* Font_Picker.png in Resources */ = {isa = PBXBuildFile; fileRef = 922023212EE3E2C30046F768 /* Font_Picker.png */; };
+		922023282EE3E2C30046F768 /* Fonts.png in Resources */ = {isa = PBXBuildFile; fileRef = 922023222EE3E2C30046F768 /* Fonts.png */; };
+		922023292EE3E2C30046F768 /* Main_Window_Two.png in Resources */ = {isa = PBXBuildFile; fileRef = 922023232EE3E2C30046F768 /* Main_Window_Two.png */; };
+		9220232A2EE3E2C30046F768 /* Main_Window.png in Resources */ = {isa = PBXBuildFile; fileRef = 922023242EE3E2C30046F768 /* Main_Window.png */; };
+		9220232B2EE3E2C30046F768 /* Splash_Screen.png in Resources */ = {isa = PBXBuildFile; fileRef = 922023252EE3E2C30046F768 /* Splash_Screen.png */; };
 		9226A4E12EDE59CA0041247E /* Change Log.txt in Resources */ = {isa = PBXBuildFile; fileRef = 9226A4E02EDE59CA0041247E /* Change Log.txt */; };
 		9260F2D92EDA9AFC00285ABB /* DVProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9260F2D82EDA9AFC00285ABB /* DVProcessor.swift */; };
 		92908F852ED9603D00A9A38A /* dvrescue in Resources */ = {isa = PBXBuildFile; fileRef = 92908F712ED9603D00A9A38A /* dvrescue */; };
@@ -41,6 +46,11 @@
 		921798E62ED94A7C00913D40 /* DVMetaDataBurnIn.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DVMetaDataBurnIn.entitlements; sourceTree = "<group>"; };
 		9217993F2ED9567D00913D40 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
 		9220231F2EE3B8D40046F768 /* WindowSizeHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowSizeHelper.swift; sourceTree = "<group>"; };
+		922023212EE3E2C30046F768 /* Font_Picker.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Font_Picker.png; sourceTree = "<group>"; };
+		922023222EE3E2C30046F768 /* Fonts.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Fonts.png; sourceTree = "<group>"; };
+		922023232EE3E2C30046F768 /* Main_Window_Two.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Main_Window_Two.png; sourceTree = "<group>"; };
+		922023242EE3E2C30046F768 /* Main_Window.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Main_Window.png; sourceTree = "<group>"; };
+		922023252EE3E2C30046F768 /* Splash_Screen.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Splash_Screen.png; sourceTree = "<group>"; };
 		9226A4E02EDE59CA0041247E /* Change Log.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Change Log.txt"; sourceTree = "<group>"; };
 		9260F2D82EDA9AFC00285ABB /* DVProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DVProcessor.swift; sourceTree = "<group>"; };
 		92908F712ED9603D00A9A38A /* dvrescue */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = dvrescue; sourceTree = "<group>"; };
@@ -107,11 +117,16 @@
 			path = DVMetaDataBurnIn;
 			sourceTree = "<group>";
 		};
-		9244F84A2EE39C6000B583A2 /* Images */ = {
+		9244F84A2EE39C6000B583A2 /* Screenshots */ = {
 			isa = PBXGroup;
 			children = (
+				922023212EE3E2C30046F768 /* Font_Picker.png */,
+				922023222EE3E2C30046F768 /* Fonts.png */,
+				922023232EE3E2C30046F768 /* Main_Window_Two.png */,
+				922023242EE3E2C30046F768 /* Main_Window.png */,
+				922023252EE3E2C30046F768 /* Splash_Screen.png */,
 			);
-			path = Images;
+			path = Screenshots;
 			sourceTree = "<group>";
 		};
 		92908F732ED9603D00A9A38A /* bin */ = {
@@ -160,7 +175,7 @@
 		92908F842ED9603D00A9A38A /* Resources */ = {
 			isa = PBXGroup;
 			children = (
-				9244F84A2EE39C6000B583A2 /* Images */,
+				9244F84A2EE39C6000B583A2 /* Screenshots */,
 				92908F832ED9603D00A9A38A /* scripts */,
 				92908F732ED9603D00A9A38A /* bin */,
 				92908F772ED9603D00A9A38A /* fonts */,
@@ -227,13 +242,17 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9220232A2EE3E2C30046F768 /* Main_Window.png in Resources */,
 				92908F912ED9603D00A9A38A /* NOTICE.txt in Resources */,
+				9220232B2EE3E2C30046F768 /* Splash_Screen.png in Resources */,
 				92908F8A2ED9603D00A9A38A /* APP_LICENSE.txt in Resources */,
 				92908F8D2ED9603D00A9A38A /* COPYING.LGPLv2.1 in Resources */,
 				92908F8F2ED9603D00A9A38A /* dvrescue_LICENSE.txt in Resources */,
+				922023292EE3E2C30046F768 /* Main_Window_Two.png in Resources */,
 				92908F882ED9603D00A9A38A /* UAV-OSD-Sans-Mono.ttf in Resources */,
 				92908F892ED9603D00A9A38A /* VCR_OSD_MONO.ttf in Resources */,
 				92908F922ED9603D00A9A38A /* README.md in Resources */,
+				922023272EE3E2C30046F768 /* Font_Picker.png in Resources */,
 				92908F8B2ED9603D00A9A38A /* COPYING.GPLv2 in Resources */,
 				92908F902ED9603D00A9A38A /* LICENSE.md in Resources */,
 				92908F992ED967E000A9A38A /* dvmetaburn.zsh in Resources */,
@@ -244,6 +263,7 @@
 				921798E52ED94A7C00913D40 /* Assets.xcassets in Resources */,
 				92908FA32EDA720800A9A38A /* readme.md in Resources */,
 				9226A4E12EDE59CA0041247E /* Change Log.txt in Resources */,
+				922023282EE3E2C30046F768 /* Fonts.png in Resources */,
 				92908F872ED9603D00A9A38A /* UAV-OSD-Mono.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
