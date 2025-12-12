@@ -213,6 +213,10 @@ esac
 requested_format="$format"
 requested_mp4_preset="$mp4_preset"
 
+# Track effective values after validation/coercion
+effective_format="$format"
+effective_mp4_preset="$mp4_preset"
+
 if (( mp4_preset_arg_set == 1 )) && [[ "$format" != "mp4" ]]; then
   fatal "--preset/--mp4-preset requires --format=mp4."
 fi
@@ -243,10 +247,14 @@ if [[ "$burn_mode" == "subtitleTrack" ]] && [[ "$format" == "mp4" || "$format" =
   format_coerced=1
   format_coercion_reason="subtitleTrack requires mkv container"
   format="mkv"
+  effective_format="$format"
 fi
 
-append_run_note "Effective burn mode: $burn_mode (subtitle mode: $subtitle_mode), container: $format, preset: $mp4_preset"
-info "[config] burn_mode=$burn_mode, subtitle_mode=$subtitle_mode, container=$format (requested: $requested_format), preset=$mp4_preset (requested: $requested_mp4_preset)"
+effective_format="$format"
+effective_mp4_preset="$mp4_preset"
+
+append_run_note "Effective burn mode: $burn_mode (subtitle mode: $subtitle_mode), container: $effective_format, preset: $effective_mp4_preset"
+info "[config] burn_mode=$burn_mode, subtitle_mode=$subtitle_mode, container=$effective_format (requested: $requested_format), preset=$effective_mp4_preset (requested: $requested_mp4_preset)"
 initial_run_notes=("${run_notes[@]}")
 
 # Track parse stats for manifest writing
@@ -261,6 +269,8 @@ typeset -g timestamps_normalized=0
 typeset -g primary_input_path=""
 typeset -g requested_format
 typeset -g requested_mp4_preset
+typeset -g effective_format
+typeset -g effective_mp4_preset
 typeset -g format_coerced=0
 typeset -g format_coercion_reason=""
 typeset -g preset_adjusted=0
@@ -633,16 +643,16 @@ write_run_manifest() {
   "burn_mode": "$burn_mode",
   "subtitle_mode": "$subtitle_mode",
   "layout": "$layout",
-  "format": "$format",
-  "mp4_preset": "$mp4_preset",
+  "format": "$effective_format",
+  "mp4_preset": "$effective_mp4_preset",
   "cleanup_stage_completed": $([[ $cleanup_stage_done -eq 1 ]] && echo true || echo false),
   "decisions": {
     "requested_format": "$requested_format",
-    "effective_format": "$format",
+    "effective_format": "$effective_format",
     "format_coerced": $([[ $format_coerced -eq 1 ]] && echo true || echo false),
     "coercion_reason": "$format_coercion_reason",
     "requested_mp4_preset": "$requested_mp4_preset",
-    "effective_mp4_preset": "$mp4_preset",
+    "effective_mp4_preset": "$effective_mp4_preset",
     "preset_adjusted": $([[ $preset_adjusted -eq 1 ]] && echo true || echo false),
     "preset_adjustment_reason": "$preset_adjustment_reason",
     "burn_mode": "$burn_mode",
@@ -1002,6 +1012,9 @@ stitch_sources() {
 
   typeset -a stitch_rows
   local clip tmp_log tmp_xml norm_log start_ts
+
+  log_stage_marker "normalize"
+  local norm_success=0
   for clip in "${input_paths[@]}"; do
     tmp_log=$(make_temp_file dvmeta_stitch .log) || return 1
     tmp_xml=$(make_temp_file dvmeta_stitch .xml) || return 1
@@ -1013,6 +1026,8 @@ stitch_sources() {
       warn "[stitch] Failed to normalize timestamps for $clip"
       continue
     fi
+
+    norm_success=1
 
     start_ts=$(awk 'NF>=4 {printf "%s %s", $3, $4; exit}' "$norm_log")
     [[ -z "$start_ts" ]] && start_ts="9999-99-99 99:99:99"
@@ -1026,6 +1041,10 @@ stitch_sources() {
     _out_manifest=""
     append_run_note "Stitch step skipped: insufficient valid clips after normalization"
     return 0
+  fi
+
+  if (( norm_success == 1 )); then
+    timestamps_normalized=1
   fi
 
   local concat_manifest
@@ -1499,7 +1518,7 @@ process_file_core() {
 
   log_stage_marker "timeline"
 
-  if [[ "$burn_mode" != "off" ]]; then
+  if [[ "$burn_mode" != "off" && $stitch_enabled -eq 0 ]]; then
     normalize_dvrescue_timestamps "$dvrescue_log" "${artifact_dir}/dvrescue.normalized.log" || \
       warn "Proceeding with unnormalized timestamps due to prior error"
   fi
