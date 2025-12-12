@@ -1043,10 +1043,6 @@ stitch_sources() {
     return 0
   fi
 
-  if (( norm_success == 1 )); then
-    timestamps_normalized=1
-  fi
-
   local concat_manifest
   concat_manifest="${artifact_dir%/}/stitch_inputs.txt"
   : > "$concat_manifest"
@@ -1518,7 +1514,7 @@ process_file_core() {
 
   log_stage_marker "timeline"
 
-  if [[ "$burn_mode" != "off" && $stitch_enabled -eq 0 ]]; then
+  if [[ "$burn_mode" != "off" ]]; then
     normalize_dvrescue_timestamps "$dvrescue_log" "${artifact_dir}/dvrescue.normalized.log" || \
       warn "Proceeding with unnormalized timestamps due to prior error"
   fi
