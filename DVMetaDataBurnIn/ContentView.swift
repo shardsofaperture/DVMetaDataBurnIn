@@ -45,7 +45,7 @@ struct ContentView: View {
     // NEW OPTIONS
     @State private var burnMode: BurnMode = .burnin
     @State private var missingMetaMode: MissingMetaMode = .skipBurninConvert
-    @State private var subtitleMode: SubtitleMode = .perClip
+    @State private var subtitleMode: SubtitleMode?
     @State private var camcorderFonts: [SubtitleFontOption] = []
     @State private var systemFonts: [SubtitleFontOption] = []
     @State private var selectedFontPath: String?
@@ -58,7 +58,11 @@ struct ContentView: View {
         UserDefaults.standard.string(forKey: "DVMetaLastOutputFolder")
     @State private var defaultOutputFolder: String? =
         UserDefaults.standard.string(forKey: "DVMetaDefaultOutputFolder")
-    
+
+    private var shouldBlockStart: Bool {
+        burnMode == .subtitleTrack && subtitleMode == nil
+    }
+
     //font preview handling
     private var activeFontPreviewName: String? {
         if let hover = hoveredFontPreviewName {
@@ -181,16 +185,18 @@ struct ContentView: View {
                 }
             }
 
-            HStack(spacing: 12) {
-                Text("Subtitle timing:")
+            if burnMode == .subtitleTrack {
+                HStack(spacing: 12) {
+                    Text("Subtitle timing:")
 
-                Picker("", selection: $subtitleMode) {
-                    Text("Per clip").tag(SubtitleMode.perClip)
-                    Text("Continuous").tag(SubtitleMode.continuous)
+                    Picker("", selection: $subtitleMode) {
+                        Text("Per clip").tag(SubtitleMode.perClip as SubtitleMode?)
+                        Text("Continuous").tag(SubtitleMode.continuous as SubtitleMode?)
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                    .frame(width: 320)
+                    .help("Choose whether subtitle metadata restarts per clip or flows continuously across files.")
                 }
-                .pickerStyle(SegmentedPickerStyle())
-                .frame(width: 320)
-                .help("Choose whether subtitle metadata restarts per clip or flows continuously across files.")
             }
 
             // Format: mov vs mp4
@@ -346,13 +352,13 @@ struct ContentView: View {
                                 .frame(width: 150, height: 22)   // FIXED HEIGHT
                                 .background(
                                     RoundedRectangle(cornerRadius: 6)
-                                        .fill((isRunning || inputPath.isEmpty)
+                                        .fill((isRunning || inputPath.isEmpty || shouldBlockStart)
                                               ? coneOrange.opacity(0.45)
                                               : coneOrange)
                                 )
                         }
                         .buttonStyle(.plain)
-                        .disabled(isRunning || inputPath.isEmpty)
+                        .disabled(isRunning || inputPath.isEmpty || shouldBlockStart)
 
                         // STOP button — match *same height + corner radius*
                         Button(action: { stopCurrentProcess() }) {
@@ -652,6 +658,11 @@ struct ContentView: View {
     private func runBurn() {
         guard !inputPath.isEmpty else {
             logText = "Please choose an input file or folder first."
+            return
+        }
+
+        if burnMode == .subtitleTrack && subtitleMode == nil {
+            logText = "Please choose a subtitle timing mode before starting."
             return
         }
 
@@ -993,12 +1004,13 @@ struct ContentView: View {
         let inputExists = fm.fileExists(atPath: inputPath) ? "yes" : "no"
         let systemFontsEnabled = includeSystemFonts ? "yes" : "no"
         let debugFlag = debugMode ? "on" : "off"
+        let subtitleModeValue = subtitleMode?.rawValue ?? "(none selected)"
 
         lines.append("[DEBUG] Input path: \(inputPath)")
         lines.append("[DEBUG] Input exists: \(inputExists)")
         lines.append("[DEBUG] Mode: \(mode) | Layout: \(layout) | Format: \(format)")
         lines.append("[DEBUG] Burn mode: \(burnMode.rawValue) | Missing metadata handling: \(missingMetaMode.rawValue)")
-        lines.append("[DEBUG] Subtitle timing mode: \(subtitleMode.rawValue)")
+        lines.append("[DEBUG] Subtitle timing mode: \(subtitleModeValue)")
         lines.append("[DEBUG] Font path: \(resolvedFontPath()) | Font name: \(resolvedFontName())")
         lines.append("[DEBUG] System fonts enabled: \(systemFontsEnabled)")
         if outputToLocationFolder {
