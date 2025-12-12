@@ -1325,6 +1325,7 @@ process_file_core() {
 
   local source_video="$in"
   local stitch_manifest=""
+  local ass_target="$ass_artifact"
 
   stitch_inputs_resolved=""
   stitched_source=""
@@ -1361,7 +1362,7 @@ process_file_core() {
     *)
       warn "Unknown format: $format"
       manifest_status="error"
-      finish_run 1 "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
+      finish_run 1 "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
       return 1
       ;;
   esac
@@ -1376,12 +1377,15 @@ process_file_core() {
     elif [[ "$source_video" != "$in" ]]; then
       info "[stitch] Using stitched source for downstream processing: $source_video"
     else
-      info "[stitch] Stitch step skipped; using primary clip."
+      warn "[stitch] Stitch flag set but no stitched source produced; per-clip burn-in/subtitle path blocked"
+      manifest_status="error"
+      finish_run 1 "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
+      return 1
     fi
   fi
 
   if ! fps="$(detect_fps "$source_video")"; then
-    finish_run 1 "error" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
+    finish_run 1 "error" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
     return 1
   fi
   last_detected_fps="$fps"
@@ -1414,7 +1418,7 @@ process_file_core() {
     exit_status=$?
     manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
     passthrough_output="$out_passthrough"
-    finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
+    finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
     return $exit_status
   fi
 
@@ -1422,7 +1426,7 @@ process_file_core() {
   if ! font="$(find_font)"; then
     echo "[ERROR] Unable to locate a usable font. Provide --fontfile, set DVMETABURN_FONTFILE, or place a supported font in Resources/fonts/." >&2
     manifest_status="error"
-    finish_run 1 "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
+    finish_run 1 "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
     return 1
   fi
 
@@ -1438,15 +1442,36 @@ process_file_core() {
     if [[ "$out_ext" != "mkv" ]]; then
       echo "[ERROR] Subtitle track muxing is only supported for MKV output (got '$out_ext')." >&2
       manifest_status="error"
-      finish_run 1 "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
+      finish_run 1 "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
       return 1
     fi
 
     local sub_status=0
 
+    local per_clip_ass_path="$ass_target"
+    local subtitle_ass_path="$ass_target"
+    if (( stitch_enabled == 1 )); then
+      if [[ "$subtitle_mode" == "continuous" ]]; then
+        subtitle_ass_path="${artifact_dir%/}/timestamps.stitched.ass"
+        ass_target="$subtitle_ass_path"
+        info "[subtitle] Continuous mode enabled; regenerating ASS from stitched normalized timeline: $subtitle_ass_path"
+      else
+        info "[subtitle] Per-clip subtitle mode selected; retaining ASS at $subtitle_ass_path"
+      fi
+    fi
+
     # Build ASS subtitles from the dvrescue timeline
-    if ! make_ass_subs "$source_video" "$layout" "$ass_artifact" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$fps"; then
+    if ! make_ass_subs "$source_video" "$layout" "$ass_target" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$fps"; then
       sub_status=$?
+    fi
+
+    if (( stitch_enabled == 1 )) && [[ "$subtitle_mode" == "continuous" && "$ass_target" != "$per_clip_ass_path" ]]; then
+      if [[ -e "$per_clip_ass_path" ]]; then
+        info "[subtitle] Removing per-clip ASS artifact after stitched regeneration: $per_clip_ass_path"
+        rm -f "$per_clip_ass_path"
+      else
+        debug_log "Per-clip ASS artifact already absent: $per_clip_ass_path"
+      fi
     fi
 
     # Handle missing / bad metadata according to --missing-meta
@@ -1464,7 +1489,7 @@ process_file_core() {
           manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
           passthrough_output="$out_passthrough"
           finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" \
-            "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" \
+            "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" \
             "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
           return $exit_status
           ;;
@@ -1472,7 +1497,7 @@ process_file_core() {
           echo "[WARN] Missing timestamp metadata for $source_video; skipping file." >&2
           manifest_status="skipped"
           finish_run 0 "$manifest_status" "$source_video" "$artifact_dir" \
-            "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" \
+            "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" \
             "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
           return 0
           ;;
@@ -1480,7 +1505,7 @@ process_file_core() {
           echo "[ERROR] Missing timestamp metadata and --missing-meta=error; aborting subtitle mode." >&2
           manifest_status="error"
           finish_run 1 "$manifest_status" "$source_video" "$artifact_dir" \
-            "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" \
+            "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" \
             "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
           return 1
           ;;
@@ -1498,7 +1523,7 @@ process_file_core() {
     local subtitle_codec="ass"
 
     echo "[INFO] Muxing subtitle track into: $out_subbed" >&2
-    "$ffmpeg_bin" -y -i "$source_video" -i "$ass_artifact" \
+    "$ffmpeg_bin" -y -i "$source_video" -i "$ass_target" \
       -map 0:v:0 -map 0:a? -map 1:s:0 \
       "${sub_video_args[@]}" \
       -c:s "$subtitle_codec" \
@@ -1508,7 +1533,7 @@ process_file_core() {
     manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
     subtitle_output="$out_subbed"
     finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" \
-      "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" \
+      "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" \
       "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
     return $exit_status
   fi
@@ -1522,7 +1547,7 @@ process_file_core() {
     echo "[WARN] Failed to build timestamp timeline from log; honoring --missing-meta=$missing_meta" >&2
     case "$missing_meta" in
       error)
-        finish_run 1 "error" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
+        finish_run 1 "error" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
         return 1
         ;;
       skip_burnin_convert)
@@ -1535,13 +1560,13 @@ process_file_core() {
         exit_status=$?
         manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
         passthrough_output="$out_passthrough"
-        finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
+        finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
         return $exit_status
         ;;
       skip_file)
         echo "[WARN] Skipping $source_video due to missing timestamp metadata." >&2
         manifest_status="skipped"
-        finish_run 0 "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
+        finish_run 0 "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
         return 0
         ;;
     esac
@@ -1563,7 +1588,7 @@ drawtext@dvtime=fontfile='${font}':text='':fontcolor=white:fontsize=24:box=0:x=w
       ;;
     *)
       echo "Unknown layout: $layout" >&2
-      finish_run 1 "error" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
+      finish_run 1 "error" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
       return 1
       ;;
   esac
@@ -1581,7 +1606,7 @@ drawtext@dvtime=fontfile='${font}':text='':fontcolor=white:fontsize=24:box=0:x=w
   manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
   burn_output="$out"
   echo "ffmpeg exit code: $exit_status"
-  finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
+  finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
   return $exit_status
 }
 
