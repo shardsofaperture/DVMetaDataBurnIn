@@ -33,6 +33,23 @@ debug() {
   (( debug_mode == 1 )) && echo "[DEBUG] $*" >&2
 }
 
+json_escape() {
+  local raw="$1"
+  # Escape backslashes first, then quotes
+  raw="${raw//\\/\\\\}"
+  raw="${raw//"/\\\"}"
+  echo "$raw"
+}
+
+typeset -ga run_notes=()
+typeset -ga initial_run_notes=()
+
+append_run_note() {
+  local msg="$*"
+  run_notes+=("$msg")
+  debug_log "[note] $msg"
+}
+
 log_stage_marker() {
   local stage="$1"
   echo "[STAGE] $stage" >&2
@@ -193,6 +210,9 @@ case "$mp4_preset" in
     ;;
 esac
 
+requested_format="$format"
+requested_mp4_preset="$mp4_preset"
+
 if (( mp4_preset_arg_set == 1 )) && [[ "$format" != "mp4" ]]; then
   fatal "--preset/--mp4-preset requires --format=mp4."
 fi
@@ -211,13 +231,23 @@ fi
 
 if [[ "$format" == "mp4" && "$mp4_preset" == "audio-only" && "$burn_mode" == "burnin" ]]; then
   warn "MP4 audio-only preset is not compatible with burn-in; falling back to default video encode"
+  append_run_note "Audio-only preset incompatible with burn-in; coerced to default preset for MP4 container"
+  preset_adjusted=1
+  preset_adjustment_reason="audio-only preset incompatible with burn-in"
   mp4_preset="default"
 fi
 
 if [[ "$burn_mode" == "subtitleTrack" ]] && [[ "$format" == "mp4" || "$format" == "mov" ]]; then
   echo "[INFO] Subtitle tracks require an MKV container; coercing format '$format' to 'mkv' while preserving the base filename." >&2
+  append_run_note "Subtitle track mode coerced container from $format to mkv while keeping base filename"
+  format_coerced=1
+  format_coercion_reason="subtitleTrack requires mkv container"
   format="mkv"
 fi
+
+append_run_note "Effective burn mode: $burn_mode (subtitle mode: $subtitle_mode), container: $format, preset: $mp4_preset"
+info "[config] burn_mode=$burn_mode, subtitle_mode=$subtitle_mode, container=$format (requested: $requested_format), preset=$mp4_preset (requested: $requested_mp4_preset)"
+initial_run_notes=("${run_notes[@]}")
 
 # Track parse stats for manifest writing
 typeset -g last_parse_raw_rows=0
@@ -229,6 +259,13 @@ typeset -g last_dvrescue_status=0
 typeset -g last_detected_fps=""
 typeset -g timestamps_normalized=0
 typeset -g primary_input_path=""
+typeset -g requested_format=""
+typeset -g requested_mp4_preset=""
+typeset -g format_coerced=0
+typeset -g format_coercion_reason=""
+typeset -g preset_adjusted=0
+typeset -g preset_adjustment_reason=""
+typeset -g cleanup_stage_done=0
 
 prepare_artifact_dir() {
   local input_path="$1"
@@ -515,6 +552,14 @@ log_file_excerpt() {
   fi
 }
 
+ensure_cleanup_stage() {
+  if (( cleanup_stage_done == 0 )); then
+    log_stage_marker "cleanup"
+    append_run_note "Cleanup stage executed prior to final mux/manifest"
+    cleanup_stage_done=1
+  fi
+}
+
 emit_debug_snapshots() {
   (( debug_mode == 1 )) || return 0
 
@@ -565,6 +610,20 @@ write_run_manifest() {
   local passthrough_output="${12}"
   local versions_path="${13}"
 
+  local notes_json=""
+  if (( ${#run_notes[@]} > 0 )); then
+    local idx=1 total=${#run_notes[@]} note escaped
+    for note in "${run_notes[@]}"; do
+      escaped=$(json_escape "$note")
+      notes_json+="    \"${escaped}\""
+      (( idx < total )) && notes_json+="," 
+      notes_json+=$'\n'
+      (( idx++ ))
+    done
+  fi
+
+  notes_json="${notes_json%$'\n'}"
+
   cat > "$manifest_path" <<EOF
 {
   "status": "$status_label",
@@ -576,6 +635,19 @@ write_run_manifest() {
   "layout": "$layout",
   "format": "$format",
   "mp4_preset": "$mp4_preset",
+  "cleanup_stage_completed": $([[ $cleanup_stage_done -eq 1 ]] && echo true || echo false),
+  "decisions": {
+    "requested_format": "$requested_format",
+    "effective_format": "$format",
+    "format_coerced": $([[ $format_coerced -eq 1 ]] && echo true || echo false),
+    "coercion_reason": "$format_coercion_reason",
+    "requested_mp4_preset": "$requested_mp4_preset",
+    "effective_mp4_preset": "$mp4_preset",
+    "preset_adjusted": $([[ $preset_adjusted -eq 1 ]] && echo true || echo false),
+    "preset_adjustment_reason": "$preset_adjustment_reason",
+    "burn_mode": "$burn_mode",
+    "subtitle_mode": "$subtitle_mode"
+  },
   "artifacts": {
     "dvrescue_xml": "$xml_path",
     "dvrescue_log": "$log_path",
@@ -604,7 +676,10 @@ write_run_manifest() {
     "timeline_granularity": "$burn_granularity",
     "dvrescue_status": $last_dvrescue_status,
     "fps": "${last_detected_fps}"
-  }
+  },
+  "run_notes": [
+${notes_json}
+  ]
 }
 EOF
 
@@ -626,6 +701,8 @@ finish_run() {
   local passthrough_output="${12}"
   local versions_file="${13}"
   local manifest_path="${14}"
+
+  ensure_cleanup_stage
 
   write_versions_file "$versions_file"
   write_run_manifest "$manifest_path" "$status_label" "$input_path" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_path" "$cmd_path" "$ass_path" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
@@ -919,6 +996,7 @@ stitch_sources() {
     info "[stitch] Single clip only; skipping stitch step."
     _out_source="$primary"
     _out_manifest=""
+    append_run_note "Stitch step skipped: single clip input"
     return 0
   fi
 
@@ -946,6 +1024,7 @@ stitch_sources() {
     info "[stitch] Not enough valid clips after normalization; skipping stitch."
     _out_source="$primary"
     _out_manifest=""
+    append_run_note "Stitch step skipped: insufficient valid clips after normalization"
     return 0
   fi
 
@@ -968,6 +1047,7 @@ stitch_sources() {
     info "[stitch] Not enough ordered clips to stitch; continuing with original."
     _out_source="$primary"
     _out_manifest=""
+    append_run_note "Stitch step skipped: ordering produced a single clip"
     return 0
   fi
 
@@ -982,6 +1062,7 @@ stitch_sources() {
     warn "[stitch] ffmpeg concat failed; using primary source"
     _out_source="$primary"
     _out_manifest=""
+    append_run_note "Stitch step failed during concat; reverted to primary source"
     return 0
   fi
 
@@ -1362,6 +1443,8 @@ process_file_core() {
   last_parse_frame_source="unknown"
   last_dvrescue_status=0
   timestamps_normalized=0
+  cleanup_stage_done=0
+  run_notes=("${initial_run_notes[@]}")
 
   local -a codec_args
   case "$format" in
@@ -1426,6 +1509,7 @@ process_file_core() {
     local out_passthrough="${base}_conv.${out_ext}"
     echo "[INFO] Transcode-only conversion (no burn-in) to: $out_passthrough"
     debug_log "Running transcode-only encode with args: ${codec_args[*]}"
+    ensure_cleanup_stage
     log_stage_marker "encode"
     "$ffmpeg_bin" -y -i "$source_video" \
       "${codec_args[@]}" \
@@ -1484,6 +1568,7 @@ process_file_core() {
       if [[ -e "$per_clip_ass_path" ]]; then
         info "[subtitle] Removing per-clip ASS artifact after stitched regeneration: $per_clip_ass_path"
         rm -f "$per_clip_ass_path"
+        append_run_note "Removed per-clip ASS artifact after continuous-mode regeneration"
       else
         debug_log "Per-clip ASS artifact already absent: $per_clip_ass_path"
       fi
@@ -1496,6 +1581,7 @@ process_file_core() {
         skip_burnin_convert)
           echo "[WARN] Missing timestamp metadata for $source_video; converting without subtitle track." >&2
           local out_passthrough="${base}_conv.${out_ext}"
+          ensure_cleanup_stage
           log_stage_marker "encode"
           "$ffmpeg_bin" -y -i "$source_video" \
             "${codec_args[@]}" \
@@ -1527,6 +1613,7 @@ process_file_core() {
       esac
     fi
 
+    ensure_cleanup_stage
     log_stage_marker "encode"
 
     # We have a valid ASS file – mux it as MKV with true ASS subtitles
@@ -1568,6 +1655,7 @@ process_file_core() {
       skip_burnin_convert)
         echo "[WARN] Converting without burn-in due to missing timestamp metadata." >&2
         local out_passthrough="${base}_conv.${out_ext}"
+        ensure_cleanup_stage
         log_stage_marker "encode"
         "$ffmpeg_bin" -y -i "$source_video" \
           "${codec_args[@]}" \
@@ -1587,6 +1675,7 @@ process_file_core() {
     esac
   fi
 
+  ensure_cleanup_stage
   log_stage_marker "encode"
 
   local vf
@@ -1631,16 +1720,27 @@ process_file_controller() {
 
   primary_input_path="$in"
 
+  local expected_base_name
+  expected_base_name="${in:t:r}"
+
   log_stage_marker "validation"
   local output_dir base base_name out_ext
   if ! validate_and_plan_file "$in" output_dir base base_name out_ext; then
     return 1
   fi
 
+  if [[ "$base_name" != "$expected_base_name" ]]; then
+    fatal "Base filename changed unexpectedly (expected '$expected_base_name', got '$base_name')"
+  fi
+
   log_stage_marker "artifact_stubs"
   local artifact_dir dvrescue_xml dvrescue_log cmdfile timeline_debug ass_artifact run_manifest versions_file
   if ! create_artifact_scaffold "$in" "$output_dir" "$base_name" "$out_ext" artifact_dir dvrescue_xml dvrescue_log cmdfile timeline_debug ass_artifact run_manifest versions_file; then
     return 1
+  fi
+
+  if [[ "${artifact_dir:t}" != ${expected_base_name}_* ]]; then
+    fatal "Artifact directory base changed unexpectedly (expected prefix '${expected_base_name}_', got '${artifact_dir:t}')"
   fi
 
   log_stage_marker "dvrescue"
