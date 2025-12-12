@@ -42,6 +42,7 @@ layout="stacked"     # "stacked" or "single"
 format="mov"         # "mov", "mp4", or "mkv"
 mp4_preset="default" # "default", "best-quality", or "audio-only"
 burn_mode="burnin"   # "burnin" or "passthrough" or "subtitleTrack"
+subtitle_mode="per-clip" # "per-clip" or "continuous"
 missing_meta="skip_burnin_convert"  # behavior when metadata is missing
 fontfile=""
 fontname="UAV-OSD-Mono"
@@ -67,7 +68,9 @@ while [[ $# -gt 0 ]]; do
     --layout=*) layout="${1#*=}"; shift ;;
     --format=*) format="${1#*=}"; shift ;;
     --mp4-preset=*) mp4_preset="${1#*=}"; shift ;;
+    --preset=*) mp4_preset="${1#*=}"; shift ;;
     --burn-mode=*) burn_mode="${1#*=}"; shift ;;
+    --subtitle-mode=*) subtitle_mode="${1#*=}"; shift ;;
     --missing-meta=*) missing_meta="${1#*=}"; shift ;;
     --fontfile=*) fontfile="${1#*=}"; shift ;;
     --fontname=*) fontname="${1#*=}"; shift ;;
@@ -93,6 +96,30 @@ mp4_preset="${mp4_preset//[[:space:]]/}"
 mp4_preset="${mp4_preset//_/-}"
 mp4_preset="${mp4_preset:l}"
 
+burn_mode="${burn_mode//[[:space:]]/}"
+burn_mode="${burn_mode//_/-}"
+burn_mode="${burn_mode:l}"
+
+case "$burn_mode" in
+  burnin|on)
+    burn_mode="burnin"
+    ;;
+  passthrough|pass-through|off|none)
+    burn_mode="passthrough"
+    ;;
+  subtitletrack|subtitle-track|subtitle)
+    burn_mode="subtitleTrack"
+    ;;
+  *)
+    warn "Unknown burn mode '$burn_mode'; defaulting to burnin"
+    burn_mode="burnin"
+    ;;
+esac
+
+subtitle_mode="${subtitle_mode//[[:space:]]/}"
+subtitle_mode="${subtitle_mode//_/-}"
+subtitle_mode="${subtitle_mode:l}"
+
 case "$missing_meta" in
   skipburninconvert)
     missing_meta="skip_burnin_convert"
@@ -117,6 +144,18 @@ case "$format" in
   *)
     warn "Unknown format '$format'; defaulting to mov"
     format="mov"
+    ;;
+esac
+
+case "$subtitle_mode" in
+  per-clip|"" )
+    subtitle_mode="per-clip"
+    ;;
+  continuous)
+    ;;
+  *)
+    warn "Unknown subtitle mode '$subtitle_mode'; defaulting to per-clip"
+    subtitle_mode="per-clip"
     ;;
 esac
 
@@ -495,6 +534,7 @@ write_run_manifest() {
   "input": "$input_path",
   "artifact_dir": "$artifact_dir",
   "burn_mode": "$burn_mode",
+  "subtitle_mode": "$subtitle_mode",
   "layout": "$layout",
   "format": "$format",
   "mp4_preset": "$mp4_preset",
@@ -627,6 +667,9 @@ if [[ "$format" == "mp4" ]]; then
   debug_log "MP4 preset: $mp4_preset"
 fi
 debug_log "Burn mode: $burn_mode"
+if [[ "$burn_mode" == "subtitleTrack" ]]; then
+  debug_log "Subtitle mode: $subtitle_mode"
+fi
 debug_log "Missing meta handling: $missing_meta"
 debug_log "Requested font name: ${subtitle_font_name:-<auto>}"
 debug_log "ffmpeg path: $ffmpeg_bin"
@@ -1231,7 +1274,7 @@ fi
 
 if [[ "$mode" == "single" ]]; then
   if [[ $# -ne 1 ]]; then
-    echo "Usage: $0 [--mode=single] [--layout=stacked|single] [--format=mov|mp4|mkv] [--mp4-preset=default|best-quality|audio-only] [--burn-mode=burnin|passthrough|subtitleTrack] /path/to/clip.avi" >&2
+    echo "Usage: $0 [--mode=single] [--layout=stacked|single] [--format=mov|mp4|mkv] [--preset=default|best-quality|audio-only] [--burn-mode=burnin|passthrough|off|subtitleTrack] [--subtitle-mode=per-clip|continuous] /path/to/clip.avi" >&2
     exit 1
   fi
   debug_log "Running in single-file mode with target: $1"
@@ -1241,7 +1284,7 @@ fi
 
 if [[ "$mode" == "batch" ]]; then
   if [[ $# -ne 1 ]]; then
-    echo "Usage: $0 --mode=batch [--layout=stacked|single] [--format=mov|mp4|mkv] [--mp4-preset=default|best-quality|audio-only] [--burn-mode=burnin|passthrough|subtitleTrack] /path/to/folder" >&2
+    echo "Usage: $0 --mode=batch [--layout=stacked|single] [--format=mov|mp4|mkv] [--preset=default|best-quality|audio-only] [--burn-mode=burnin|passthrough|off|subtitleTrack] [--subtitle-mode=per-clip|continuous] /path/to/folder" >&2
     exit 1
   fi
 

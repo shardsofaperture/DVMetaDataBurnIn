@@ -831,7 +831,6 @@ struct ContentView: View {
             "--mode=\(mode)",
             "--layout=\(layout)",
             "--format=\(format)",
-            "--burn-mode=\(burnMode.rawValue)",
             "--missing-meta=\(missingMetaArg)",
             "--fontfile=\(resolvedFontPath())",
             "--fontname=\(resolvedFontName())",
@@ -839,9 +838,21 @@ struct ContentView: View {
             "--dvrescue=\(dvrescueURL.path)"
         ]
 
+        switch burnMode {
+        case .burnin:
+            args.append("--burn-mode=\(BurnMode.burnin.rawValue)")
+        case .off:
+            args.append("--burn-mode=\(BurnMode.off.rawValue)")
+        case .subtitleTrack:
+            args.append("--burn-mode=\(BurnMode.subtitleTrack.rawValue)")
+            if let subtitleMode {
+                args.append("--subtitle-mode=\(subtitleMode.rawValue)")
+            }
+        }
+
         if format == "mp4" {
             let resolvedPreset = mp4Preset.isEmpty ? "default" : mp4Preset
-            args.append("--mp4-preset=\(resolvedPreset)")
+            args.append("--preset=\(resolvedPreset)")
         }
 
         if debugMode {
