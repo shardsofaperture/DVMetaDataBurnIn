@@ -197,6 +197,10 @@ if (( mp4_preset_arg_set == 1 )) && [[ "$format" != "mp4" ]]; then
   fatal "--preset/--mp4-preset requires --format=mp4."
 fi
 
+if [[ "$format" != "mp4" && "$mp4_preset" != "default" ]]; then
+  fatal "MP4 presets are only valid with the mp4 container; received preset '$mp4_preset' for format '$format'."
+fi
+
 if (( subtitle_mode_arg_set == 1 )) && [[ "$burn_mode" != "subtitleTrack" ]]; then
   fatal "--subtitle-mode requires --burn-mode=subtitleTrack."
 fi
@@ -821,6 +825,8 @@ debug_log "Layout: $layout"
 debug_log "Format: $format"
 if [[ "$format" == "mp4" ]]; then
   debug_log "MP4 preset: $mp4_preset"
+else
+  debug_log "MP4 preset ignored for format: $format"
 fi
 debug_log "Burn mode: $burn_mode"
 if [[ "$burn_mode" == "subtitleTrack" ]]; then
@@ -1303,6 +1309,25 @@ offline_smoke_test() {
   echo "[INFO] offline_smoke_test artifacts: timeline=$timeline sendcmd=$cmdfile (source=log fps=$fps)" >&2
 }
 
+mp4_codec_args_for_preset() {
+  local preset="$1"
+
+  case "$preset" in
+    best-quality)
+      debug_log "Using MP4 best-quality preset"
+      echo "-c:v" "mpeg4" "-qscale:v" "1" "-c:a" "aac" "-b:a" "256k"
+      ;;
+    audio-only)
+      debug_log "Using MP4 audio-only preset"
+      echo "-vn" "-c:a" "aac" "-b:a" "192k"
+      ;;
+    *)
+      debug_log "Using MP4 default preset"
+      echo "-c:v" "mpeg4" "-qscale:v" "2" "-c:a" "aac" "-b:a" "192k"
+      ;;
+  esac
+}
+
 ########################################################
 # Main per-file processing
 ########################################################
@@ -1344,17 +1369,7 @@ process_file_core() {
       codec_args=(-c:v dvvideo -c:a copy)
       ;;
     mp4)
-      case "$mp4_preset" in
-        best-quality)
-          codec_args=(-c:v mpeg4 -qscale:v 1 -c:a aac -b:a 256k)
-          ;;
-        audio-only)
-          codec_args=(-vn -c:a aac -b:a 192k)
-          ;;
-        *)
-          codec_args=(-c:v mpeg4 -qscale:v 2 -c:a aac -b:a 192k)
-          ;;
-      esac
+      codec_args=($(mp4_codec_args_for_preset "$mp4_preset"))
       ;;
     mkv)
       codec_args=(-c:v mpeg4 -qscale:v 2 -c:a aac -b:a 192k)
