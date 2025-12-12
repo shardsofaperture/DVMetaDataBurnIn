@@ -216,6 +216,7 @@ typeset -g last_parse_timeline_entries=0
 typeset -g last_parse_frame_source="unknown"
 typeset -g last_dvrescue_status=0
 typeset -g last_detected_fps=""
+typeset -g timestamps_normalized=0
 
 prepare_artifact_dir() {
   local input_path="$1"
@@ -616,6 +617,73 @@ finish_run() {
   fi
 
   return "$exit_code"
+}
+
+normalize_dvrescue_timestamps() {
+  local source_log="$1"
+  local scratch_output="$2"
+
+  if (( timestamps_normalized == 1 )); then
+    debug_log "Timestamp normalization already applied; skipping"
+    return 0
+  fi
+
+  if [[ -z "$source_log" || ! -s "$source_log" ]]; then
+    warn "normalize_dvrescue_timestamps: missing or empty log (${source_log:-unset})"
+    return 1
+  fi
+
+  info "Normalizing dvrescue timestamps (value-only)…"
+
+  local tmp_output
+  if [[ -n "$scratch_output" ]]; then
+    tmp_output="$scratch_output"
+  else
+    tmp_output=$(make_temp_file dvmeta_norm .log) || {
+      warn "Failed to allocate temp file for normalization"
+      return 1
+    }
+  fi
+
+  if ! awk '
+    NF < 4 { print; next }
+
+    {
+      idx=$1; tc=$2; date_val=$3; time_val=$4;
+
+      gsub(/[^0-9-]/, "", date_val);
+
+      split(date_val, dparts, "-");
+      if (length(dparts) == 3) {
+        date_val=sprintf("%04d-%02d-%02d", dparts[1], dparts[2], dparts[3]);
+      }
+
+      gsub(/[^0-9:;]/, "", time_val);
+      split(time_val, tparts, /[:;]/);
+      if (length(tparts) >= 3) {
+        time_val=sprintf("%02d:%02d:%02d", tparts[1], tparts[2], tparts[3]);
+        if (length(tparts) >= 4) {
+          time_val=sprintf("%s;%02d", time_val, tparts[4]);
+        }
+      }
+
+      printf("%s %s %s %s", idx, tc, date_val, time_val);
+      for (i=5; i<=NF; i++) {
+        printf(" %s", $i);
+      }
+      printf("\n");
+    }
+  ' "$source_log" > "$tmp_output"; then
+    warn "Timestamp normalization failed; preserving original log"
+    [[ -n "$scratch_output" ]] || rm -f "$tmp_output"
+    return 1
+  fi
+
+  /bin/mv "$tmp_output" "$source_log"
+
+  timestamps_normalized=1
+  info "Timestamp normalization complete"
+  return 0
 }
 
 ########################################################
@@ -1069,6 +1137,7 @@ process_file_core() {
   last_parse_timeline_entries=0
   last_parse_frame_source="unknown"
   last_dvrescue_status=0
+  timestamps_normalized=0
 
   local -a codec_args
   case "$format" in
@@ -1116,6 +1185,11 @@ process_file_core() {
   log_artifact_path_and_size "dvrescue log" "$dvrescue_log"
 
   log_stage_marker "timeline"
+
+  if [[ "$burn_mode" != "off" ]]; then
+    normalize_dvrescue_timestamps "$dvrescue_log" "${artifact_dir}/dvrescue.normalized.log" || \
+      warn "Proceeding with unnormalized timestamps due to prior error"
+  fi
 
   # Transcode-only mode: no metadata
   if [[ "$burn_mode" == "off" ]]; then
