@@ -198,6 +198,11 @@ if [[ "$format" == "mp4" && "$mp4_preset" == "audio-only" && "$burn_mode" == "bu
   mp4_preset="default"
 fi
 
+if [[ "$burn_mode" == "subtitleTrack" ]] && [[ "$format" == "mp4" || "$format" == "mov" ]]; then
+  echo "[INFO] Subtitle tracks require an MKV container; coercing format '$format' to 'mkv' while preserving the base filename." >&2
+  format="mkv"
+fi
+
 # Track parse stats for manifest writing
 typeset -g last_parse_raw_rows=0
 typeset -g last_parse_valid_rows=0
@@ -1107,6 +1112,14 @@ process_file() {
   
   # Subtitle track mode: generate ASS from timeline and mux into container
   if [[ "$burn_mode" == "subtitleTrack" ]]; then
+    if [[ "$out_ext" != "mkv" ]]; then
+      echo "[ERROR] Subtitle track muxing is only supported for MKV output (got '$out_ext')." >&2
+      manifest_status="error"
+      write_versions_file "$versions_file"
+      write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+      return 1
+    fi
+
     local sub_status=0
 
     # Build ASS subtitles from the dvrescue timeline
