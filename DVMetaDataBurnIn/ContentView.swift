@@ -7,8 +7,15 @@ import CoreText
 
 enum BurnMode: String, CaseIterable, Identifiable {
     case burnin
-    case passthrough
+    case off
     case subtitleTrack
+
+    var id: String { rawValue }
+}
+
+enum SubtitleMode: String, CaseIterable, Identifiable {
+    case perClip = "per-clip"
+    case continuous
 
     var id: String { rawValue }
 }
@@ -38,6 +45,7 @@ struct ContentView: View {
     // NEW OPTIONS
     @State private var burnMode: BurnMode = .burnin
     @State private var missingMetaMode: MissingMetaMode = .skipBurninConvert
+    @State private var subtitleMode: SubtitleMode = .perClip
     @State private var camcorderFonts: [SubtitleFontOption] = []
     @State private var systemFonts: [SubtitleFontOption] = []
     @State private var selectedFontPath: String?
@@ -172,7 +180,19 @@ struct ContentView: View {
                     .transition(.opacity)
                 }
             }
-            
+
+            HStack(spacing: 12) {
+                Text("Subtitle timing:")
+
+                Picker("", selection: $subtitleMode) {
+                    Text("Per clip").tag(SubtitleMode.perClip)
+                    Text("Continuous").tag(SubtitleMode.continuous)
+                }
+                .pickerStyle(SegmentedPickerStyle())
+                .frame(width: 320)
+                .help("Choose whether subtitle metadata restarts per clip or flows continuously across files.")
+            }
+
             // Format: mov vs mp4
             HStack {
                 Text("Format:")
@@ -197,7 +217,7 @@ struct ContentView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Picker("Burn-in output mode", selection: $burnMode) {
                     Text("Burn in metadata").tag(BurnMode.burnin)
-                    Text("Transcode only (no burn-in)").tag(BurnMode.passthrough)
+                    Text("Transcode only (no burn-in)").tag(BurnMode.off)
                     Text("Embed subtitle track (soft subs in MKV)").tag(BurnMode.subtitleTrack)
                 }
                 .pickerStyle(.menu)
@@ -978,6 +998,7 @@ struct ContentView: View {
         lines.append("[DEBUG] Input exists: \(inputExists)")
         lines.append("[DEBUG] Mode: \(mode) | Layout: \(layout) | Format: \(format)")
         lines.append("[DEBUG] Burn mode: \(burnMode.rawValue) | Missing metadata handling: \(missingMetaMode.rawValue)")
+        lines.append("[DEBUG] Subtitle timing mode: \(subtitleMode.rawValue)")
         lines.append("[DEBUG] Font path: \(resolvedFontPath()) | Font name: \(resolvedFontName())")
         lines.append("[DEBUG] System fonts enabled: \(systemFontsEnabled)")
         if outputToLocationFolder {
