@@ -33,6 +33,11 @@ debug() {
   (( debug_mode == 1 )) && echo "[DEBUG] $*" >&2
 }
 
+log_stage_marker() {
+  local stage="$1"
+  echo "[STAGE] $stage" >&2
+}
+
 ########################################################
 # Defaults / configuration
 ########################################################
@@ -720,6 +725,81 @@ seconds_to_ass_time() {
   printf "%d:%02d:%05.2f" "$h" "$m" "$fsec"
 }
 
+validate_and_plan_file() {
+  local in="$1"
+  local -n _out_output_dir="$2"
+  local -n _out_base="$3"
+  local -n _out_base_name="$4"
+  local -n _out_ext="$5"
+
+  if [[ ! -f "$in" ]]; then
+    echo "[ERROR] Input file not found: $in" >&2
+    return 1
+  fi
+
+  _out_ext="$format"
+  _out_base_name="${in:t:r}"
+  if [[ -n "$dest_dir" ]]; then
+    _out_output_dir="${dest_dir%/}"
+  else
+    _out_output_dir="${in:h}"
+  fi
+
+  _out_base="${_out_output_dir}/${_out_base_name}"
+  return 0
+}
+
+create_artifact_scaffold() {
+  local in="$1"
+  local output_dir="$2"
+  local base_name="$3"
+  local out_ext="$4"
+  local -n _artifact_dir="$5"
+  local -n _dvrescue_xml="$6"
+  local -n _dvrescue_log="$7"
+  local -n _cmdfile="$8"
+  local -n _timeline_debug="$9"
+  local -n _ass_artifact="${10}"
+  local -n _run_manifest="${11}"
+  local -n _versions_file="${12}"
+
+  if [[ -n "$dest_dir" && ! -d "$output_dir" ]]; then
+    if ! mkdir -p "$output_dir"; then
+      echo "[ERROR] Unable to create destination folder: $output_dir" >&2
+      return 1
+    fi
+  fi
+
+  if ! _artifact_dir="$(prepare_artifact_dir "$in")"; then
+    return 1
+  fi
+
+  _dvrescue_xml="${_artifact_dir}/dvrescue.xml"
+  _dvrescue_log="${_artifact_dir}/dvrescue.log"
+  _cmdfile="${_artifact_dir}/timestamp.cmd"
+  _timeline_debug="${_artifact_dir}/timeline.debug.tsv"
+  _ass_artifact="${_artifact_dir}/timestamps.ass"
+  _run_manifest="${_artifact_dir}/run_manifest.json"
+  _versions_file="${_artifact_dir}/versions.txt"
+
+  rm -f "$_dvrescue_xml"
+  debug_log "Cleared prior dvrescue XML target: $_dvrescue_xml"
+  : > "$_dvrescue_log"
+  : > "$_cmdfile"
+  : > "$_timeline_debug"
+  : > "$_ass_artifact"
+  printf '{"status":"pending","input":"%s"}\n' "$in" > "$_run_manifest"
+  : > "$_versions_file"
+
+  log_artifact_path_and_size "dvrescue XML" "$_dvrescue_xml"
+  log_artifact_path_and_size "dvrescue log" "$_dvrescue_log"
+  echo "[INFO] sendcmd path: $_cmdfile" >&2
+  echo "[INFO] ASS output path: $_ass_artifact" >&2
+  echo "[INFO] timeline debug path: $_timeline_debug" >&2
+
+  return 0
+}
+
 ########################################################
 # Build sendcmd file from dvrescue log timeline
 ########################################################
@@ -967,34 +1047,19 @@ offline_smoke_test() {
 # Main per-file processing
 ########################################################
 
-process_file() {
+process_file_core() {
   local in="$1"
-  debug_log "process_file() received: '$in'"
+  local base="$2"
+  local out_ext="$3"
+  local artifact_dir="$4"
+  local dvrescue_xml="$5"
+  local dvrescue_log="$6"
+  local cmdfile="$7"
+  local timeline_debug="$8"
+  local ass_artifact="$9"
+  local run_manifest="${10}"
+  local versions_file="${11}"
 
-  if [[ ! -f "$in" ]]; then
-    echo "[ERROR] Input file not found: $in" >&2
-    return 1
-  fi
-
-  debug_log "Processing input file: $in"
-
-  local base="${in%.*}"
-  local base_name="${in:t:r}"
-  local output_dir="${in:h}"
-  if [[ -n "$dest_dir" ]]; then
-    output_dir="${dest_dir%/}"
-    if [[ ! -d "$output_dir" ]]; then
-      if ! mkdir -p "$output_dir"; then
-        echo "[ERROR] Unable to create destination folder: $output_dir" >&2
-        return 1
-      fi
-    fi
-  fi
-
-  base="${output_dir}/${base_name}"
-  debug_log "Output base path: $base"
-  local out_ext="$format"
-  local artifact_dir dvrescue_xml dvrescue_log cmdfile timeline_debug ass_artifact run_manifest versions_file
   local burn_output="" subtitle_output="" passthrough_output=""
   local exit_status=0 manifest_status="pending"
 
@@ -1004,31 +1069,6 @@ process_file() {
   last_parse_timeline_entries=0
   last_parse_frame_source="unknown"
   last_dvrescue_status=0
-
-  if ! artifact_dir="$(prepare_artifact_dir "$in")"; then
-    return 1
-  fi
-
-  dvrescue_xml="${artifact_dir}/dvrescue.xml"
-  dvrescue_log="${artifact_dir}/dvrescue.log"
-  cmdfile="${artifact_dir}/timestamp.cmd"
-  timeline_debug="${artifact_dir}/timeline.debug.tsv"
-  ass_artifact="${artifact_dir}/timestamps.ass"
-  run_manifest="${artifact_dir}/run_manifest.json"
-  versions_file="${artifact_dir}/versions.txt"
-
-  rm -f "$dvrescue_xml"
-  debug_log "Cleared prior dvrescue XML target: $dvrescue_xml"
-  : > "$dvrescue_log"
-  : > "$cmdfile"
-  : > "$timeline_debug"
-  : > "$ass_artifact"
-
-  log_artifact_path_and_size "dvrescue XML" "$dvrescue_xml"
-  log_artifact_path_and_size "dvrescue log" "$dvrescue_log"
-  echo "[INFO] sendcmd path: $cmdfile" >&2
-  echo "[INFO] ASS output path: $ass_artifact" >&2
-  echo "[INFO] timeline debug path: $timeline_debug" >&2
 
   local -a codec_args
   case "$format" in
@@ -1075,22 +1115,21 @@ process_file() {
   log_artifact_path_and_size "dvrescue XML" "$dvrescue_xml"
   log_artifact_path_and_size "dvrescue log" "$dvrescue_log"
 
+  log_stage_marker "timeline"
+
   # Transcode-only mode: no metadata
   if [[ "$burn_mode" == "off" ]]; then
     local out_passthrough="${base}_conv.${out_ext}"
     echo "[INFO] Transcode-only conversion (no burn-in) to: $out_passthrough"
     debug_log "Running transcode-only encode with args: ${codec_args[*]}"
+    log_stage_marker "encode"
     "$ffmpeg_bin" -y -i "$in" \
       "${codec_args[@]}" \
       "$out_passthrough"
     exit_status=$?
     manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
     passthrough_output="$out_passthrough"
-    write_versions_file "$versions_file"
-    write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
-    if [[ "$manifest_status" == "success" ]]; then
-      emit_debug_snapshots "$timeline_debug" "$cmdfile"
-    fi
+    finish_run "$exit_status" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
     return $exit_status
   fi
 
@@ -1098,8 +1137,7 @@ process_file() {
   if ! font="$(find_font)"; then
     echo "[ERROR] Unable to locate a usable font. Provide --fontfile, set DVMETABURN_FONTFILE, or place a supported font in Resources/fonts/." >&2
     manifest_status="error"
-    write_versions_file "$versions_file"
-    write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+    finish_run 1 "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
     return 1
   fi
 
@@ -1109,14 +1147,13 @@ process_file() {
     subtitle_font_name="UAV OSD Mono"
   fi
   subtitle_font_name="${subtitle_font_name//,/ }"
-  
+
   # Subtitle track mode: generate ASS from timeline and mux into container
   if [[ "$burn_mode" == "subtitleTrack" ]]; then
     if [[ "$out_ext" != "mkv" ]]; then
       echo "[ERROR] Subtitle track muxing is only supported for MKV output (got '$out_ext')." >&2
       manifest_status="error"
-      write_versions_file "$versions_file"
-      write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+      finish_run 1 "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
       return 1
     fi
 
@@ -1134,41 +1171,38 @@ process_file() {
         skip_burnin_convert)
           echo "[WARN] Missing timestamp metadata for $in; converting without subtitle track." >&2
           local out_passthrough="${base}_conv.${out_ext}"
+          log_stage_marker "encode"
           "$ffmpeg_bin" -y -i "$in" \
             "${codec_args[@]}" \
             "$out_passthrough"
           exit_status=$?
           manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
           passthrough_output="$out_passthrough"
-          write_versions_file "$versions_file"
-          write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" \
+          finish_run "$exit_status" "$manifest_status" "$in" "$artifact_dir" \
             "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" \
-            "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
-          if [[ "$manifest_status" == "success" ]]; then
-            emit_debug_snapshots "$timeline_debug" "$cmdfile"
-          fi
+            "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
           return $exit_status
           ;;
         skip_file)
           echo "[WARN] Missing timestamp metadata for $in; skipping file." >&2
           manifest_status="skipped"
-          write_versions_file "$versions_file"
-          write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" \
+          finish_run 0 "$manifest_status" "$in" "$artifact_dir" \
             "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" \
-            "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+            "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
           return 0
           ;;
         error|*)
           echo "[ERROR] Missing timestamp metadata and --missing-meta=error; aborting subtitle mode." >&2
           manifest_status="error"
-          write_versions_file "$versions_file"
-          write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" \
+          finish_run 1 "$manifest_status" "$in" "$artifact_dir" \
             "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" \
-            "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+            "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
           return 1
           ;;
       esac
     fi
+
+    log_stage_marker "encode"
 
     # We have a valid ASS file – mux it as MKV with true ASS subtitles
     local out_subbed="${base}_dvsub.mkv"
@@ -1178,38 +1212,22 @@ process_file() {
     )
     local subtitle_codec="ass"
 
-    echo "[INFO] Adding DV metadata ASS subtitle track to MKV: $out_subbed"
-    debug_log "Merging subtitle track with codec: $subtitle_codec (video args: ${sub_video_args[*]})"
-
-    set -x
-    "$ffmpeg_bin" -y \
-      -i "$in" \
-      -f ass -i "$ass_artifact" \
+    echo "[INFO] Muxing subtitle track into: $out_subbed" >&2
+    "$ffmpeg_bin" -y -i "$in" -i "$ass_artifact" \
+      -map 0:v:0 -map 0:a? -map 1:s:0 \
       "${sub_video_args[@]}" \
       -c:s "$subtitle_codec" \
-      -map 0:v -map 0:a\? -map 1:0 \
-      -metadata:s:s:0 language=eng \
       "$out_subbed"
-    set +x
 
     exit_status=$?
     manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
     subtitle_output="$out_subbed"
-    write_versions_file "$versions_file"
-    write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" \
+    finish_run "$exit_status" "$manifest_status" "$in" "$artifact_dir" \
       "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" \
-      "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
-
-    if [[ "$manifest_status" == "success" ]]; then
-      emit_debug_snapshots "$timeline_debug" "$cmdfile"
-    fi
-
+      "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
     return $exit_status
   fi
 
-
-
-  # Burn-in mode
   local timeline_fail=0
   if ! make_timestamp_cmd "$in" "$cmdfile" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$fps"; then
     timeline_fail=1
@@ -1219,55 +1237,51 @@ process_file() {
     echo "[WARN] Failed to build timestamp timeline from log; honoring --missing-meta=$missing_meta" >&2
     case "$missing_meta" in
       error)
-        write_versions_file "$versions_file"
-        write_run_manifest "$run_manifest" "error" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+        finish_run 1 "error" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
         return 1
         ;;
       skip_burnin_convert)
         echo "[WARN] Converting without burn-in due to missing timestamp metadata." >&2
         local out_passthrough="${base}_conv.${out_ext}"
+        log_stage_marker "encode"
         "$ffmpeg_bin" -y -i "$in" \
           "${codec_args[@]}" \
           "$out_passthrough"
         exit_status=$?
         manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
         passthrough_output="$out_passthrough"
-        write_versions_file "$versions_file"
-        write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+        finish_run "$exit_status" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
         return $exit_status
         ;;
       skip_file)
         echo "[WARN] Skipping $in due to missing timestamp metadata." >&2
         manifest_status="skipped"
-        write_versions_file "$versions_file"
-        write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+        finish_run 0 "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
         return 0
         ;;
     esac
   fi
 
-    local vf
+  log_stage_marker "encode"
+
+  local vf
   case "$layout" in
     stacked)
-      # DV-style: bottom-right, date over time, no background
-      vf="sendcmd=f='${cmdfile}',\
-drawtext@dvdate=fontfile='${font}':text='':fontcolor=white:fontsize=24:box=0:x=w-tw-20:y=h-60,\
+      vf="sendcmd=f='${cmdfile}',\\
+drawtext@dvdate=fontfile='${font}':text='':fontcolor=white:fontsize=24:box=0:x=w-tw-20:y=h-60,\\
 drawtext@dvtime=fontfile='${font}':text='':fontcolor=white:fontsize=24:box=0:x=w-tw-20:y=h-30"
       ;;
     single)
-      # Bar: date left, time right, same baseline, no background
-      vf="sendcmd=f='${cmdfile}',\
-drawtext@dvdate=fontfile='${font}':text='':fontcolor=white:fontsize=24:box=0:x=20:y=h-40,\
+      vf="sendcmd=f='${cmdfile}',\\
+drawtext@dvdate=fontfile='${font}':text='':fontcolor=white:fontsize=24:box=0:x=20:y=h-40,\\
 drawtext@dvtime=fontfile='${font}':text='':fontcolor=white:fontsize=24:box=0:x=w-tw-20:y=h-40"
       ;;
     *)
       echo "Unknown layout: $layout" >&2
-      write_versions_file "$versions_file"
-      write_run_manifest "$run_manifest" "error" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
+      finish_run 1 "error" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
       return 1
       ;;
   esac
-
 
   local out="${base}_dateburn.${out_ext}"
 
@@ -1282,12 +1296,28 @@ drawtext@dvtime=fontfile='${font}':text='':fontcolor=white:fontsize=24:box=0:x=w
   manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
   burn_output="$out"
   echo "ffmpeg exit code: $exit_status"
-  write_versions_file "$versions_file"
-  write_run_manifest "$run_manifest" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
-  if [[ "$manifest_status" == "success" ]]; then
-    emit_debug_snapshots "$timeline_debug" "$cmdfile"
-  fi
+  finish_run "$exit_status" "$manifest_status" "$in" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_artifact" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
   return $exit_status
+}
+
+process_file_controller() {
+  local in="$1"
+  debug_log "process_file_controller() received: '$in'"
+
+  log_stage_marker "validation"
+  local output_dir base base_name out_ext
+  if ! validate_and_plan_file "$in" output_dir base base_name out_ext; then
+    return 1
+  fi
+
+  log_stage_marker "artifact_stubs"
+  local artifact_dir dvrescue_xml dvrescue_log cmdfile timeline_debug ass_artifact run_manifest versions_file
+  if ! create_artifact_scaffold "$in" "$output_dir" "$base_name" "$out_ext" artifact_dir dvrescue_xml dvrescue_log cmdfile timeline_debug ass_artifact run_manifest versions_file; then
+    return 1
+  fi
+
+  log_stage_marker "dvrescue"
+  process_file_core "$in" "$base" "$out_ext" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$cmdfile" "$timeline_debug" "$ass_artifact" "$run_manifest" "$versions_file"
 }
 
 ########################################################
@@ -1305,7 +1335,7 @@ if [[ "$mode" == "single" ]]; then
     exit 1
   fi
   debug_log "Running in single-file mode with target: $1"
-  process_file "$1"
+  process_file_controller "$1"
   exit $?
 fi
 
@@ -1347,7 +1377,7 @@ if [[ "$mode" == "batch" ]]; then
     debug_log "Batch candidate path: '$abs'"
     echo "Processing $abs"
 
-    if ! process_file "$abs"; then
+    if ! process_file_controller "$abs"; then
       echo "[ERROR] Failed while processing: $abs" >&2
       # continue to next file instead of bailing
       continue
