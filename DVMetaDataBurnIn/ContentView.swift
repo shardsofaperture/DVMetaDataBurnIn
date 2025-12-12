@@ -214,6 +214,8 @@ struct ContentView: View {
                 .onChange(of: format) { newValue in
                     if newValue == "mp4" && mp4Preset.isEmpty {
                         mp4Preset = "default"
+                    } else if newValue != "mp4" {
+                        mp4Preset = ""
                     }
                 }
             }
@@ -853,6 +855,13 @@ struct ContentView: View {
         if format == "mp4" {
             let resolvedPreset = mp4Preset.isEmpty ? "default" : mp4Preset
             args.append("--preset=\(resolvedPreset)")
+        } else if !mp4Preset.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            throw NSError(
+                domain: "DVMeta",
+                code: 7,
+                userInfo: [NSLocalizedDescriptionKey:
+                           "ERROR: MP4 presets can only be used when the output format is set to MP4."]
+            )
         }
 
         if debugMode {
@@ -1054,6 +1063,8 @@ struct ContentView: View {
         if format == "mp4" {
             let preset = mp4Preset.isEmpty ? "default" : mp4Preset
             lines.append("[DEBUG] MP4 preset: \(preset)")
+        } else if !mp4Preset.isEmpty {
+            lines.append("[DEBUG] MP4 preset ignored for format: \(format)")
         }
         lines.append("[DEBUG] Burn mode: \(burnMode.rawValue) | Missing metadata handling: \(missingMetaMode.rawValue)")
         lines.append("[DEBUG] Subtitle timing mode: \(subtitleModeValue)")
