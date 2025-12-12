@@ -35,7 +35,8 @@ struct ContentView: View {
     @State private var inputPath: String = ""
     @State private var mode: String = "single"      // "single" or "batch"
     @State private var layout: String = "stacked"   // "stacked" or "single"
-    @State private var format: String = "mov"       // "mov" or "mp4"
+    @State private var format: String = "mov"       // "mov", "mp4", or "mkv"
+    @State private var mp4Preset: String = ""
     @State private var logText: String = ""
     @State private var isRunning: Bool = false
     @State private var showingAbout: Bool = false
@@ -199,16 +200,41 @@ struct ContentView: View {
                 }
             }
 
-            // Format: mov vs mp4
+            // Format: mov vs mp4 vs mkv
             HStack {
                 Text("Format:")
                 Picker("", selection: $format) {
                     Text("MOV (DV, Passthough)").tag("mov")
                     Text("MP4 (MPEG-4, Transcode)").tag("mp4")
+                    Text("MKV (Matroska)").tag("mkv")
                 }
                 .pickerStyle(SegmentedPickerStyle())
                 .frame(width: 320)
                 .help("Pick the container format for the output file.")
+                .onChange(of: format) { newValue in
+                    if newValue == "mp4" && mp4Preset.isEmpty {
+                        mp4Preset = "default"
+                    }
+                }
+            }
+
+            if format == "mp4" {
+                HStack {
+                    Text("MP4 preset:")
+                    Picker("", selection: $mp4Preset) {
+                        Text("Best quality").tag("best-quality")
+                        Text("Default").tag("default")
+                        Text("Audio only").tag("audio-only")
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                    .frame(width: 320)
+                    .help("Choose an encoding preset for MP4 outputs.")
+                }
+                .onAppear {
+                    if mp4Preset.isEmpty {
+                        mp4Preset = "default"
+                    }
+                }
             }
 
             // Output location toggle (stays up here)
@@ -813,6 +839,11 @@ struct ContentView: View {
             "--dvrescue=\(dvrescueURL.path)"
         ]
 
+        if format == "mp4" {
+            let resolvedPreset = mp4Preset.isEmpty ? "default" : mp4Preset
+            args.append("--mp4-preset=\(resolvedPreset)")
+        }
+
         if debugMode {
             args.append("--debug")
         }
@@ -1009,6 +1040,10 @@ struct ContentView: View {
         lines.append("[DEBUG] Input path: \(inputPath)")
         lines.append("[DEBUG] Input exists: \(inputExists)")
         lines.append("[DEBUG] Mode: \(mode) | Layout: \(layout) | Format: \(format)")
+        if format == "mp4" {
+            let preset = mp4Preset.isEmpty ? "default" : mp4Preset
+            lines.append("[DEBUG] MP4 preset: \(preset)")
+        }
         lines.append("[DEBUG] Burn mode: \(burnMode.rawValue) | Missing metadata handling: \(missingMetaMode.rawValue)")
         lines.append("[DEBUG] Subtitle timing mode: \(subtitleModeValue)")
         lines.append("[DEBUG] Font path: \(resolvedFontPath()) | Font name: \(resolvedFontName())")
