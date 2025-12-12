@@ -39,7 +39,8 @@ debug() {
 
 mode="single"        # "single" or "batch"
 layout="stacked"     # "stacked" or "single"
-format="mov"         # "mov" or "mp4"
+format="mov"         # "mov", "mp4", or "mkv"
+mp4_preset="default" # "default", "best-quality", or "audio-only"
 burn_mode="burnin"   # "burnin" or "passthrough" or "subtitleTrack"
 missing_meta="skip_burnin_convert"  # behavior when metadata is missing
 fontfile=""
@@ -65,6 +66,7 @@ while [[ $# -gt 0 ]]; do
     --mode=*) mode="${1#*=}"; shift ;;
     --layout=*) layout="${1#*=}"; shift ;;
     --format=*) format="${1#*=}"; shift ;;
+    --mp4-preset=*) mp4_preset="${1#*=}"; shift ;;
     --burn-mode=*) burn_mode="${1#*=}"; shift ;;
     --missing-meta=*) missing_meta="${1#*=}"; shift ;;
     --fontfile=*) fontfile="${1#*=}"; shift ;;
@@ -84,6 +86,13 @@ missing_meta="${missing_meta//[[:space:]]/}"
 missing_meta="${missing_meta//-/_}"
 missing_meta="${missing_meta:l}"
 
+format="${format//[[:space:]]/}"
+format="${format:l}"
+
+mp4_preset="${mp4_preset//[[:space:]]/}"
+mp4_preset="${mp4_preset//_/-}"
+mp4_preset="${mp4_preset:l}"
+
 case "$missing_meta" in
   skipburninconvert)
     missing_meta="skip_burnin_convert"
@@ -101,6 +110,40 @@ case "$missing_meta" in
     missing_meta="error"
     ;;
 esac
+
+case "$format" in
+  mov|mp4|mkv)
+    ;;
+  *)
+    warn "Unknown format '$format'; defaulting to mov"
+    format="mov"
+    ;;
+esac
+
+case "$mp4_preset" in
+  best-quality)
+    ;;
+  bestquality)
+    mp4_preset="best-quality"
+    ;;
+  audio-only)
+    ;;
+  audioonly)
+    mp4_preset="audio-only"
+    ;;
+  default|"")
+    mp4_preset="default"
+    ;;
+  *)
+    warn "Unknown mp4 preset '$mp4_preset'; defaulting to 'default'"
+    mp4_preset="default"
+    ;;
+esac
+
+if [[ "$format" == "mp4" && "$mp4_preset" == "audio-only" && "$burn_mode" == "burnin" ]]; then
+  warn "MP4 audio-only preset is not compatible with burn-in; falling back to default video encode"
+  mp4_preset="default"
+fi
 
 # Track parse stats for manifest writing
 typeset -g last_parse_raw_rows=0
@@ -454,6 +497,7 @@ write_run_manifest() {
   "burn_mode": "$burn_mode",
   "layout": "$layout",
   "format": "$format",
+  "mp4_preset": "$mp4_preset",
   "artifacts": {
     "dvrescue_xml": "$xml_path",
     "dvrescue_log": "$log_path",
@@ -579,6 +623,9 @@ subtitle_font_name="$fontname"
 debug_log "Mode: $mode"
 debug_log "Layout: $layout"
 debug_log "Format: $format"
+if [[ "$format" == "mp4" ]]; then
+  debug_log "MP4 preset: $mp4_preset"
+fi
 debug_log "Burn mode: $burn_mode"
 debug_log "Missing meta handling: $missing_meta"
 debug_log "Requested font name: ${subtitle_font_name:-<auto>}"
@@ -927,6 +974,19 @@ process_file() {
       codec_args=(-c:v dvvideo -c:a copy)
       ;;
     mp4)
+      case "$mp4_preset" in
+        best-quality)
+          codec_args=(-c:v mpeg4 -qscale:v 1 -c:a aac -b:a 256k)
+          ;;
+        audio-only)
+          codec_args=(-vn -c:a aac -b:a 192k)
+          ;;
+        *)
+          codec_args=(-c:v mpeg4 -qscale:v 2 -c:a aac -b:a 192k)
+          ;;
+      esac
+      ;;
+    mkv)
       codec_args=(-c:v mpeg4 -qscale:v 2 -c:a aac -b:a 192k)
       ;;
     *)
@@ -1171,7 +1231,7 @@ fi
 
 if [[ "$mode" == "single" ]]; then
   if [[ $# -ne 1 ]]; then
-    echo "Usage: $0 [--mode=single] [--layout=stacked|single] [--format=mov|mp4] [--burn-mode=burnin|passthrough|subtitleTrack] /path/to/clip.avi" >&2
+    echo "Usage: $0 [--mode=single] [--layout=stacked|single] [--format=mov|mp4|mkv] [--mp4-preset=default|best-quality|audio-only] [--burn-mode=burnin|passthrough|subtitleTrack] /path/to/clip.avi" >&2
     exit 1
   fi
   debug_log "Running in single-file mode with target: $1"
@@ -1181,7 +1241,7 @@ fi
 
 if [[ "$mode" == "batch" ]]; then
   if [[ $# -ne 1 ]]; then
-    echo "Usage: $0 --mode=batch [--layout=stacked|single] [--format=mov|mp4] [--burn-mode=burnin|passthrough|subtitleTrack] /path/to/folder" >&2
+    echo "Usage: $0 --mode=batch [--layout=stacked|single] [--format=mov|mp4|mkv] [--mp4-preset=default|best-quality|audio-only] [--burn-mode=burnin|passthrough|subtitleTrack] /path/to/folder" >&2
     exit 1
   fi
 
