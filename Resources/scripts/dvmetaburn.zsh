@@ -41,7 +41,7 @@ mode="single"        # "single" or "batch"
 layout="stacked"     # "stacked" or "single"
 format="mov"         # "mov", "mp4", or "mkv"
 mp4_preset="default" # "default", "best-quality", or "audio-only"
-burn_mode="burnin"   # "burnin" or "passthrough" or "subtitleTrack"
+burn_mode="burnin"   # "burnin" or "off" or "subtitleTrack"
 subtitle_mode="per-clip" # "per-clip" or "continuous"
 missing_meta="skip_burnin_convert"  # behavior when metadata is missing
 fontfile=""
@@ -62,15 +62,18 @@ debug_mode=0
 # CLI flag parsing
 ########################################################
 
+subtitle_mode_arg_set=0
+mp4_preset_arg_set=0
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --mode=*) mode="${1#*=}"; shift ;;
     --layout=*) layout="${1#*=}"; shift ;;
     --format=*) format="${1#*=}"; shift ;;
-    --mp4-preset=*) mp4_preset="${1#*=}"; shift ;;
-    --preset=*) mp4_preset="${1#*=}"; shift ;;
+    --mp4-preset=*) mp4_preset="${1#*=}"; mp4_preset_arg_set=1; shift ;;
+    --preset=*) mp4_preset="${1#*=}"; mp4_preset_arg_set=1; shift ;;
     --burn-mode=*) burn_mode="${1#*=}"; shift ;;
-    --subtitle-mode=*) subtitle_mode="${1#*=}"; shift ;;
+    --subtitle-mode=*) subtitle_mode="${1#*=}"; subtitle_mode_arg_set=1; shift ;;
     --missing-meta=*) missing_meta="${1#*=}"; shift ;;
     --fontfile=*) fontfile="${1#*=}"; shift ;;
     --fontname=*) fontname="${1#*=}"; shift ;;
@@ -104,15 +107,17 @@ case "$burn_mode" in
   burnin|on)
     burn_mode="burnin"
     ;;
-  passthrough|pass-through|off|none)
-    burn_mode="passthrough"
+  off|none)
+    burn_mode="off"
     ;;
   subtitletrack|subtitle-track|subtitle)
     burn_mode="subtitleTrack"
     ;;
   *)
-    warn "Unknown burn mode '$burn_mode'; defaulting to burnin"
-    burn_mode="burnin"
+    if [[ "$burn_mode" == "passthrough" || "$burn_mode" == "pass-through" ]]; then
+      fatal "Burn mode 'passthrough' is no longer supported; use burnin, off, or subtitleTrack."
+    fi
+    fatal "Invalid burn mode '$burn_mode'; expected burnin, off, or subtitleTrack."
     ;;
 esac
 
@@ -142,8 +147,7 @@ case "$format" in
   mov|mp4|mkv)
     ;;
   *)
-    warn "Unknown format '$format'; defaulting to mov"
-    format="mov"
+    fatal "Unsupported format '$format'; expected mov, mp4, or mkv."
     ;;
 esac
 
@@ -154,8 +158,7 @@ case "$subtitle_mode" in
   continuous)
     ;;
   *)
-    warn "Unknown subtitle mode '$subtitle_mode'; defaulting to per-clip"
-    subtitle_mode="per-clip"
+    fatal "Invalid subtitle mode '$subtitle_mode'; expected per-clip or continuous."
     ;;
 esac
 
@@ -174,10 +177,21 @@ case "$mp4_preset" in
     mp4_preset="default"
     ;;
   *)
-    warn "Unknown mp4 preset '$mp4_preset'; defaulting to 'default'"
-    mp4_preset="default"
+    fatal "Invalid preset '$mp4_preset'; expected best-quality, default, or audio-only."
     ;;
 esac
+
+if (( mp4_preset_arg_set == 1 )) && [[ "$format" != "mp4" ]]; then
+  fatal "--preset/--mp4-preset requires --format=mp4."
+fi
+
+if (( subtitle_mode_arg_set == 1 )) && [[ "$burn_mode" != "subtitleTrack" ]]; then
+  fatal "--subtitle-mode requires --burn-mode=subtitleTrack."
+fi
+
+if [[ "$burn_mode" == "subtitleTrack" ]] && [[ "$subtitle_mode" != "per-clip" && "$subtitle_mode" != "continuous" ]]; then
+  fatal "--burn-mode=subtitleTrack requires a valid --subtitle-mode (per-clip or continuous)."
+fi
 
 if [[ "$format" == "mp4" && "$mp4_preset" == "audio-only" && "$burn_mode" == "burnin" ]]; then
   warn "MP4 audio-only preset is not compatible with burn-in; falling back to default video encode"
@@ -1056,11 +1070,11 @@ process_file() {
   log_artifact_path_and_size "dvrescue XML" "$dvrescue_xml"
   log_artifact_path_and_size "dvrescue log" "$dvrescue_log"
 
-  # Passthrough mode: no metadata
-  if [[ "$burn_mode" == "passthrough" ]]; then
+  # Transcode-only mode: no metadata
+  if [[ "$burn_mode" == "off" ]]; then
     local out_passthrough="${base}_conv.${out_ext}"
-    echo "[INFO] Passthrough conversion (no burn-in) to: $out_passthrough"
-    debug_log "Running passthrough encode with args: ${codec_args[*]}"
+    echo "[INFO] Transcode-only conversion (no burn-in) to: $out_passthrough"
+    debug_log "Running transcode-only encode with args: ${codec_args[*]}"
     "$ffmpeg_bin" -y -i "$in" \
       "${codec_args[@]}" \
       "$out_passthrough"
@@ -1092,7 +1106,7 @@ process_file() {
   subtitle_font_name="${subtitle_font_name//,/ }"
   
   # Subtitle track mode: generate ASS from timeline and mux into container
-  if [[ "$burn_mode" == "subtitleTrack" || "$burn_mode" == "subtitle_track" || "$burn_mode" == "subtitle" ]]; then
+  if [[ "$burn_mode" == "subtitleTrack" ]]; then
     local sub_status=0
 
     # Build ASS subtitles from the dvrescue timeline
@@ -1274,7 +1288,7 @@ fi
 
 if [[ "$mode" == "single" ]]; then
   if [[ $# -ne 1 ]]; then
-    echo "Usage: $0 [--mode=single] [--layout=stacked|single] [--format=mov|mp4|mkv] [--preset=default|best-quality|audio-only] [--burn-mode=burnin|passthrough|off|subtitleTrack] [--subtitle-mode=per-clip|continuous] /path/to/clip.avi" >&2
+    echo "Usage: $0 [--mode=single] [--layout=stacked|single] [--format=mov|mp4|mkv] [--preset=default|best-quality|audio-only] [--burn-mode=burnin|off|subtitleTrack] [--subtitle-mode=per-clip|continuous] /path/to/clip.avi" >&2
     exit 1
   fi
   debug_log "Running in single-file mode with target: $1"
@@ -1284,7 +1298,7 @@ fi
 
 if [[ "$mode" == "batch" ]]; then
   if [[ $# -ne 1 ]]; then
-    echo "Usage: $0 --mode=batch [--layout=stacked|single] [--format=mov|mp4|mkv] [--preset=default|best-quality|audio-only] [--burn-mode=burnin|passthrough|off|subtitleTrack] [--subtitle-mode=per-clip|continuous] /path/to/folder" >&2
+    echo "Usage: $0 --mode=batch [--layout=stacked|single] [--format=mov|mp4|mkv] [--preset=default|best-quality|audio-only] [--burn-mode=burnin|off|subtitleTrack] [--subtitle-mode=per-clip|continuous] /path/to/folder" >&2
     exit 1
   fi
 
