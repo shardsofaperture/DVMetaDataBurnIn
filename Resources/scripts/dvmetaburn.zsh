@@ -259,8 +259,8 @@ typeset -g last_dvrescue_status=0
 typeset -g last_detected_fps=""
 typeset -g timestamps_normalized=0
 typeset -g primary_input_path=""
-typeset -g requested_format=""
-typeset -g requested_mp4_preset=""
+typeset -g requested_format
+typeset -g requested_mp4_preset
 typeset -g format_coerced=0
 typeset -g format_coercion_reason=""
 typeset -g preset_adjusted=0
