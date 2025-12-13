@@ -1020,6 +1020,11 @@ stitch_sources() {
   fi
   input_paths=("${reply[@]}")
 
+  if (( ${#input_paths[@]} <= 1 )); then
+    reply=("$primary" "")
+    return 0
+  fi
+
   typeset -a stitch_rows
   local clip tmp_log tmp_xml norm_log start_ts
 
@@ -1047,9 +1052,8 @@ stitch_sources() {
 
   if (( ${#stitch_rows[@]} <= 1 )); then
     info "[stitch] Not enough valid clips after normalization; skipping stitch."
-    _out_source="$primary"
-    _out_manifest=""
     append_run_note "Stitch step skipped: insufficient valid clips after normalization"
+    reply=("$primary" "")
     return 0
   fi
 
@@ -1070,9 +1074,8 @@ stitch_sources() {
 
   if (( ${#ordered_inputs[@]} <= 1 )); then
     info "[stitch] Not enough ordered clips to stitch; continuing with original."
-    _out_source="$primary"
-    _out_manifest=""
     append_run_note "Stitch step skipped: ordering produced a single clip"
+    reply=("$primary" "")
     return 0
   fi
 
@@ -1085,15 +1088,13 @@ stitch_sources() {
   info "[stitch] Concatenating ${#ordered_inputs[@]} clips into $stitched_path"
   if ! "$ffmpeg_bin" -y -f concat -safe 0 -i "$concat_manifest" -c copy "$stitched_path"; then
     warn "[stitch] ffmpeg concat failed; using primary source"
-    _out_source="$primary"
-    _out_manifest=""
     append_run_note "Stitch step failed during concat; reverted to primary source"
+    reply=("$primary" "")
     return 0
   fi
 
   stitched_source="$stitched_path"
-  _out_source="$stitched_path"
-  _out_manifest="$concat_manifest"
+  reply=("$stitched_path" "$concat_manifest")
   return 0
 }
 
@@ -1105,7 +1106,7 @@ validate_and_plan_file() {
     return 1
   fi
 
-  local out_ext base_name output_dir base
+  local output_dir base base_name out_ext
 
   out_ext="$format"
   base_name="${in:t:r}"
@@ -1118,7 +1119,6 @@ validate_and_plan_file() {
 
   base="${output_dir}/${base_name}"
 
-  # return values (1-based indexing in zsh arrays)
   reply=("$output_dir" "$base" "$base_name" "$out_ext")
   return 0
 }
@@ -1129,14 +1129,7 @@ create_artifact_scaffold() {
   local output_dir="$2"
   local base_name="$3"
   local out_ext="$4"
-  local -n _artifact_dir="$5"
-  local -n _dvrescue_xml="$6"
-  local -n _dvrescue_log="$7"
-  local -n _cmdfile="$8"
-  local -n _timeline_debug="$9"
-  local -n _ass_artifact="${10}"
-  local -n _run_manifest="${11}"
-  local -n _versions_file="${12}"
+  local artifact_dir dvrescue_xml dvrescue_log cmdfile timeline_debug ass_artifact run_manifest versions_file
 
   if [[ -n "$dest_dir" && ! -d "$output_dir" ]]; then
     if ! mkdir -p "$output_dir"; then
@@ -1145,32 +1138,34 @@ create_artifact_scaffold() {
     fi
   fi
 
-  if ! _artifact_dir="$(prepare_artifact_dir "$in")"; then
+  if ! artifact_dir="$(prepare_artifact_dir "$in")"; then
     return 1
   fi
 
-  _dvrescue_xml="${_artifact_dir}/dvrescue.xml"
-  _dvrescue_log="${_artifact_dir}/dvrescue.log"
-  _cmdfile="${_artifact_dir}/timestamp.cmd"
-  _timeline_debug="${_artifact_dir}/timeline.debug.tsv"
-  _ass_artifact="${_artifact_dir}/timestamps.ass"
-  _run_manifest="${_artifact_dir}/run_manifest.json"
-  _versions_file="${_artifact_dir}/versions.txt"
+  dvrescue_xml="${artifact_dir}/dvrescue.xml"
+  dvrescue_log="${artifact_dir}/dvrescue.log"
+  cmdfile="${artifact_dir}/timestamp.cmd"
+  timeline_debug="${artifact_dir}/timeline.debug.tsv"
+  ass_artifact="${artifact_dir}/timestamps.ass"
+  run_manifest="${artifact_dir}/run_manifest.json"
+  versions_file="${artifact_dir}/versions.txt"
 
-  rm -f "$_dvrescue_xml"
-  debug_log "Cleared prior dvrescue XML target: $_dvrescue_xml"
-  : > "$_dvrescue_log"
-  : > "$_cmdfile"
-  : > "$_timeline_debug"
-  : > "$_ass_artifact"
-  printf '{"status":"pending","input":"%s"}\n' "$in" > "$_run_manifest"
-  : > "$_versions_file"
+  rm -f "$dvrescue_xml"
+  debug_log "Cleared prior dvrescue XML target: $dvrescue_xml"
+  : > "$dvrescue_log"
+  : > "$cmdfile"
+  : > "$timeline_debug"
+  : > "$ass_artifact"
+  printf '{"status":"pending","input":"%s"}\n' "$in" > "$run_manifest"
+  : > "$versions_file"
 
-  log_artifact_path_and_size "dvrescue XML" "$_dvrescue_xml"
-  log_artifact_path_and_size "dvrescue log" "$_dvrescue_log"
-  echo "[INFO] sendcmd path: $_cmdfile" >&2
-  echo "[INFO] ASS output path: $_ass_artifact" >&2
-  echo "[INFO] timeline debug path: $_timeline_debug" >&2
+  log_artifact_path_and_size "dvrescue XML" "$dvrescue_xml"
+  log_artifact_path_and_size "dvrescue log" "$dvrescue_log"
+  echo "[INFO] sendcmd path: $cmdfile" >&2
+  echo "[INFO] ASS output path: $ass_artifact" >&2
+  echo "[INFO] timeline debug path: $timeline_debug" >&2
+
+  reply=("$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$cmdfile" "$timeline_debug" "$ass_artifact" "$run_manifest" "$versions_file")
 
   return 0
 }
@@ -1495,18 +1490,27 @@ process_file_core() {
 
   local fps
   if (( stitch_enabled == 1 )); then
-    if ! stitch_sources "$in" "$artifact_dir" source_video stitch_manifest; then
+    local stitch_status=0
+    if ! stitch_sources "$in" "$artifact_dir"; then
+      stitch_status=$?
       warn "[stitch] Stitching failed; continuing with original clip"
       source_video="$in"
       stitch_inputs_resolved=""
       stitched_source=""
-    elif [[ "$source_video" != "$in" ]]; then
-      info "[stitch] Using stitched source for downstream processing: $source_video"
     else
-      warn "[stitch] Stitch flag set but no stitched source produced; per-clip burn-in/subtitle path blocked"
-      manifest_status="error"
-      finish_run 1 "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
-      return 1
+      source_video="$reply[1]"
+      stitch_manifest="$reply[2]"
+    fi
+
+    if (( stitch_status == 0 )); then
+      if [[ "$source_video" != "$in" ]]; then
+        info "[stitch] Using stitched source for downstream processing: $source_video"
+      else
+        warn "[stitch] Stitch flag set but no stitched source produced; per-clip burn-in/subtitle path blocked"
+        manifest_status="error"
+        finish_run 1 "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
+        return 1
+      fi
     fi
   fi
 
@@ -1753,13 +1757,13 @@ process_file_controller() {
 
   log_stage_marker "validation"
   local output_dir base base_name out_ext
-if ! validate_and_plan_file "$in"; then
-  return 1
-fi
-output_dir="$reply[1]"
-base="$reply[2]"
-base_name="$reply[3]"
-out_ext="$reply[4]"
+  if ! validate_and_plan_file "$in"; then
+    return 1
+  fi
+  output_dir="$reply[1]"
+  base="$reply[2]"
+  base_name="$reply[3]"
+  out_ext="$reply[4]"
 
   if [[ "$base_name" != "$expected_base_name" ]]; then
     fatal "Base filename changed unexpectedly (expected '$expected_base_name', got '$base_name')"
@@ -1767,9 +1771,17 @@ out_ext="$reply[4]"
 
   log_stage_marker "artifact_stubs"
   local artifact_dir dvrescue_xml dvrescue_log cmdfile timeline_debug ass_artifact run_manifest versions_file
-  if ! create_artifact_scaffold "$in" "$output_dir" "$base_name" "$out_ext" artifact_dir dvrescue_xml dvrescue_log cmdfile timeline_debug ass_artifact run_manifest versions_file; then
+  if ! create_artifact_scaffold "$in" "$output_dir" "$base_name" "$out_ext"; then
     return 1
   fi
+  artifact_dir="$reply[1]"
+  dvrescue_xml="$reply[2]"
+  dvrescue_log="$reply[3]"
+  cmdfile="$reply[4]"
+  timeline_debug="$reply[5]"
+  ass_artifact="$reply[6]"
+  run_manifest="$reply[7]"
+  versions_file="$reply[8]"
 
   if [[ "${artifact_dir:t}" != ${expected_base_name}_* ]]; then
     fatal "Artifact directory base changed unexpectedly (expected prefix '${expected_base_name}_', got '${artifact_dir:t}')"
