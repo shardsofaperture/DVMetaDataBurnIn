@@ -82,6 +82,10 @@ stitch_enabled=0
 stitch_input_list=""
 stitched_source=""
 stitch_inputs_resolved=""
+suppress_finish_run=0
+last_burn_output_path=""
+last_subtitle_output_path=""
+last_passthrough_output_path=""
 
 # Optional environment overrides
 : "${DVMETABURN_FONTFILE:=}"   # override font path
@@ -729,6 +733,11 @@ finish_run() {
   local manifest_path="${14}"
 
   ensure_cleanup_stage
+
+  if (( suppress_finish_run == 1 )); then
+    debug_log "finish_run suppressed (exit=$exit_code, status=$status_label)"
+    return "$exit_code"
+  fi
 
   write_versions_file "$versions_file"
   write_run_manifest "$manifest_path" "$status_label" "$input_path" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_path" "$cmd_path" "$ass_path" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
@@ -1519,6 +1528,10 @@ process_file_core() {
   local burn_output="" subtitle_output="" passthrough_output=""
   local exit_status=0 manifest_status="pending"
 
+  last_burn_output_path=""
+  last_subtitle_output_path=""
+  last_passthrough_output_path=""
+
   local source_video="$in"
   local stitch_manifest=""
   local ass_target="$ass_artifact"
@@ -1556,7 +1569,7 @@ process_file_core() {
   esac
   
  # --- Stitching (optional) ---
-  if (( stitch_enabled == 1 )); then
+  if (( stitch_enabled == 1 )) && [[ "$mode" != "batch" ]]; then
     if ! stitch_sources "$in" "$artifact_dir"; then
       warn "[stitch] Stitching failed; continuing with original clip"
       source_video="$in"
@@ -1617,6 +1630,7 @@ process_file_core() {
     exit_status=$?
     manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
     passthrough_output="$out_passthrough"
+    last_passthrough_output_path="$passthrough_output"
     finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
     return $exit_status
   fi
@@ -1689,6 +1703,7 @@ process_file_core() {
           exit_status=$?
           manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
           passthrough_output="$out_passthrough"
+          last_passthrough_output_path="$passthrough_output"
           finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" \
             "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" \
             "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
@@ -1734,6 +1749,7 @@ process_file_core() {
     exit_status=$?
     manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
     subtitle_output="$out_subbed"
+    last_subtitle_output_path="$subtitle_output"
     finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" \
       "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" \
       "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
@@ -1763,6 +1779,7 @@ process_file_core() {
         exit_status=$?
         manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
         passthrough_output="$out_passthrough"
+        last_passthrough_output_path="$passthrough_output"
         finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
         return $exit_status
         ;;
@@ -1806,6 +1823,7 @@ esac
   exit_status=$?
   manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
   burn_output="$out"
+  last_burn_output_path="$burn_output"
   echo "ffmpeg exit code: $exit_status"
   finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
   return $exit_status
@@ -1914,7 +1932,8 @@ if [[ "$mode" == "batch" ]]; then
   fi
 
   if (( stitch_enabled == 1 )); then
-    local base_name output_dir_override ts artifact_dir_override stitched_path
+    primary_input_path="$folder_abs"
+    local base_name output_dir_override ts artifact_dir_override burned_parts_dir list_file stitched_output
     base_name="${folder_abs:t}_stitched"
 
     if [[ -n "$dest_dir" ]]; then
@@ -1925,29 +1944,100 @@ if [[ "$mode" == "batch" ]]; then
 
     ts="$(date '+%Y%m%d_%H%M%S')"
     artifact_dir_override="${artifact_root%/}/${base_name}_${ts}"
+    burned_parts_dir="${artifact_dir_override%/}/burned_parts"
 
-    if ! mkdir -p "$artifact_dir_override"; then
+    if ! mkdir -p "$burned_parts_dir"; then
       echo "[ERROR] Unable to create artifact directory for stitching: $artifact_dir_override" >&2
       exit 1
     fi
 
-    if ! stitch_batch_folder "$artifact_dir_override" "${batch_files[@]}"; then
-      echo "[ERROR] Stitching batch inputs failed; aborting" >&2
+    suppress_finish_run=1
+    typeset -a burned_files=()
+    local idx=1
+    local abs part_base part_artifact_dir
+
+    for abs in "${batch_files[@]}"; do
+      part_base=$(printf "%04d" "$idx")
+      part_artifact_dir="${burned_parts_dir%/}/${part_base}_artifacts"
+      debug_log "[stitch/batch] Burning part $part_base from $abs (artifacts -> $part_artifact_dir)"
+
+      if ! process_file_controller "$abs" "$part_base" "$burned_parts_dir" "$part_artifact_dir"; then
+        warn "[stitch/batch] Failed while processing part $part_base: $abs"
+        (( idx++ ))
+        continue
+      fi
+
+      if [[ -n "$last_burn_output_path" && -f "$last_burn_output_path" ]]; then
+        burned_files+=("$last_burn_output_path")
+      else
+        local expected_output
+        expected_output="${burned_parts_dir%/}/${part_base}_dateburn.${format}"
+        if [[ -f "$expected_output" ]]; then
+          burned_files+=("$expected_output")
+        else
+          warn "[stitch/batch] Burned output missing for part $part_base"
+        fi
+      fi
+
+      (( idx++ ))
+    done
+    suppress_finish_run=0
+
+    if (( ${#burned_files[@]} == 0 )); then
+      echo "[ERROR] No burned parts were produced; aborting stitch." >&2
       exit 1
     fi
 
-    stitched_path="$reply[1]"
+    list_file="${burned_parts_dir%/}/list.txt"
+    : > "$list_file"
+    local stitched_inputs=0
+    for abs in "${burned_files[@]}"; do
+      if [[ -f "$abs" ]]; then
+        printf "file '%s'\n" "$abs" >> "$list_file"
+        (( stitched_inputs++ ))
+      else
+        warn "[stitch/batch] Skipping missing burned part: $abs"
+      fi
+    done
 
-    if [[ -z "$stitched_path" || ! -f "$stitched_path" ]]; then
-      echo "[ERROR] Stitching did not produce an output; aborting" >&2
+    if (( stitched_inputs == 0 )); then
+      echo "[ERROR] All burned parts were missing; aborting stitch." >&2
       exit 1
     fi
 
-    if ! process_file_controller "$stitched_path" "$base_name" "$output_dir_override" "$artifact_dir_override"; then
-      echo "[ERROR] Failed while processing stitched batch at: $stitched_path" >&2
+    stitched_output="${output_dir_override%/}/${base_name}_dateburn.${format}"
+
+    info "[stitch/batch] Concatenating ${stitched_inputs} burned parts into $stitched_output (stream copy)"
+    if ! "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file" -c copy "$stitched_output"; then
+      warn "[stitch/batch] Stream copy concat failed; retrying with re-encode fallback"
+
+      case "$format" in
+        mov)
+          "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file" -c:v dvvideo -c:a pcm_s16le "$stitched_output" || true
+          ;;
+        mp4)
+          local -a mp4_args
+          mp4_args=($(mp4_codec_args_for_preset "$mp4_preset"))
+          "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file" "${mp4_args[@]}" "$stitched_output" || true
+          ;;
+        *)
+          "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file" -c:v mpeg4 -qscale:v 2 -c:a aac -b:a 192k "$stitched_output" || true
+          ;;
+      esac
+    fi
+
+    if [[ ! -f "$stitched_output" ]]; then
+      echo "[ERROR] Failed to produce stitched output." >&2
       exit 1
     fi
 
+    primary_input_path="$folder_abs"
+    cleanup_stage_done=1
+    run_notes=("${initial_run_notes[@]}")
+    write_versions_file "${artifact_dir_override%/}/versions.txt"
+    write_run_manifest "${artifact_dir_override%/}/run_manifest.json" "success" "$folder_abs" "$artifact_dir_override" "" "" "$list_file" "" "" "$stitched_output" "" "" "${artifact_dir_override%/}/versions.txt"
+
+    echo "[INFO] Final stitched output: $stitched_output"
     exit 0
   fi
 
