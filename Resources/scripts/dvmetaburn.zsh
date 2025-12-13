@@ -1512,26 +1512,8 @@ process_file_core() {
       info "[stitch] Using stitched source for downstream processing: $source_video"
     fi
   fi
-  local fps
-  if (( stitch_enabled == 1 )); then
-    local stitch_status=0
-    if ! stitch_sources "$in" "$artifact_dir"; then
-      stitch_status=$?
-      warn "[stitch] Stitching failed; continuing with original clip"
-      source_video="$in"
-      stitch_inputs_resolved=""
-      stitched_source=""
-    else
-      source_video="$reply[1]"
-      stitch_manifest="$reply[2]"
-    fi
 
-    if (( stitch_status == 0 )); then
-      if [[ "$source_video" != "$in" ]]; then
-        info "[stitch] Using stitched source for downstream processing: $source_video"
-      else
-    fi
-  fi
+  local fps
 
   if ! fps="$(detect_fps "$source_video")"; then
     finish_run 1 "error" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
