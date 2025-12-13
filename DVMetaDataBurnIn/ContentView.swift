@@ -42,6 +42,7 @@ struct ContentView: View {
     @State private var showingAbout: Bool = false
     @State private var currentProcess: Process?
     @State private var fullLogText: String = ""
+    @State private var stitchMode: String = "none"   // "none" or "stitch"
 
     // NEW OPTIONS
     @State private var burnMode: BurnMode = .burnin
@@ -145,6 +146,27 @@ struct ContentView: View {
                 .frame(width: 240)
                 .help("Choose whether to process one file or every DV file in a folder.")
             }
+            // Stitch / string clips together (only meaningful for batch + burnin/subtitleTrack)
+            if mode == "batch" && burnMode != .off {
+                HStack(spacing: 12) {
+                    Text("Stitch:")
+                        .frame(width: 110, alignment: .leading)
+
+                    Picker("", selection: $stitchMode) {
+                        Text("No").tag("none")
+                        Text("Yes (one output file)").tag("stitch")
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                    .frame(width: 320)
+                    .help("When enabled in batch mode, concatenates clips before burn-in/subtitle generation to produce one output file.")
+                }
+            } else {
+                // keep state sane if user flips modes
+                // (optional but prevents stale stitch selection)
+                EmptyView()
+                    .onAppear { stitchMode = "none" }
+            }
+
             
             // Layout: stacked vs single bar
             VStack(alignment: .leading, spacing: 6) {
@@ -189,6 +211,7 @@ struct ContentView: View {
             if burnMode == .subtitleTrack {
                 HStack(spacing: 12) {
                     Text("Subtitle timing:")
+                        .frame(width: 110, alignment: .leading)
 
                     Picker("", selection: $subtitleMode) {
                         Text("Per clip").tag(SubtitleMode.perClip as SubtitleMode?)
@@ -198,46 +221,60 @@ struct ContentView: View {
                     .frame(width: 320)
                     .help("Choose whether subtitle metadata restarts per clip or flows continuously across files.")
                 }
-            }
-
-            // Format: mov vs mp4 vs mkv
-            HStack {
-                Text("Format:")
-                Picker("", selection: $format) {
-                    Text("MOV (DV, Passthough)").tag("mov")
-                    Text("MP4 (MPEG-4, Transcode)").tag("mp4")
-                    Text("MKV (Matroska)").tag("mkv")
-                }
-                .pickerStyle(SegmentedPickerStyle())
-                .frame(width: 320)
-                .help("Pick the container format for the output file.")
-                .onChange(of: format) { newValue in
-                    if newValue == "mp4" && mp4Preset.isEmpty {
-                        mp4Preset = "default"
-                    } else if newValue != "mp4" {
-                        mp4Preset = ""
+                .padding(.top, 2)
+                .onChange(of: burnMode) { newMode in
+                    if newMode == .subtitleTrack {
+                        if subtitleMode == nil { subtitleMode = .perClip }
+                        // subtitleTrack forces mkv (optional UI-side convenience)
+                        if format != "mkv" { format = "mkv" }
+                    } else {
+                        subtitleMode = nil
                     }
                 }
             }
+             
 
-            if format == "mp4" {
-                HStack {
-                    Text("MP4 preset:")
-                    Picker("", selection: $mp4Preset) {
-                        Text("Best quality").tag("best-quality")
-                        Text("Default").tag("default")
-                        Text("Audio only").tag("audio-only")
+            // Format + preset area (kept together so it never overlaps subtitle timing)
+            VStack(alignment: .leading, spacing: 10) {
+
+                HStack(spacing: 12) {
+                    Text("Format:")
+                        .frame(width: 110, alignment: .leading)
+
+                    Picker("", selection: $format) {
+                        Text("MOV (DV, Passthrough)").tag("mov")
+                        Text("MP4 (MPEG-4, Transcode)").tag("mp4")
+                        Text("MKV (Matroska)").tag("mkv")
                     }
                     .pickerStyle(SegmentedPickerStyle())
-                    .frame(width: 320)
-                    .help("Choose an encoding preset for MP4 outputs.")
+                    .frame(width: 420)
+                    .help("Pick the container format for the output file.")
                 }
-                .onAppear {
-                    if mp4Preset.isEmpty {
-                        mp4Preset = "default"
+
+                if format == "mp4" {
+                    HStack(spacing: 12) {
+                        Text("MP4 preset:")
+                            .frame(width: 110, alignment: .leading)
+
+                        Picker("", selection: $mp4Preset) {
+                            Text("Best quality").tag("best-quality")
+                            Text("Default").tag("default")
+                            Text("Audio only").tag("audio-only")
+                        }
+                        .pickerStyle(SegmentedPickerStyle())
+                        .frame(width: 420)
+                        .help("Choose an encoding preset for MP4 outputs.")
                     }
                 }
             }
+            .onChange(of: format) { newValue in
+                if newValue == "mp4" {
+                    if mp4Preset.isEmpty { mp4Preset = "default" }
+                } else {
+                    mp4Preset = ""
+                }
+            }
+
 
             // Output location toggle (stays up here)
             VStack(alignment: .leading, spacing: 4) {
@@ -692,6 +729,7 @@ struct ContentView: View {
         if burnMode == .subtitleTrack && subtitleMode == nil {
             logText = "Please choose a subtitle timing mode before starting."
             return
+            
         }
 
         if outputToLocationFolder && (selectedOutputFolder?.isEmpty ?? true) {
@@ -839,6 +877,9 @@ struct ContentView: View {
             "--ffmpeg=\(ffmpegURL.path)",
             "--dvrescue=\(dvrescueURL.path)"
         ]
+        if mode == "batch" && stitchMode == "stitch" && burnMode != .off {
+            args.append("--stitch-mode=stitch")
+        }
 
         switch burnMode {
         case .burnin:

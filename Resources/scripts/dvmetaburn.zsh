@@ -35,11 +35,12 @@ debug() {
 
 json_escape() {
   local raw="$1"
-  # Escape backslashes first, then quotes
+  # Escape backslashes first, then double quotes
   raw="${raw//\\/\\\\}"
-  raw="${raw//"/\\\"}"
+  raw="${raw//\"/\\\"}"
   echo "$raw"
 }
+
 
 typeset -ga run_notes=()
 typeset -ga initial_run_notes=()
@@ -47,7 +48,7 @@ typeset -ga initial_run_notes=()
 append_run_note() {
   local msg="$*"
   run_notes+=("$msg")
-  debug_log "[note] $msg"
+  debug "[note] $msg"
 }
 
 log_stage_marker() {
@@ -108,6 +109,21 @@ while [[ $# -gt 0 ]]; do
     --dvrescue=*) dvrescue_bin="${1#*=}"; shift ;;
     --dest-dir=*) dest_dir="${1#*=}"; shift ;;
     --stitch) stitch_enabled=1; shift ;;
+        --stitch-mode=*)
+      case "${1#*=}" in
+        stitch|on|enable)
+          stitch_enabled=1
+          ;;
+        off|none|disable)
+          stitch_enabled=0
+          ;;
+        *)
+          fatal "Invalid --stitch-mode value: ${1#*=}"
+          ;;
+      esac
+      shift
+      ;;
+
     --stitch-inputs=*) stitch_input_list="${1#*=}"; shift ;;
     --debug) debug_mode=1; shift ;;
     --) shift; break ;;
@@ -956,7 +972,6 @@ seconds_to_ass_time() {
 
 build_stitch_input_list() {
   local primary="$1"
-  local -n _out_inputs="$2"
 
   typeset -a inputs
   inputs=("$primary")
@@ -990,25 +1005,20 @@ build_stitch_input_list() {
     fi
   done
 
-  _out_inputs=(${deduped[@]})
+  reply=("${deduped[@]}")
+  return 0
 }
 
 stitch_sources() {
   local primary="$1"
   local artifact_dir="$2"
-  local -n _out_source="$3"
-  local -n _out_manifest="$4"
 
   typeset -a input_paths
-  build_stitch_input_list "$primary" input_paths
-
-  if (( ${#input_paths[@]} <= 1 )); then
-    info "[stitch] Single clip only; skipping stitch step."
-    _out_source="$primary"
-    _out_manifest=""
-    append_run_note "Stitch step skipped: single clip input"
+  if ! build_stitch_input_list "$primary"; then
+    reply=("$primary" "")
     return 0
   fi
+  input_paths=("${reply[@]}")
 
   typeset -a stitch_rows
   local clip tmp_log tmp_xml norm_log start_ts
@@ -1089,27 +1099,30 @@ stitch_sources() {
 
 validate_and_plan_file() {
   local in="$1"
-  local -n _out_output_dir="$2"
-  local -n _out_base="$3"
-  local -n _out_base_name="$4"
-  local -n _out_ext="$5"
 
   if [[ ! -f "$in" ]]; then
     echo "[ERROR] Input file not found: $in" >&2
     return 1
   fi
 
-  _out_ext="$format"
-  _out_base_name="${in:t:r}"
+  local out_ext base_name output_dir base
+
+  out_ext="$format"
+  base_name="${in:t:r}"
+
   if [[ -n "$dest_dir" ]]; then
-    _out_output_dir="${dest_dir%/}"
+    output_dir="${dest_dir%/}"
   else
-    _out_output_dir="${in:h}"
+    output_dir="${in:h}"
   fi
 
-  _out_base="${_out_output_dir}/${_out_base_name}"
+  base="${output_dir}/${base_name}"
+
+  # return values (1-based indexing in zsh arrays)
+  reply=("$output_dir" "$base" "$base_name" "$out_ext")
   return 0
 }
+
 
 create_artifact_scaffold() {
   local in="$1"
@@ -1740,9 +1753,13 @@ process_file_controller() {
 
   log_stage_marker "validation"
   local output_dir base base_name out_ext
-  if ! validate_and_plan_file "$in" output_dir base base_name out_ext; then
-    return 1
-  fi
+if ! validate_and_plan_file "$in"; then
+  return 1
+fi
+output_dir="$reply[1]"
+base="$reply[2]"
+base_name="$reply[3]"
+out_ext="$reply[4]"
 
   if [[ "$base_name" != "$expected_base_name" ]]; then
     fatal "Base filename changed unexpectedly (expected '$expected_base_name', got '$base_name')"
