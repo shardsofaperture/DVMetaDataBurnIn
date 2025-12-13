@@ -1098,8 +1098,58 @@ stitch_sources() {
   return 0
 }
 
+stitch_batch_folder() {
+  local artifact_dir="$1"
+  shift
+
+  local -a inputs=("$@")
+
+  if (( ${#inputs[@]} == 0 )); then
+    warn "[stitch] No inputs provided for batch stitching"
+    reply=("")
+    return 1
+  fi
+
+  local list_file
+  list_file="${artifact_dir%/}/list.txt"
+
+  : > "$list_file"
+
+  local clip
+  for clip in "${inputs[@]}"; do
+    printf "file %q\n" "$clip" >>"$list_file"
+  done
+
+  log_stage_marker "stitch"
+
+  local stitched_path
+  stitched_path="${artifact_dir%/}/stitched.mov"
+
+  info "[stitch] Concatenating ${#inputs[@]} clips into $stitched_path (stream copy)"
+  if "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file" -map 0:v:0 -map 0:a? -c copy "$stitched_path"; then
+    stitched_source="$stitched_path"
+    stitch_inputs_resolved="$list_file"
+    reply=("$stitched_path")
+    return 0
+  fi
+
+  warn "[stitch] Stream copy concat failed; retrying with re-encode fallback"
+  if "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file" -c:v dvvideo -c:a pcm_s16le "$stitched_path"; then
+    stitched_source="$stitched_path"
+    stitch_inputs_resolved="$list_file"
+    reply=("$stitched_path")
+    return 0
+  fi
+
+  warn "[stitch] Failed to stitch batch inputs"
+  reply=("")
+  return 1
+}
+
 validate_and_plan_file() {
   local in="$1"
+  local base_override="${2:-}"
+  local output_dir_override="${3:-}"
 
   if [[ ! -f "$in" ]]; then
     echo "[ERROR] Input file not found: $in" >&2
@@ -1109,9 +1159,15 @@ validate_and_plan_file() {
   local output_dir base base_name out_ext
 
   out_ext="$format"
-  base_name="${in:t:r}"
+  if [[ -n "$base_override" ]]; then
+    base_name="$base_override"
+  else
+    base_name="${in:t:r}"
+  fi
 
-  if [[ -n "$dest_dir" ]]; then
+  if [[ -n "$output_dir_override" ]]; then
+    output_dir="${output_dir_override%/}"
+  elif [[ -n "$dest_dir" ]]; then
     output_dir="${dest_dir%/}"
   else
     output_dir="${in:h}"
@@ -1129,6 +1185,7 @@ create_artifact_scaffold() {
   local output_dir="$2"
   local base_name="$3"
   local out_ext="$4"
+  local artifact_dir_override="${5:-}"
   local artifact_dir dvrescue_xml dvrescue_log cmdfile timeline_debug ass_artifact run_manifest versions_file
 
   if [[ -n "$dest_dir" && ! -d "$output_dir" ]]; then
@@ -1138,8 +1195,18 @@ create_artifact_scaffold() {
     fi
   fi
 
-  if ! artifact_dir="$(prepare_artifact_dir "$in")"; then
-    return 1
+  if [[ -n "$artifact_dir_override" ]]; then
+    artifact_dir="$artifact_dir_override"
+    if [[ ! -d "$artifact_dir" ]] && ! mkdir -p "$artifact_dir"; then
+      echo "[ERROR] Unable to create artifact directory override: $artifact_dir" >&2
+      return 1
+    fi
+    echo "[INFO] Artifact directory (override): $artifact_dir" >&2
+    debug_log "Artifacts will be stored in override dir $artifact_dir"
+  else
+    if ! artifact_dir="$(prepare_artifact_dir "$in")"; then
+      return 1
+    fi
   fi
 
   dvrescue_xml="${artifact_dir}/dvrescue.xml"
@@ -1746,16 +1813,19 @@ esac
 
 process_file_controller() {
   local in="$1"
+  local base_override="${2:-}"
+  local output_dir_override="${3:-}"
+  local artifact_dir_override="${4:-}"
   debug_log "process_file_controller() received: '$in'"
 
   primary_input_path="$in"
 
   local expected_base_name
-  expected_base_name="${in:t:r}"
+  expected_base_name="${base_override:-${in:t:r}}"
 
   log_stage_marker "validation"
   local output_dir base base_name out_ext
-  if ! validate_and_plan_file "$in"; then
+  if ! validate_and_plan_file "$in" "$base_override" "$output_dir_override"; then
     return 1
   fi
   output_dir="$reply[1]"
@@ -1769,7 +1839,7 @@ process_file_controller() {
 
   log_stage_marker "artifact_stubs"
   local artifact_dir dvrescue_xml dvrescue_log cmdfile timeline_debug ass_artifact run_manifest versions_file
-  if ! create_artifact_scaffold "$in" "$output_dir" "$base_name" "$out_ext"; then
+  if ! create_artifact_scaffold "$in" "$output_dir" "$base_name" "$out_ext" "$artifact_dir_override"; then
     return 1
   fi
   artifact_dir="$reply[1]"
@@ -1834,15 +1904,54 @@ if [[ "$mode" == "batch" ]]; then
   # Use zsh’s recursive globbing; only existing regular files (.N)
   setopt localoptions null_glob extended_glob
 
-  typeset -a files
-  files=("$folder_abs"/**/*.(avi|AVI|dv|DV)(.N))
+  local -a batch_files
+  batch_files=("$folder_abs"/**/*.(avi|AVI|dv|DV)(N))
+  batch_files=( ${(on)batch_files} )
 
-  if (( ${#files[@]} == 0 )); then
+  if (( ${#batch_files[@]} == 0 )); then
     echo "[WARN] No DV files found in: $folder_abs"
     exit 0
   fi
 
-  for abs in "${files[@]}"; do
+  if (( stitch_enabled == 1 )); then
+    local base_name output_dir_override ts artifact_dir_override stitched_path
+    base_name="${folder_abs:t}_stitched"
+
+    if [[ -n "$dest_dir" ]]; then
+      output_dir_override="${dest_dir%/}"
+    else
+      output_dir_override="$folder_abs"
+    fi
+
+    ts="$(date '+%Y%m%d_%H%M%S')"
+    artifact_dir_override="${artifact_root%/}/${base_name}_${ts}"
+
+    if ! mkdir -p "$artifact_dir_override"; then
+      echo "[ERROR] Unable to create artifact directory for stitching: $artifact_dir_override" >&2
+      exit 1
+    fi
+
+    if ! stitch_batch_folder "$artifact_dir_override" "${batch_files[@]}"; then
+      echo "[ERROR] Stitching batch inputs failed; aborting" >&2
+      exit 1
+    fi
+
+    stitched_path="$reply[1]"
+
+    if [[ -z "$stitched_path" || ! -f "$stitched_path" ]]; then
+      echo "[ERROR] Stitching did not produce an output; aborting" >&2
+      exit 1
+    fi
+
+    if ! process_file_controller "$stitched_path" "$base_name" "$output_dir_override" "$artifact_dir_override"; then
+      echo "[ERROR] Failed while processing stitched batch at: $stitched_path" >&2
+      exit 1
+    fi
+
+    exit 0
+  fi
+
+  for abs in "${batch_files[@]}"; do
     debug_log "Batch candidate path: '$abs'"
     echo "Processing $abs"
 
