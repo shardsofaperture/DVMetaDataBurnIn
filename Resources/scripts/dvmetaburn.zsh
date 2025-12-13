@@ -1712,23 +1712,20 @@ process_file_core() {
   log_stage_marker "encode"
 
   local vf
-  case "$layout" in
-    stacked)
-      vf="sendcmd=f='${cmdfile}',\\
-drawtext@dvdate=fontfile='${font}':text='':fontcolor=white:fontsize=24:box=0:x=w-tw-20:y=h-60,\\
-drawtext@dvtime=fontfile='${font}':text='':fontcolor=white:fontsize=24:box=0:x=w-tw-20:y=h-30"
-      ;;
-    single)
-      vf="sendcmd=f='${cmdfile}',\\
-drawtext@dvdate=fontfile='${font}':text='':fontcolor=white:fontsize=24:box=0:x=20:y=h-40,\\
-drawtext@dvtime=fontfile='${font}':text='':fontcolor=white:fontsize=24:box=0:x=w-tw-20:y=h-40"
-      ;;
-    *)
-      echo "Unknown layout: $layout" >&2
-      finish_run 1 "error" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
-      return 1
-      ;;
-  esac
+case "$layout" in
+  stacked)
+    vf="sendcmd=f='${cmdfile}',drawtext@dvdate=fontfile='${font}':text='':fontcolor=white:fontsize=24:box=0:x=w-tw-20:y=h-60,drawtext@dvtime=fontfile='${font}':text='':fontcolor=white:fontsize=24:box=0:x=w-tw-20:y=h-30"
+    ;;
+  single)
+    vf="sendcmd=f='${cmdfile}',drawtext@dvdate=fontfile='${font}':text='':fontcolor=white:fontsize=24:box=0:x=20:y=h-40,drawtext@dvtime=fontfile='${font}':text='':fontcolor=white:fontsize=24:box=0:x=w-tw-20:y=h-40"
+    ;;
+  *)
+    echo "Unknown layout: $layout" >&2
+    finish_run 1 "error" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
+    return 1
+    ;;
+esac
+
 
   local out="${base}_dateburn.${out_ext}"
 
