@@ -1487,7 +1487,31 @@ process_file_core() {
       return 1
       ;;
   esac
+  
+ # --- Stitching (optional) ---
+  if (( stitch_enabled == 1 )); then
+    if ! stitch_sources "$in" "$artifact_dir"; then
+      warn "[stitch] Stitching failed; continuing with original clip"
+      source_video="$in"
+      stitch_inputs_resolved=""
+      stitched_source=""
+      stitch_manifest=""
+    else
+      source_video="$reply[1]"
+      stitch_manifest="$reply[2]"
+    fi
 
+    if [[ -z "$source_video" || "$source_video" == "$in" ]]; then
+      info "[stitch] No stitched output produced (single clip or no valid list); using primary source"
+      source_video="$in"
+      stitch_manifest=""
+      stitch_inputs_resolved=""
+      stitched_source=""
+      append_run_note "Stitch enabled but produced no stitched output; proceeded with primary source"
+    else
+      info "[stitch] Using stitched source for downstream processing: $source_video"
+    fi
+  fi
   local fps
   if (( stitch_enabled == 1 )); then
     local stitch_status=0
@@ -1506,11 +1530,6 @@ process_file_core() {
       if [[ "$source_video" != "$in" ]]; then
         info "[stitch] Using stitched source for downstream processing: $source_video"
       else
-        warn "[stitch] Stitch flag set but no stitched source produced; per-clip burn-in/subtitle path blocked"
-        manifest_status="error"
-        finish_run 1 "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
-        return 1
-      fi
     fi
   fi
 
