@@ -55,6 +55,8 @@ struct ContentView: View {
     @State private var hoveredFontPreviewName: String?
     @State private var hoveredLayoutPreviewName: String?
     @State private var outputToLocationFolder: Bool = false
+    @State private var scratchDirectory: String =
+        UserDefaults.standard.string(forKey: "DVMetaScratchDirectory") ?? ""
     @State private var debugMode: Bool = false
     @State private var selectedOutputFolder: String? =
         UserDefaults.standard.string(forKey: "DVMetaLastOutputFolder")
@@ -281,6 +283,20 @@ struct ContentView: View {
                 Toggle("Choose output folder before processing",
                        isOn: $outputToLocationFolder)
                     .help("When enabled, ask where to save all outputs instead of using the source folder.")
+
+                HStack(spacing: 12) {
+                    Text("Scratch Disk:")
+                        .frame(width: 150, alignment: .leading)
+
+                    TextField("Optional scratch directory", text: $scratchDirectory)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .help("Overrides temporary + artifact storage. Leave blank for default or set DVMETA_SCRATCH_DIR.")
+
+                    Button("Choose…") {
+                        chooseScratchDirectory()
+                    }
+                    .help("Pick a folder to use for scratch/temp files.")
+                }
             }
             .padding(.top, 4)
 
@@ -579,6 +595,24 @@ struct ContentView: View {
         }
 
         return false
+    }
+
+    private func chooseScratchDirectory() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = true
+        panel.prompt = "Choose"
+
+        if !scratchDirectory.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            panel.directoryURL = URL(fileURLWithPath: scratchDirectory, isDirectory: true)
+        }
+
+        if panel.runModal() == .OK, let url = panel.url {
+            scratchDirectory = url.path
+            UserDefaults.standard.set(url.path, forKey: "DVMetaScratchDirectory")
+        }
     }
 
     // MARK: - dvrescue debug only
@@ -911,6 +945,11 @@ struct ContentView: View {
 
         if outputToLocationFolder, let destination = selectedOutputFolder, !destination.isEmpty {
             args.append("--dest-dir=\(destination)")
+        }
+
+        let trimmedScratch = scratchDirectory.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedScratch.isEmpty {
+            args.append("--scratch-dir=\(trimmedScratch)")
         }
 
         args.append(contentsOf: ["--", inputPath])

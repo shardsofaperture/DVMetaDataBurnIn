@@ -41,6 +41,12 @@ json_escape() {
   echo "$raw"
 }
 
+escape_for_single_quotes() {
+  local raw="$1"
+  raw="${raw//\'/'"'"'\'}"
+  echo "$raw"
+}
+
 
 typeset -ga run_notes=()
 typeset -ga initial_run_notes=()
@@ -86,6 +92,8 @@ suppress_finish_run=0
 last_burn_output_path=""
 last_subtitle_output_path=""
 last_passthrough_output_path=""
+scratch_dir="${DVMETA_SCRATCH_DIR:-}"
+run_scratch_root=""
 
 # Optional environment overrides
 : "${DVMETABURN_FONTFILE:=}"   # override font path
@@ -112,6 +120,7 @@ while [[ $# -gt 0 ]]; do
     --ffmpeg=*) ffmpeg_bin="${1#*=}"; shift ;;
     --dvrescue=*) dvrescue_bin="${1#*=}"; shift ;;
     --dest-dir=*) dest_dir="${1#*=}"; shift ;;
+    --scratch-dir=*) scratch_dir="${1#*=}"; shift ;;
     --stitch) stitch_enabled=1; shift ;;
         --stitch-mode=*)
       case "${1#*=}" in
@@ -277,6 +286,42 @@ append_run_note "Effective burn mode: $burn_mode (subtitle mode: $subtitle_mode)
 info "[config] burn_mode=$burn_mode, subtitle_mode=$subtitle_mode, container=$effective_format (requested: $requested_format), preset=$effective_mp4_preset (requested: $requested_mp4_preset)"
 initial_run_notes=("${run_notes[@]}")
 
+# Scratch directory setup (optional)
+if [[ -z "$scratch_dir" && -n "${DVMETA_SCRATCH_DIR:-}" ]]; then
+  scratch_dir="$DVMETA_SCRATCH_DIR"
+fi
+
+if [[ -n "$scratch_dir" ]]; then
+  scratch_dir="${scratch_dir%/}"
+
+  if ! mkdir -p "$scratch_dir"; then
+    fatal "Unable to create scratch directory: $scratch_dir"
+  fi
+
+  if [[ ! -w "$scratch_dir" ]]; then
+    fatal "Scratch directory is not writable: $scratch_dir"
+  fi
+
+  run_scratch_root="${scratch_dir}/DVMetaDataBurnIn/$(date '+%Y%m%d_%H%M%S')_${RANDOM}${RANDOM}"
+  scratch_tmp="${run_scratch_root%/}/tmp"
+
+  if ! mkdir -p "$scratch_tmp"; then
+    fatal "Unable to create scratch temp directory: $scratch_tmp"
+  fi
+
+  artifact_root="${run_scratch_root%/}/artifacts"
+  if ! mkdir -p "$artifact_root"; then
+    fatal "Unable to create artifact root: $artifact_root"
+  fi
+
+  TMPDIR="$scratch_tmp"
+  TMPPREFIX="${TMPDIR}/zsh-"
+  export TMPDIR TMPPREFIX
+
+  info "[scratch] Using scratch root: $run_scratch_root"
+  append_run_note "Scratch root: $run_scratch_root"
+fi
+
 # Track parse stats for manifest writing
 typeset -g last_parse_raw_rows=0
 typeset -g last_parse_valid_rows=0
@@ -350,6 +395,7 @@ detect_fps() {
   last_detected_fps=""
 
   local probe_output
+  prepare_subprocess_env
   probe_output="$("$ffmpeg_bin" -hide_banner -i "$src" 2>&1)"
 
   fps="$(printf "%s\n" "$probe_output" | awk '/Video:/ && /fps/ { for (i=1;i<=NF;i++) if ($i ~ /fps/) {print $(i-1); exit}}')"
@@ -580,6 +626,11 @@ log_file_excerpt() {
   else
     debug_log "$label missing or empty (path: $path)"
   fi
+}
+
+prepare_subprocess_env() {
+  [[ -n "${TMPDIR:-}" ]] && mkdir -p "$TMPDIR" || true
+  export TMPDIR TMPPREFIX
 }
 
 ensure_cleanup_stage() {
@@ -1043,6 +1094,7 @@ stitch_sources() {
     tmp_log=$(make_temp_file dvmeta_stitch .log) || return 1
     tmp_xml=$(make_temp_file dvmeta_stitch .xml) || return 1
 
+    prepare_subprocess_env
     "$dvrescue_bin" "$clip" --xml-output "$tmp_xml" >"$tmp_log" 2>&1 || true
 
     norm_log=$(make_temp_file dvmeta_stitch_norm .log) || return 1
@@ -1078,7 +1130,7 @@ stitch_sources() {
   while IFS='|' read -r ts clip_path; do
     [[ -z "$clip_path" ]] && continue
     ordered_inputs+=("$clip_path")
-    printf "file '%s'\n" "$clip_path" >> "$concat_manifest"
+    printf "file '%s'\n" "$(escape_for_single_quotes "$clip_path")" >> "$concat_manifest"
   done <<<"$sorted"
 
   if (( ${#ordered_inputs[@]} <= 1 )); then
@@ -1095,6 +1147,7 @@ stitch_sources() {
   stitched_path="${artifact_dir%/}/stitched_source.mkv"
 
   info "[stitch] Concatenating ${#ordered_inputs[@]} clips into $stitched_path"
+  prepare_subprocess_env
   if ! "$ffmpeg_bin" -y -f concat -safe 0 -i "$concat_manifest" -c copy "$stitched_path"; then
     warn "[stitch] ffmpeg concat failed; using primary source"
     append_run_note "Stitch step failed during concat; reverted to primary source"
@@ -1126,7 +1179,7 @@ stitch_batch_folder() {
 
   local clip
   for clip in "${inputs[@]}"; do
-    printf "file %q\n" "$clip" >>"$list_file"
+    printf "file '%s'\n" "$(escape_for_single_quotes "$clip")" >>"$list_file"
   done
 
   log_stage_marker "stitch"
@@ -1135,6 +1188,7 @@ stitch_batch_folder() {
   stitched_path="${artifact_dir%/}/stitched.mov"
 
   info "[stitch] Concatenating ${#inputs[@]} clips into $stitched_path (stream copy)"
+  prepare_subprocess_env
   if "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file" -map 0:v:0 -map 0:a? -c copy "$stitched_path"; then
     stitched_source="$stitched_path"
     stitch_inputs_resolved="$list_file"
@@ -1143,6 +1197,7 @@ stitch_batch_folder() {
   fi
 
   warn "[stitch] Stream copy concat failed; retrying with re-encode fallback"
+  prepare_subprocess_env
   if "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file" -c:v dvvideo -c:a pcm_s16le "$stitched_path"; then
     stitched_source="$stitched_path"
     stitch_inputs_resolved="$list_file"
@@ -1242,6 +1297,30 @@ create_artifact_scaffold() {
   echo "[INFO] timeline debug path: $timeline_debug" >&2
 
   reply=("$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$cmdfile" "$timeline_debug" "$ass_artifact" "$run_manifest" "$versions_file")
+
+  return 0
+}
+
+build_burnin_filtergraph() {
+  local layout="$1"
+  local cmdfile="$2"
+  local font="$3"
+
+  local cmd_escaped font_escaped
+  cmd_escaped=$(escape_for_single_quotes "$cmdfile")
+  font_escaped=$(escape_for_single_quotes "$font")
+
+  case "$layout" in
+    stacked)
+      echo "sendcmd=f='${cmd_escaped}',drawtext@dvdate=fontfile='${font_escaped}':text='':fontcolor=white:fontsize=24:box=0:x=w-tw-20:y=h-60,drawtext@dvtime=fontfile='${font_escaped}':text='':fontcolor=white:fontsize=24:box=0:x=w-tw-20:y=h-30"
+      ;;
+    single)
+      echo "sendcmd=f='${cmd_escaped}',drawtext@dvdate=fontfile='${font_escaped}':text='':fontcolor=white:fontsize=24:box=0:x=20:y=h-40,drawtext@dvtime=fontfile='${font_escaped}':text='':fontcolor=white:fontsize=24:box=0:x=w-tw-20:y=h-40"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
 
   return 0
 }
@@ -1604,6 +1683,7 @@ process_file_core() {
 
   local dv_status=0
   debug_log "Extracting dvrescue XML -> $dvrescue_xml (log: $dvrescue_log)"
+  prepare_subprocess_env
   "$dvrescue_bin" "$source_video" --xml-output "$dvrescue_xml" >"$dvrescue_log" 2>&1
   dv_status=$?
   last_dvrescue_status=$dv_status
@@ -1624,6 +1704,7 @@ process_file_core() {
     debug_log "Running transcode-only encode with args: ${codec_args[*]}"
     ensure_cleanup_stage
     log_stage_marker "encode"
+    prepare_subprocess_env
     "$ffmpeg_bin" -y -i "$source_video" \
       "${codec_args[@]}" \
       "$out_passthrough"
@@ -1740,6 +1821,7 @@ process_file_core() {
     local subtitle_codec="ass"
 
     echo "[INFO] Muxing subtitle track into: $out_subbed" >&2
+    prepare_subprocess_env
     "$ffmpeg_bin" -y -i "$source_video" -i "$ass_target" \
       -map 0:v:0 -map 0:a? -map 1:s:0 \
       "${sub_video_args[@]}" \
@@ -1773,6 +1855,7 @@ process_file_core() {
         local out_passthrough="${base}_conv.${out_ext}"
         ensure_cleanup_stage
         log_stage_marker "encode"
+        prepare_subprocess_env
         "$ffmpeg_bin" -y -i "$source_video" \
           "${codec_args[@]}" \
           "$out_passthrough"
@@ -1796,25 +1879,19 @@ process_file_core() {
   log_stage_marker "encode"
 
   local vf
-case "$layout" in
-  stacked)
-    vf="sendcmd=f='${cmdfile}',drawtext@dvdate=fontfile='${font}':text='':fontcolor=white:fontsize=24:box=0:x=w-tw-20:y=h-60,drawtext@dvtime=fontfile='${font}':text='':fontcolor=white:fontsize=24:box=0:x=w-tw-20:y=h-30"
-    ;;
-  single)
-    vf="sendcmd=f='${cmdfile}',drawtext@dvdate=fontfile='${font}':text='':fontcolor=white:fontsize=24:box=0:x=20:y=h-40,drawtext@dvtime=fontfile='${font}':text='':fontcolor=white:fontsize=24:box=0:x=w-tw-20:y=h-40"
-    ;;
-  *)
+  if ! vf=$(build_burnin_filtergraph "$layout" "$cmdfile" "$font"); then
     echo "Unknown layout: $layout" >&2
     finish_run 1 "error" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
     return 1
-    ;;
-esac
+  fi
 
 
   local out="${base}_dateburn.${out_ext}"
 
   echo "[INFO] Burning DV metadata into: $out"
+  debug_log "ffmpeg burn-in filtergraph: $vf"
   debug_log "ffmpeg burn-in args: ${codec_args[*]}"
+  prepare_subprocess_env
   "$ffmpeg_bin" -y -i "$source_video" \
     -vf "$vf" \
     "${codec_args[@]}" \
@@ -1888,7 +1965,7 @@ fi
 
 if [[ "$mode" == "single" ]]; then
   if [[ $# -ne 1 ]]; then
-    echo "Usage: $0 [--mode=single] [--layout=stacked|single] [--format=mov|mp4|mkv] [--preset=default|best-quality|audio-only] [--burn-mode=burnin|off|subtitleTrack] [--subtitle-mode=per-clip|continuous] [--stitch [--stitch-inputs=/path/to/list.txt]] /path/to/clip.avi" >&2
+    echo "Usage: $0 [--mode=single] [--layout=stacked|single] [--format=mov|mp4|mkv] [--preset=default|best-quality|audio-only] [--burn-mode=burnin|off|subtitleTrack] [--subtitle-mode=per-clip|continuous] [--scratch-dir=/path (or DVMETA_SCRATCH_DIR)] [--stitch [--stitch-inputs=/path/to/list.txt]] /path/to/clip.avi" >&2
     exit 1
   fi
   debug_log "Running in single-file mode with target: $1"
@@ -1898,7 +1975,7 @@ fi
 
 if [[ "$mode" == "batch" ]]; then
   if [[ $# -ne 1 ]]; then
-    echo "Usage: $0 --mode=batch [--layout=stacked|single] [--format=mov|mp4|mkv] [--preset=default|best-quality|audio-only] [--burn-mode=burnin|off|subtitleTrack] [--subtitle-mode=per-clip|continuous] [--stitch [--stitch-inputs=/path/to/list.txt]] /path/to/folder" >&2
+    echo "Usage: $0 --mode=batch [--layout=stacked|single] [--format=mov|mp4|mkv] [--preset=default|best-quality|audio-only] [--burn-mode=burnin|off|subtitleTrack] [--subtitle-mode=per-clip|continuous] [--scratch-dir=/path (or DVMETA_SCRATCH_DIR)] [--stitch [--stitch-inputs=/path/to/list.txt]] /path/to/folder" >&2
     exit 1
   fi
 
@@ -1993,7 +2070,7 @@ if [[ "$mode" == "batch" ]]; then
     local stitched_inputs=0
     for abs in "${burned_files[@]}"; do
       if [[ -f "$abs" ]]; then
-        printf "file '%s'\n" "$abs" >> "$list_file"
+        printf "file '%s'\n" "$(escape_for_single_quotes "$abs")" >> "$list_file"
         (( stitched_inputs++ ))
       else
         warn "[stitch/batch] Skipping missing burned part: $abs"
@@ -2008,19 +2085,23 @@ if [[ "$mode" == "batch" ]]; then
     stitched_output="${output_dir_override%/}/${base_name}_dateburn.${format}"
 
     info "[stitch/batch] Concatenating ${stitched_inputs} burned parts into $stitched_output (stream copy)"
+    prepare_subprocess_env
     if ! "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file" -c copy "$stitched_output"; then
       warn "[stitch/batch] Stream copy concat failed; retrying with re-encode fallback"
 
       case "$format" in
         mov)
+          prepare_subprocess_env
           "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file" -c:v dvvideo -c:a pcm_s16le "$stitched_output" || true
           ;;
         mp4)
           local -a mp4_args
           mp4_args=($(mp4_codec_args_for_preset "$mp4_preset"))
+          prepare_subprocess_env
           "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file" "${mp4_args[@]}" "$stitched_output" || true
           ;;
         *)
+          prepare_subprocess_env
           "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file" -c:v mpeg4 -qscale:v 2 -c:a aac -b:a 192k "$stitched_output" || true
           ;;
       esac
