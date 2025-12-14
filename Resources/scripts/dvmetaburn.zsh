@@ -47,9 +47,58 @@ escape_for_single_quotes() {
   echo "$raw"
 }
 
+log_ffmpeg_command() {
+  local label="$1"
+  shift
+  local -a cmd=("$@")
+  echo "[ffmpeg/${label}] ${(q)cmd[@]}" >&2
+}
+
+sanitize_extra_ffmpeg_args() {
+  sanitized_extra_args=()
+  local -a raw=("$@")
+  local skip_next_input=0
+
+  local token ext
+  for token in "${raw[@]}"; do
+    if (( skip_next_input == 1 )); then
+      warn "[extra-args] Dropping input path following -i: $token"
+      skip_next_input=0
+      continue
+    fi
+
+    if [[ "$token" == "-i" ]]; then
+      warn "[extra-args] Ignoring '-i' to protect managed inputs."
+      skip_next_input=1
+      continue
+    fi
+
+    if [[ "$token" == */* || "$token" == *.* ]]; then
+      ext="${token##*.}"
+      ext="${ext:l}"
+      case "$ext" in
+        mov|mp4|mkv|avi|flv|wmv|mpg|mpeg|m4v|ts|webm|mxf|mp3|wav)
+          warn "[extra-args] Ignoring possible output override: $token"
+          continue
+          ;;
+      esac
+    fi
+
+    sanitized_extra_args+=("$token")
+  done
+
+  if (( ${#sanitized_extra_args[@]} > 0 )); then
+    echo "[extra-args] Sanitized args: ${(q)sanitized_extra_args[@]}" >&2
+  else
+    debug "[extra-args] No sanitized extra args present"
+  fi
+}
+
 
 typeset -ga run_notes=()
 typeset -ga initial_run_notes=()
+typeset -ga sanitized_extra_args=()
+extra_args_raw=""
 
 append_run_note() {
   local msg="$*"
@@ -139,6 +188,7 @@ while [[ $# -gt 0 ]]; do
 
     --stitch-inputs=*) stitch_input_list="${1#*=}"; shift ;;
     --debug) debug_mode=1; shift ;;
+    --extra-args=*) extra_args_raw="${1#*=}"; shift ;;
     --) shift; break ;;
     -*) fatal "Unknown option: $1" ;;
     *) break ;;
@@ -178,6 +228,16 @@ case "$burn_mode" in
     fatal "Invalid burn mode '$burn_mode'; expected burnin, off, or subtitleTrack."
     ;;
 esac
+
+if [[ -n "$extra_args_raw" ]]; then
+  IFS=$'\x1f'
+  typeset -a parsed_extra_args
+  parsed_extra_args=(${=extra_args_raw})
+  unset IFS
+  sanitize_extra_ffmpeg_args "${parsed_extra_args[@]}"
+else
+  sanitized_extra_args=()
+fi
 
 subtitle_mode="${subtitle_mode//[[:space:]]/}"
 subtitle_mode="${subtitle_mode//_/-}"
@@ -1732,10 +1792,15 @@ process_file_core() {
     debug_log "Running transcode-only encode with args: ${codec_args[*]}"
     ensure_cleanup_stage
     log_stage_marker "encode"
-    prepare_subprocess_env
-    "$ffmpeg_bin" -y -i "$source_video" \
-      "${codec_args[@]}" \
+    local -a transcode_cmd=(
+      "$ffmpeg_bin" -y -i "$source_video"
+      "${codec_args[@]}"
+      "${sanitized_extra_args[@]}"
       "$out_passthrough"
+    )
+    prepare_subprocess_env
+    log_ffmpeg_command "transcode-only" "${transcode_cmd[@]}"
+    "${transcode_cmd[@]}"
     exit_status=$?
     manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
     passthrough_output="$out_passthrough"
@@ -1806,9 +1871,14 @@ process_file_core() {
           local out_passthrough="${base}_conv.${out_ext}"
           ensure_cleanup_stage
           log_stage_marker "encode"
-          "$ffmpeg_bin" -y -i "$source_video" \
-            "${codec_args[@]}" \
+          local -a subtitle_fallback_cmd=(
+            "$ffmpeg_bin" -y -i "$source_video"
+            "${codec_args[@]}"
+            "${sanitized_extra_args[@]}"
             "$out_passthrough"
+          )
+          log_ffmpeg_command "subtitle-fallback" "${subtitle_fallback_cmd[@]}"
+          "${subtitle_fallback_cmd[@]}"
           exit_status=$?
           manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
           passthrough_output="$out_passthrough"
@@ -1849,12 +1919,17 @@ process_file_core() {
     local subtitle_codec="ass"
 
     echo "[INFO] Muxing subtitle track into: $out_subbed" >&2
-    prepare_subprocess_env
-    "$ffmpeg_bin" -y -i "$source_video" -i "$ass_target" \
-      -map 0:v:0 -map 0:a? -map 1:s:0 \
-      "${sub_video_args[@]}" \
-      -c:s "$subtitle_codec" \
+    local -a mux_cmd=(
+      "$ffmpeg_bin" -y -i "$source_video" -i "$ass_target"
+      -map 0:v:0 -map 0:a? -map 1:s:0
+      "${sub_video_args[@]}"
+      -c:s "$subtitle_codec"
+      "${sanitized_extra_args[@]}"
       "$out_subbed"
+    )
+    prepare_subprocess_env
+    log_ffmpeg_command "subtitle-mux" "${mux_cmd[@]}"
+    "${mux_cmd[@]}"
 
     exit_status=$?
     manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
@@ -1883,10 +1958,15 @@ process_file_core() {
         local out_passthrough="${base}_conv.${out_ext}"
         ensure_cleanup_stage
         log_stage_marker "encode"
-        prepare_subprocess_env
-        "$ffmpeg_bin" -y -i "$source_video" \
-          "${codec_args[@]}" \
+        local -a timeline_fallback_cmd=(
+          "$ffmpeg_bin" -y -i "$source_video"
+          "${codec_args[@]}"
+          "${sanitized_extra_args[@]}"
           "$out_passthrough"
+        )
+        prepare_subprocess_env
+        log_ffmpeg_command "timeline-fallback" "${timeline_fallback_cmd[@]}"
+        "${timeline_fallback_cmd[@]}"
         exit_status=$?
         manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
         passthrough_output="$out_passthrough"
@@ -1919,11 +1999,16 @@ process_file_core() {
   echo "[INFO] Burning DV metadata into: $out"
   debug_log "ffmpeg burn-in filtergraph: $vf"
   debug_log "ffmpeg burn-in args: ${codec_args[*]}"
-  prepare_subprocess_env
-  "$ffmpeg_bin" -y -i "$source_video" \
-    -vf "$vf" \
-    "${codec_args[@]}" \
+  local -a burn_cmd=(
+    "$ffmpeg_bin" -y -i "$source_video"
+    -vf "$vf"
+    "${codec_args[@]}"
+    "${sanitized_extra_args[@]}"
     "$out"
+  )
+  prepare_subprocess_env
+  log_ffmpeg_command "burn-in" "${burn_cmd[@]}"
+  "${burn_cmd[@]}"
 
   exit_status=$?
   manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
@@ -2114,7 +2199,13 @@ if [[ "$mode" == "batch" ]]; then
 
     info "[stitch/batch] Concatenating ${stitched_inputs} burned parts into $stitched_output (stream copy)"
     prepare_subprocess_env
-    if ! "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file" -c copy "$stitched_output"; then
+    local -a stitch_copy_cmd=(
+      "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file" -c copy
+      "${sanitized_extra_args[@]}"
+      "$stitched_output"
+    )
+    log_ffmpeg_command "stitch-copy" "${stitch_copy_cmd[@]}"
+    if ! "${stitch_copy_cmd[@]}"; then
       warn "[stitch/batch] Stream copy concat failed; retrying with re-encode fallback"
 
       case "$format" in
@@ -2123,11 +2214,25 @@ if [[ "$mode" == "batch" ]]; then
           build_codec_args "$format" "$effective_encode_quality"
           stitch_codec_args=("${reply[@]}")
           prepare_subprocess_env
-          "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file" "${stitch_codec_args[@]}" "$stitched_output" || true
+          local -a stitch_encode_cmd=(
+            "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file"
+            "${stitch_codec_args[@]}"
+            "${sanitized_extra_args[@]}"
+            "$stitched_output"
+          )
+          log_ffmpeg_command "stitch-encode" "${stitch_encode_cmd[@]}"
+          "${stitch_encode_cmd[@]}" || true
           ;;
         *)
           prepare_subprocess_env
-          "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file" -c:v mpeg4 -qscale:v 2 -c:a aac -b:a 192k "$stitched_output" || true
+          local -a stitch_default_cmd=(
+            "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file"
+            -c:v mpeg4 -qscale:v 2 -c:a aac -b:a 192k
+            "${sanitized_extra_args[@]}"
+            "$stitched_output"
+          )
+          log_ffmpeg_command "stitch-default" "${stitch_default_cmd[@]}"
+          "${stitch_default_cmd[@]}" || true
           ;;
       esac
     fi
