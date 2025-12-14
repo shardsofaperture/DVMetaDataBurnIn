@@ -54,6 +54,19 @@ log_ffmpeg_command() {
   echo "[ffmpeg/${label}] ${(q)cmd[@]}" >&2
 }
 
+probe_media_duration() {
+  local path="$1"
+  if [[ -z "$path" || ! -f "$path" ]]; then
+    return 1
+  fi
+
+  local duration_line
+  duration_line=$("$ffmpeg_bin" -hide_banner -i "$path" 2>&1 | awk -F',' '/Duration:/ {gsub(/Duration: /,"",$1); print $1; exit}')
+
+  [[ -n "$duration_line" ]] || return 1
+  echo "$duration_line"
+}
+
 sanitize_extra_ffmpeg_args() {
   sanitized_extra_args=()
   local -a raw=("$@")
@@ -174,6 +187,46 @@ slider_to_qscale() {
   echo "$rounded"
 }
 
+audio_extension_for_format() {
+  local fmt="${1:l}"
+  case "$fmt" in
+    mov|mp4)
+      echo "m4a"
+      ;;
+    mkv)
+      echo "mka"
+      ;;
+    *)
+      echo "m4a"
+      ;;
+  esac
+}
+
+resolve_audio_bitrate() {
+  local quality_kind="$1"
+
+  case "$quality_kind" in
+    low)
+      resolved_audio_bitrate=128
+      ;;
+    medium)
+      resolved_audio_bitrate=192
+      ;;
+    high)
+      resolved_audio_bitrate=256
+      ;;
+    veryhigh)
+      resolved_audio_bitrate=320
+      ;;
+    slider)
+      resolved_audio_bitrate=$(( 96 + (effective_slider_value * 16) ))
+      ;;
+    *)
+      resolved_audio_bitrate=192
+      ;;
+  esac
+}
+
 ########################################################
 # Defaults / configuration
 ########################################################
@@ -185,6 +238,7 @@ encode_quality="high" # passthrough, low, medium, high, veryhigh, custom, slider
 encode_quality_mode="preset"
 encode_quality_preset="high"
 encode_slider_value=5
+output_mode="video"   # "video" or "audio"
 burn_mode="burnin"   # "burnin" or "off" or "subtitleTrack"
 subtitle_mode="per-clip" # "per-clip" or "continuous"
 missing_meta="skip_burnin_convert"  # behavior when metadata is missing
@@ -227,6 +281,7 @@ while [[ $# -gt 0 ]]; do
     --format=*) format="${1#*=}"; shift ;;
     --encode-quality=*) encode_quality="${1#*=}"; encode_quality_arg_set=1; shift ;;
     --quality=*) encode_quality="${1#*=}"; encode_quality_arg_set=1; shift ;;
+    --output-mode=*) output_mode="${1#*=}"; shift ;;
     --burn-mode=*) burn_mode="${1#*=}"; shift ;;
     --subtitle-mode=*) subtitle_mode="${1#*=}"; subtitle_mode_arg_set=1; shift ;;
     --missing-meta=*) missing_meta="${1#*=}"; shift ;;
@@ -276,6 +331,20 @@ encode_quality_mode="preset"
 encode_quality_preset="high"
 encode_slider_value=$(sanitize_slider_value "$encode_slider_value")
 
+output_mode="${output_mode//[[:space:]]/}"
+output_mode="${output_mode:l}"
+case "$output_mode" in
+  audio|audioonly)
+    output_mode="audio"
+    ;;
+  video|"")
+    output_mode="video"
+    ;;
+  *)
+    fatal "Invalid output mode '$output_mode'; expected video or audio."
+    ;;
+esac
+
 burn_mode="${burn_mode//[[:space:]]/}"
 burn_mode="${burn_mode//_/-}"
 burn_mode="${burn_mode:l}"
@@ -297,6 +366,11 @@ case "$burn_mode" in
     fatal "Invalid burn mode '$burn_mode'; expected burnin, off, or subtitleTrack."
     ;;
 esac
+
+if [[ "$output_mode" == "audio" ]]; then
+  burn_mode="off"
+  subtitle_mode=""
+fi
 
 if [[ -n "$extra_args_raw" ]]; then
   IFS=$'\x1f'
@@ -439,8 +513,9 @@ if [[ "$effective_format" == "mkv" && "$burn_mode" == "burnin" && "$effective_qu
   burn_mode="off"
 fi
 
+append_run_note "Output mode: $output_mode"
 append_run_note "Effective burn mode: $burn_mode (subtitle mode: $subtitle_mode), container: $effective_format, quality: $effective_encode_quality"
-info "[config] burn_mode=$burn_mode, subtitle_mode=$subtitle_mode, container=$effective_format (requested: $requested_format), quality=$effective_encode_quality (requested: $requested_encode_quality)"
+info "[config] output_mode=$output_mode, burn_mode=$burn_mode, subtitle_mode=$subtitle_mode, container=$effective_format (requested: $requested_format), quality=$effective_encode_quality (requested: $requested_encode_quality)"
 initial_run_notes=("${run_notes[@]}")
 
 # Scratch directory setup (optional)
@@ -498,6 +573,7 @@ typeset -g effective_encode_quality
 typeset -g effective_quality_mode
 typeset -g effective_quality_kind
 typeset -g effective_slider_value
+typeset -g resolved_audio_bitrate
 typeset -g resolved_quality_mode
 typeset -g resolved_quality_kind
 typeset -g resolved_quality_label
@@ -876,6 +952,7 @@ write_run_manifest() {
   "input": "$input_path",
   "input_original": "$primary_input_path",
   "artifact_dir": "$artifact_dir",
+  "output_mode": "$output_mode",
   "burn_mode": "$burn_mode",
   "subtitle_mode": "$subtitle_mode",
   "layout": "$layout",
@@ -884,6 +961,7 @@ write_run_manifest() {
   "cleanup_stage_completed": $([[ $cleanup_stage_done -eq 1 ]] && echo true || echo false),
   "decisions": {
     "requested_format": "$requested_format",
+    "requested_output_mode": "$output_mode",
     "effective_format": "$effective_format",
     "format_coerced": $([[ $format_coerced -eq 1 ]] && echo true || echo false),
     "coercion_reason": "$format_coercion_reason",
@@ -1325,6 +1403,17 @@ stitch_batch_folder() {
 
   local -a inputs=("$@")
 
+  local target_ext stitched_suffix part_suffix
+  if [[ "$output_mode" == "audio" ]]; then
+    target_ext="$(audio_extension_for_format "$format")"
+    stitched_suffix="_audio.${target_ext}"
+    part_suffix="_audio.${target_ext}"
+  else
+    target_ext="$format"
+    stitched_suffix="_dateburn.${format}"
+    part_suffix="_dateburn.${format}"
+  fi
+
   if (( ${#inputs[@]} == 0 )); then
     warn "[stitch] No inputs provided for batch stitching"
     reply=("")
@@ -1341,25 +1430,56 @@ stitch_batch_folder() {
     printf "file '%s'\n" "$(escape_for_single_quotes "$clip")" >>"$list_file"
   done
 
+  if [[ "$output_mode" == "audio" ]]; then
+    local part_duration
+    for clip in "${inputs[@]}"; do
+      if part_duration=$(probe_media_duration "$clip"); then
+        info "[stitch] part ${clip:t}: $part_duration"
+        append_run_note "Stitch part ${clip:t} duration: $part_duration"
+      fi
+    done
+  fi
+
   log_stage_marker "stitch"
 
   local stitched_path
-  stitched_path="${artifact_dir%/}/stitched.mov"
+  stitched_path="${artifact_dir%/}/stitched.${target_ext}"
 
   info "[stitch] Concatenating ${#inputs[@]} clips into $stitched_path (stream copy)"
   prepare_subprocess_env
-  if "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file" -map 0:v:0 -map 0:a? -c copy "$stitched_path"; then
+  local -a stitch_copy_cmd=(
+    "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file" -c copy
+    "${sanitized_extra_args[@]}"
+    "$stitched_path"
+  )
+  log_ffmpeg_command "stitch-copy" "${stitch_copy_cmd[@]}"
+  if "${stitch_copy_cmd[@]}"; then
     stitched_source="$stitched_path"
     stitch_inputs_resolved="$list_file"
+    if final_duration=$(probe_media_duration "$stitched_path"); then
+      info "[stitch] stitched duration: $final_duration"
+    fi
     reply=("$stitched_path")
     return 0
   fi
 
   warn "[stitch] Stream copy concat failed; retrying with re-encode fallback"
   prepare_subprocess_env
-  if "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file" -c:v dvvideo -c:a pcm_s16le "$stitched_path"; then
+  local -a stitch_reencode_cmd
+  build_codec_args "$format" "$effective_quality_kind"
+  stitch_reencode_cmd=(
+    "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file"
+    "${reply[@]}"
+    "${sanitized_extra_args[@]}"
+    "$stitched_path"
+  )
+  log_ffmpeg_command "stitch-encode" "${stitch_reencode_cmd[@]}"
+  if "${stitch_reencode_cmd[@]}"; then
     stitched_source="$stitched_path"
     stitch_inputs_resolved="$list_file"
+    if final_duration=$(probe_media_duration "$stitched_path"); then
+      info "[stitch] stitched duration: $final_duration"
+    fi
     reply=("$stitched_path")
     return 0
   fi
@@ -1381,7 +1501,11 @@ validate_and_plan_file() {
 
   local output_dir base base_name out_ext
 
-  out_ext="$format"
+  if [[ "$output_mode" == "audio" ]]; then
+    out_ext="$(audio_extension_for_format "$format")"
+  else
+    out_ext="$format"
+  fi
   if [[ -n "$base_override" ]]; then
     base_name="$base_override"
   else
@@ -1735,6 +1859,18 @@ resolve_encode_quality() {
   resolved_quality_kind="$quality_kind"
   resolved_quality_slider=""
   resolved_qscale=""
+  resolved_audio_bitrate=""
+
+  if [[ "$output_mode" == "audio" ]]; then
+    if [[ "$quality_kind" == "slider" ]]; then
+      resolved_quality_mode="slider"
+      resolved_quality_slider="$effective_slider_value"
+    fi
+
+    resolve_audio_bitrate "$quality_kind"
+    resolved_quality_label="$(quality_descriptor "$resolved_quality_mode" "$quality_kind" "$resolved_quality_slider")"
+    return
+  fi
 
   case "$format" in
     mov)
@@ -1775,6 +1911,15 @@ build_codec_args() {
   local quality_kind="$quality"
 
   resolve_encode_quality "$format" "$quality_kind"
+
+  if [[ "$output_mode" == "audio" ]]; then
+    local bitrate
+    bitrate=${resolved_audio_bitrate:-192}
+    args=(-vn -c:a aac -b:a "${bitrate}k")
+    info "[codec] Resolved audio bitrate: ${bitrate}k (quality=${resolved_quality_label}) | codec args: ${args[*]}"
+    reply=("${args[@]}")
+    return
+  fi
 
   if [[ -z "$resolved_qscale" ]]; then
     args=(-c:v copy -c:a copy)
@@ -1861,6 +2006,34 @@ process_file_core() {
     else
       info "[stitch] Using stitched source for downstream processing: $source_video"
     fi
+  fi
+
+  if [[ "$output_mode" == "audio" ]]; then
+    ensure_cleanup_stage
+    log_stage_marker "audio-extract"
+
+    local audio_ext out_audio
+    audio_ext="$(audio_extension_for_format "$format")"
+    out_audio="${base}_audio.${audio_ext}"
+
+    local -a audio_cmd=(
+      "$ffmpeg_bin" -y -i "$source_video"
+      "${codec_args[@]}"
+      "${sanitized_extra_args[@]}"
+      "$out_audio"
+    )
+
+    prepare_subprocess_env
+    log_ffmpeg_command "audio-only" "${audio_cmd[@]}"
+    "${audio_cmd[@]}"
+
+    exit_status=$?
+    manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
+    passthrough_output="$out_audio"
+    last_passthrough_output_path="$passthrough_output"
+    last_burn_output_path="$out_audio"
+    finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
+    return $exit_status
   fi
 
   local fps
@@ -2226,6 +2399,17 @@ if [[ "$mode" == "batch" ]]; then
     local base_name output_dir_override ts artifact_dir_override burned_parts_dir list_file stitched_output
     base_name="${folder_abs:t}_stitched"
 
+    local target_ext stitched_suffix part_suffix
+    if [[ "$output_mode" == "audio" ]]; then
+      target_ext="$(audio_extension_for_format "$format")"
+      stitched_suffix="_audio.${target_ext}"
+      part_suffix="_audio.${target_ext}"
+    else
+      target_ext="$format"
+      stitched_suffix="_dateburn.${format}"
+      part_suffix="_dateburn.${format}"
+    fi
+
     if [[ -n "$dest_dir" ]]; then
       output_dir_override="${dest_dir%/}"
     else
@@ -2261,7 +2445,7 @@ if [[ "$mode" == "batch" ]]; then
         burned_files+=("$last_burn_output_path")
       else
         local expected_output
-        expected_output="${burned_parts_dir%/}/${part_base}_dateburn.${format}"
+        expected_output="${burned_parts_dir%/}/${part_base}${part_suffix}"
         if [[ -f "$expected_output" ]]; then
           burned_files+=("$expected_output")
         else
@@ -2295,7 +2479,17 @@ if [[ "$mode" == "batch" ]]; then
       exit 1
     fi
 
-    stitched_output="${output_dir_override%/}/${base_name}_dateburn.${format}"
+    if [[ "$output_mode" == "audio" ]]; then
+      local part_duration
+      for abs in "${burned_files[@]}"; do
+        if part_duration=$(probe_media_duration "$abs"); then
+          info "[stitch/batch] part ${abs:t}: $part_duration"
+          append_run_note "Stitch part ${abs:t} duration: $part_duration"
+        fi
+      done
+    fi
+
+    stitched_output="${output_dir_override%/}/${base_name}${stitched_suffix}"
 
     info "[stitch/batch] Concatenating ${stitched_inputs} burned parts into $stitched_output (stream copy)"
     prepare_subprocess_env
@@ -2308,38 +2502,58 @@ if [[ "$mode" == "batch" ]]; then
     if ! "${stitch_copy_cmd[@]}"; then
       warn "[stitch/batch] Stream copy concat failed; retrying with re-encode fallback"
 
-      case "$format" in
-        mov|mp4|mkv)
-          local -a stitch_codec_args
-          build_codec_args "$format" "$effective_quality_kind"
-          stitch_codec_args=("${reply[@]}")
-          prepare_subprocess_env
-          local -a stitch_encode_cmd=(
-            "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file"
-            "${stitch_codec_args[@]}"
-            "${sanitized_extra_args[@]}"
-            "$stitched_output"
-          )
-          log_ffmpeg_command "stitch-encode" "${stitch_encode_cmd[@]}"
-          "${stitch_encode_cmd[@]}" || true
-          ;;
-        *)
-          prepare_subprocess_env
-          local -a stitch_default_cmd=(
-            "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file"
-            -c:v mpeg4 -qscale:v 2 -c:a aac -b:a 192k
-            "${sanitized_extra_args[@]}"
-            "$stitched_output"
-          )
-          log_ffmpeg_command "stitch-default" "${stitch_default_cmd[@]}"
-          "${stitch_default_cmd[@]}" || true
-          ;;
-      esac
+      if [[ "$output_mode" == "audio" ]]; then
+        local -a stitch_codec_args
+        build_codec_args "$format" "$effective_quality_kind"
+        stitch_codec_args=("${reply[@]}")
+        prepare_subprocess_env
+        local -a stitch_encode_cmd=(
+          "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file"
+          "${stitch_codec_args[@]}"
+          "${sanitized_extra_args[@]}"
+          "$stitched_output"
+        )
+        log_ffmpeg_command "stitch-audio" "${stitch_encode_cmd[@]}"
+        "${stitch_encode_cmd[@]}" || true
+      else
+        case "$format" in
+          mov|mp4|mkv)
+            local -a stitch_codec_args
+            build_codec_args "$format" "$effective_quality_kind"
+            stitch_codec_args=("${reply[@]}")
+            prepare_subprocess_env
+            local -a stitch_encode_cmd=(
+              "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file"
+              "${stitch_codec_args[@]}"
+              "${sanitized_extra_args[@]}"
+              "$stitched_output"
+            )
+            log_ffmpeg_command "stitch-encode" "${stitch_encode_cmd[@]}"
+            "${stitch_encode_cmd[@]}" || true
+            ;;
+          *)
+            prepare_subprocess_env
+            local -a stitch_default_cmd=(
+              "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file"
+              -c:v mpeg4 -qscale:v 2 -c:a aac -b:a 192k
+              "${sanitized_extra_args[@]}"
+              "$stitched_output"
+            )
+            log_ffmpeg_command "stitch-default" "${stitch_default_cmd[@]}"
+            "${stitch_default_cmd[@]}" || true
+            ;;
+        esac
+      fi
     fi
 
     if [[ ! -f "$stitched_output" ]]; then
       echo "[ERROR] Failed to produce stitched output." >&2
       exit 1
+    fi
+
+    if final_duration=$(probe_media_duration "$stitched_output"); then
+      info "[stitch/batch] stitched duration: $final_duration"
+      append_run_note "Stitched duration: $final_duration"
     fi
 
     primary_input_path="$folder_abs"

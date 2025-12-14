@@ -20,6 +20,13 @@ enum SubtitleMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+enum OutputMode: String, CaseIterable, Identifiable {
+    case video
+    case audioOnly
+
+    var id: String { rawValue }
+}
+
 enum MissingMetaMode: String, CaseIterable, Identifiable {
     case error              // stop on missing metadata
     case skipBurninConvert  // still convert file, no burn-in
@@ -139,6 +146,7 @@ enum EncodeQuality: Identifiable, Equatable {
 struct ResolvedQuality {
     let selection: EncodeQuality
     let qscale: Int?
+    let audioBitrateKbps: Int?
 
     var isPassthrough: Bool {
         qscale == nil
@@ -159,12 +167,42 @@ func sliderToQscale(_ sliderValue: Int) -> Int {
     return max(1, min(8, computed))
 }
 
-func resolveQuality(_ selection: EncodeQuality, format: OutputFormat) -> ResolvedQuality {
+func resolveQuality(
+    _ selection: EncodeQuality,
+    format: OutputFormat,
+    outputMode: OutputMode
+) -> ResolvedQuality {
     let qscale: Int?
+    let audioBitrate: Int?
+
+    if outputMode == .audioOnly {
+        switch selection {
+        case .preset(let preset):
+            switch preset {
+            case .low:
+                audioBitrate = 128
+            case .medium:
+                audioBitrate = 192
+            case .high:
+                audioBitrate = 256
+            case .veryHigh:
+                audioBitrate = 320
+            case .passthrough:
+                audioBitrate = 192
+            }
+        case .slider(let value):
+            let clamped = clampSliderValue(value)
+            audioBitrate = 96 + (clamped * 16)
+        default:
+            audioBitrate = 192
+        }
+
+        return ResolvedQuality(selection: selection, qscale: nil, audioBitrateKbps: audioBitrate)
+    }
 
     switch format {
     case .mov:
-        return ResolvedQuality(selection: .passthrough, qscale: nil)
+        return ResolvedQuality(selection: .passthrough, qscale: nil, audioBitrateKbps: 192)
     case .mp4:
         switch selection {
         case .passthrough:
@@ -179,7 +217,7 @@ func resolveQuality(_ selection: EncodeQuality, format: OutputFormat) -> Resolve
     case .mkv:
         switch selection {
         case .passthrough:
-            return ResolvedQuality(selection: selection, qscale: nil)
+            return ResolvedQuality(selection: selection, qscale: nil, audioBitrateKbps: 192)
         case .preset(let preset):
             qscale = preset.qscale ?? QualityPreset.high.qscale
         case .slider(let value):
@@ -189,10 +227,15 @@ func resolveQuality(_ selection: EncodeQuality, format: OutputFormat) -> Resolve
         }
     }
 
-    return ResolvedQuality(selection: selection, qscale: qscale)
+    return ResolvedQuality(selection: selection, qscale: qscale, audioBitrateKbps: 192)
 }
 
-func buildCodecArgs(format: OutputFormat, resolvedQuality: ResolvedQuality) -> [String] {
+func buildCodecArgs(format: OutputFormat, resolvedQuality: ResolvedQuality, outputMode: OutputMode) -> [String] {
+    if outputMode == .audioOnly {
+        let bitrate = resolvedQuality.audioBitrateKbps ?? 192
+        return ["-vn", "-c:a", "aac", "-b:a", "\(bitrate)k"]
+    }
+
     if resolvedQuality.isPassthrough {
         return ["-c:v", "copy", "-c:a", "copy"]
     }
@@ -204,6 +247,17 @@ func buildCodecArgs(format: OutputFormat, resolvedQuality: ResolvedQuality) -> [
     return ["-c:v", "mpeg4", "-qscale:v", "\(qscale)", "-c:a", "aac", "-b:a", "192k"]
 }
 
+func outputExtension(for format: OutputFormat, outputMode: OutputMode) -> String {
+    guard outputMode == .audioOnly else { return format.rawValue.lowercased() }
+
+    switch format {
+    case .mkv:
+        return "mka"
+    default:
+        return "m4a"
+    }
+}
+
 
 // MARK: - Main view
 struct ContentView: View {
@@ -213,6 +267,7 @@ struct ContentView: View {
     @State private var layout: String = "stacked"   // "stacked" or "single"
     @State private var format: OutputFormat = .mov
     @State private var encodeQuality: EncodeQuality = .passthrough
+    @State private var outputMode: OutputMode = .video
     @State private var lastPresetSelection: QualityPreset = .veryHigh
     @State private var sliderQualityValue: Int = 5
     @State private var logText: String = ""
@@ -246,7 +301,11 @@ struct ContentView: View {
         UserDefaults.standard.string(forKey: "DVMetaDefaultOutputFolder")
 
     private var startBlockReason: String? {
-        let resolvedQuality = resolveQuality(encodeQuality, format: format)
+        let resolvedQuality = resolveQuality(encodeQuality, format: format, outputMode: outputMode)
+
+        if outputMode == .audioOnly {
+            return nil
+        }
 
         if burnMode == .subtitleTrack && subtitleMode == nil {
             return "Choose a subtitle timing mode before starting."
@@ -309,6 +368,10 @@ struct ContentView: View {
     }
 
     private var availablePresets: [QualityPreset] {
+        if outputMode == .audioOnly {
+            return [.low, .medium, .high, .veryHigh]
+        }
+
         var presets: [QualityPreset] = [.low, .medium, .high, .veryHigh]
         if format == .mov {
             presets.append(.passthrough)
@@ -338,6 +401,10 @@ struct ContentView: View {
                 encodeQuality = .slider(clamped)
             }
         }
+    }
+
+    private var qualityLabel: String {
+        outputMode == .audioOnly ? "Audio bitrate:" : "Quality:"
     }
 
     private var presetBinding: Binding<QualityPreset> {
@@ -407,8 +474,26 @@ struct ContentView: View {
                 .frame(width: 240)
                 .help("Choose whether to process one file or every DV file in a folder.")
             }
+            HStack {
+                Text("Output:")
+                Picker("", selection: $outputMode) {
+                    Text("Video (burn-in or subtitles)").tag(OutputMode.video)
+                    Text("Audio only").tag(OutputMode.audioOnly)
+                }
+                .pickerStyle(SegmentedPickerStyle())
+                .frame(width: 320)
+                .help("Select whether to create video outputs or extract audio only.")
+            }
+            .onChange(of: outputMode) { newMode in
+                if newMode == .audioOnly {
+                    burnMode = .off
+                    subtitleMode = nil
+                    encodeQuality = .preset(.high)
+                    lastPresetSelection = .high
+                }
+            }
             // Stitch / string clips together (only meaningful for batch + burnin/subtitleTrack)
-            if mode == "batch" && burnMode != .off {
+            if mode == "batch" && (burnMode != .off || outputMode == .audioOnly) {
                 HStack(spacing: 12) {
                     Text("Stitch:")
                         .frame(width: 110, alignment: .leading)
@@ -468,6 +553,8 @@ struct ContentView: View {
                     .transition(.opacity)
                 }
             }
+            .disabled(outputMode == .audioOnly)
+            .opacity(outputMode == .audioOnly ? 0.5 : 1.0)
 
             if burnMode == .subtitleTrack {
                 HStack(spacing: 12) {
@@ -492,6 +579,8 @@ struct ContentView: View {
                         subtitleMode = nil
                     }
                 }
+                .disabled(outputMode == .audioOnly)
+                .opacity(outputMode == .audioOnly ? 0.5 : 1.0)
             }
              
 
@@ -513,7 +602,7 @@ struct ContentView: View {
                 }
 
                 HStack(spacing: 12) {
-                    Text("Quality:")
+                    Text(qualityLabel)
                         .frame(width: 110, alignment: .leading)
 
                     VStack(alignment: .leading, spacing: 8) {
@@ -616,6 +705,7 @@ struct ContentView: View {
                 .pickerStyle(.menu)
                 .frame(width: 340, alignment: .leading)
                 .help("Choose between burning metadata into the image, keeping video unchanged, or adding a subtitle track.")
+                .disabled(outputMode == .audioOnly)
             }
             
             // Subtitle font selector
@@ -691,6 +781,8 @@ struct ContentView: View {
 
                 Spacer(minLength: 0)
             }
+            .disabled(outputMode == .audioOnly)
+            .opacity(outputMode == .audioOnly ? 0.5 : 1.0)
 
             // Controls: log buttons on left, run controls on right
             HStack(alignment: .top) {
@@ -1224,6 +1316,7 @@ struct ContentView: View {
             "--mode=\(mode)",
             "--layout=\(layout)",
             "--format=\(format.rawValue)",
+            "--output-mode=\(outputMode.rawValue)",
             "--encode-quality=\(encodeQuality.argumentValue)",
             "--missing-meta=\(missingMetaArg)",
             "--fontfile=\(resolvedFontPath())",
@@ -1231,7 +1324,7 @@ struct ContentView: View {
             "--ffmpeg=\(ffmpegURL.path)",
             "--dvrescue=\(dvrescueURL.path)"
         ]
-        if mode == "batch" && stitchMode == "stitch" && burnMode != .off {
+        if mode == "batch" && stitchMode == "stitch" && (burnMode != .off || outputMode == .audioOnly) {
             args.append("--stitch-mode=stitch")
         }
 
@@ -1286,7 +1379,7 @@ struct ContentView: View {
         inputPath: String,
         extraArgs: [String]
     ) -> (Int32, String) {
-        guard mode == "batch", stitchMode == "stitch", burnMode != .off else {
+        guard mode == "batch", stitchMode == "stitch", (burnMode != .off || outputMode == .audioOnly) else {
             return (originalStatus, "")
         }
 
@@ -1302,7 +1395,9 @@ struct ContentView: View {
         }
 
         let fm = FileManager.default
-        let targetExtension = format.rawValue.lowercased()
+        let targetExtension = outputExtension(for: format, outputMode: outputMode)
+        let partSuffix = outputMode == .audioOnly ? "_audio" : "_dateburn"
+        let resolvedQuality = resolveQuality(encodeQuality, format: format, outputMode: outputMode)
 
         guard let entries = try? fm.contentsOfDirectory(at: burnedPartsDir, includingPropertiesForKeys: nil) else {
             return (
@@ -1314,7 +1409,7 @@ struct ContentView: View {
         let parts = entries
             .filter { url in
                 url.pathExtension.lowercased() == targetExtension &&
-                url.lastPathComponent.contains("_dateburn")
+                url.lastPathComponent.contains(partSuffix)
             }
             .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
 
@@ -1349,7 +1444,7 @@ struct ContentView: View {
         _ = try? fm.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
 
         let baseName = URL(fileURLWithPath: inputPath, isDirectory: true).lastPathComponent
-        let outputName = "\(baseName)_stitched_dateburn.\(targetExtension)"
+        let outputName = "\(baseName)_stitched\(partSuffix).\(targetExtension)"
         let finalOutput = outputDirectory.appendingPathComponent(outputName)
 
         var concatArgs = [
@@ -1365,6 +1460,13 @@ struct ContentView: View {
         concatArgs.append(finalOutput.path)
 
         var log = "\n[STITCH] part extension: .\(targetExtension)"
+        if outputMode == .audioOnly {
+            for part in parts {
+                if let duration = probeDuration(for: part, ffmpegURL: ffmpegURL) {
+                    log += "\n[STITCH] part \(part.lastPathComponent): duration \(duration)"
+                }
+            }
+        }
         log += "\n[STITCH] concat list => \(listFile.path)"
         log += "\n[STITCH] ffmpeg concat => \(finalOutput.path)"
 
@@ -1380,6 +1482,9 @@ struct ContentView: View {
         if copyStatus == 0, fm.fileExists(atPath: finalOutput.path) {
             log += "\n[STITCH] success (exit 0)"
             finalStatus = 0
+            if let finalDuration = probeDuration(for: finalOutput, ffmpegURL: ffmpegURL) {
+                log += "\n[STITCH] stitched duration: \(finalDuration)"
+            }
             return (finalStatus, log)
         }
 
@@ -1390,41 +1495,55 @@ struct ContentView: View {
         }
 
         var fallbackArgs: [String]
-        switch targetExtension {
-        case "mov":
+        if outputMode == .audioOnly {
+            let bitrate = resolvedQuality.audioBitrateKbps ?? 192
             fallbackArgs = [
                 "-hide_banner",
                 "-y",
                 "-f", "concat",
                 "-safe", "0",
                 "-i", listFile.path,
-                "-c:v", "dvvideo",
-                "-c:a", "pcm_s16le"
-            ]
-        case "mp4":
-            fallbackArgs = [
-                "-hide_banner",
-                "-y",
-                "-f", "concat",
-                "-safe", "0",
-                "-i", listFile.path,
-                "-c:v", "mpeg4",
-                "-qscale:v", "2",
+                "-vn",
                 "-c:a", "aac",
-                "-b:a", "192k"
+                "-b:a", "\(bitrate)k"
             ]
-        default:
-            fallbackArgs = [
-                "-hide_banner",
-                "-y",
-                "-f", "concat",
-                "-safe", "0",
-                "-i", listFile.path,
-                "-c:v", "mpeg4",
-                "-qscale:v", "2",
-                "-c:a", "aac",
-                "-b:a", "192k"
-            ]
+        } else {
+            switch targetExtension {
+            case "mov":
+                fallbackArgs = [
+                    "-hide_banner",
+                    "-y",
+                    "-f", "concat",
+                    "-safe", "0",
+                    "-i", listFile.path,
+                    "-c:v", "dvvideo",
+                    "-c:a", "pcm_s16le"
+                ]
+            case "mp4":
+                fallbackArgs = [
+                    "-hide_banner",
+                    "-y",
+                    "-f", "concat",
+                    "-safe", "0",
+                    "-i", listFile.path,
+                    "-c:v", "mpeg4",
+                    "-qscale:v", "2",
+                    "-c:a", "aac",
+                    "-b:a", "192k"
+                ]
+            default:
+                fallbackArgs = [
+                    "-hide_banner",
+                    "-y",
+                    "-f", "concat",
+                    "-safe", "0",
+                    "-i", listFile.path,
+                    "-c:v", "mpeg4",
+                    "-qscale:v", "2",
+                    "-c:a", "aac",
+                    "-b:a", "192k"
+                ]
+            }
         }
 
         fallbackArgs.append(contentsOf: extraArgs)
@@ -1437,6 +1556,9 @@ struct ContentView: View {
         if fallbackStatus == 0, fm.fileExists(atPath: finalOutput.path) {
             log += "\n[STITCH] fallback succeeded (exit 0)"
             finalStatus = 0
+            if let finalDuration = probeDuration(for: finalOutput, ffmpegURL: ffmpegURL) {
+                log += "\n[STITCH] stitched duration: \(finalDuration)"
+            }
         } else {
             log += "\n[STITCH] fallback failed (exit \(fallbackStatus))"
             if !fallbackOutput.isEmpty {
@@ -1551,6 +1673,21 @@ struct ContentView: View {
         let output = String(data: data, encoding: .utf8) ?? ""
 
         return (process.terminationStatus, output)
+    }
+
+    private func probeDuration(for url: URL, ffmpegURL: URL) -> String? {
+        let (_, output) = runFFmpegProcess(at: ffmpegURL, arguments: ["-hide_banner", "-i", url.path])
+
+        guard let line = output
+            .split(separator: "\n")
+            .first(where: { $0.contains("Duration:") })
+        else { return nil }
+
+        guard let durationPart = line.split(separator: ",").first else { return nil }
+
+        let cleaned = durationPart.replacingOccurrences(of: "Duration:", with: "")
+            .trimmingCharacters(in: .whitespaces)
+        return cleaned.isEmpty ? nil : cleaned
     }
 
     private func resolveExtraFFmpegArgs() -> ([String], [String]) {
@@ -1804,14 +1941,14 @@ struct ContentView: View {
         let inputExists = fm.fileExists(atPath: inputPath) ? "yes" : "no"
         let systemFontsEnabled = includeSystemFonts ? "yes" : "no"
         let debugFlag = debugMode ? "on" : "off"
-        let resolvedQuality = resolveQuality(encodeQuality, format: format)
+        let resolvedQuality = resolveQuality(encodeQuality, format: format, outputMode: outputMode)
         let sliderDisplay = resolvedQuality.sliderValue.map { String($0) } ?? "-"
         let qscaleDisplay = resolvedQuality.qscale.map { String($0) } ?? "passthrough"
         let subtitleModeValue = subtitleMode?.rawValue ?? "(none selected)"
 
         lines.append("[DEBUG] Input path: \(inputPath)")
         lines.append("[DEBUG] Input exists: \(inputExists)")
-        lines.append("[DEBUG] Mode: \(mode) | Layout: \(layout) | Format: \(format)")
+        lines.append("[DEBUG] Mode: \(mode) | Layout: \(layout) | Format: \(format) | Output: \(outputMode.rawValue)")
         lines.append("[DEBUG] Encode quality: \(encodeQuality.argumentValue) | slider=\(sliderDisplay) | qscale=\(qscaleDisplay)")
         lines.append("[DEBUG] Burn mode: \(burnMode.rawValue) | Missing metadata handling: \(missingMetaMode.rawValue)")
         lines.append("[DEBUG] Subtitle timing mode: \(subtitleModeValue)")
