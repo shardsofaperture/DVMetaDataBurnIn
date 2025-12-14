@@ -71,20 +71,28 @@ sanitize_extra_ffmpeg_args() {
   sanitized_extra_args=()
   local -a raw=("$@")
   local skip_next_input=0
-
+  local skipped_option=""
   local token ext
   for token in "${raw[@]}"; do
     if (( skip_next_input == 1 )); then
-      warn "[extra-args] Dropping input path following -i: $token"
+      warn "[extra-args] Dropping value following ${skipped_option:-managed option}: $token"
       skip_next_input=0
+      skipped_option=""
       continue
     fi
 
-    if [[ "$token" == "-i" ]]; then
-      warn "[extra-args] Ignoring '-i' to protect managed inputs."
-      skip_next_input=1
-      continue
-    fi
+    case "$token" in
+      (-i|-filter_complex|-vf|-af|-map)
+        warn "[extra-args] Ignoring '$token' to protect managed inputs."
+        skip_next_input=1
+        skipped_option="$token"
+        continue
+        ;;
+      (-y|-n)
+        warn "[extra-args] Ignoring '$token' to protect managed outputs."
+        continue
+        ;;
+    esac
 
     if [[ "$token" == */* || "$token" == *.* ]]; then
       ext="${token##*.}"
@@ -339,6 +347,7 @@ while [[ $# -gt 0 ]]; do
 
     --stitch-inputs=*) stitch_input_list="${1#*=}"; shift ;;
     --debug) debug_mode=1; shift ;;
+    --extra-ffmpeg-flags=*) extra_args_raw="${1#*=}"; shift ;;
     --extra-args=*) extra_args_raw="${1#*=}"; shift ;;
     --) shift; break ;;
     -*) fatal "Unknown option: $1" ;;
@@ -403,10 +412,9 @@ if [[ "$output_mode" == "audio" ]]; then
 fi
 
 if [[ -n "$extra_args_raw" ]]; then
-  IFS=$'\x1f'
+  info "[extra-args] raw: ${(q)extra_args_raw}"
   typeset -a parsed_extra_args
-  parsed_extra_args=(${=extra_args_raw})
-  unset IFS
+  parsed_extra_args=(${(z)extra_args_raw})
   sanitize_extra_ffmpeg_args "${parsed_extra_args[@]}"
 else
   sanitized_extra_args=()

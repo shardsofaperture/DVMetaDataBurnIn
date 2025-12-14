@@ -300,10 +300,10 @@ struct ContentView: View {
     @State private var outputToLocationFolder: Bool = false
     @State private var scratchDirectory: String =
         UserDefaults.standard.string(forKey: "DVMetaScratchDirectory") ?? ""
-    @State private var advancedFFmpegOptions: Bool =
-        UserDefaults.standard.bool(forKey: "DVMetaAdvancedFFmpegOptions")
-    @State private var extraFFmpegArgsText: String =
-        UserDefaults.standard.string(forKey: "DVMetaExtraFFmpegArgsText") ?? ""
+    @AppStorage("DVMetaAdvancedFFmpegOptions")
+    private var advancedFFmpegOptions: Bool = false
+    @AppStorage("DVMetaExtraFFmpegArgsText")
+    private var extraFFmpegArgsText: String = ""
     @State private var debugMode: Bool = false
     @State private var selectedOutputFolder: String? =
         UserDefaults.standard.string(forKey: "DVMetaLastOutputFolder")
@@ -683,14 +683,11 @@ struct ContentView: View {
             }
 
             VStack(alignment: .leading, spacing: 6) {
-                Toggle("Advanced FFmpeg options", isOn: $advancedFFmpegOptions)
-                    .onChange(of: advancedFFmpegOptions) { enabled in
-                        UserDefaults.standard.set(enabled, forKey: "DVMetaAdvancedFFmpegOptions")
-                    }
+                Toggle("Advanced: extra ffmpeg flags", isOn: $advancedFFmpegOptions)
                     .help("Enable power-user overrides to append additional ffmpeg arguments.")
 
                 if advancedFFmpegOptions {
-                    Text("Extra FFmpeg args")
+                    Text("Extra ffmpeg flags")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
 
@@ -701,10 +698,11 @@ struct ContentView: View {
                             RoundedRectangle(cornerRadius: 6)
                                 .stroke(Color.gray.opacity(0.2), lineWidth: 1)
                         )
-                        .onChange(of: extraFFmpegArgsText) { newValue in
-                            UserDefaults.standard.set(newValue, forKey: "DVMetaExtraFFmpegArgsText")
-                        }
-                        .help("Raw ffmpeg arguments (whitespace/quotes respected) appended to generated commands.")
+                        .help("Appended to ffmpeg command")
+
+                    Text("Appended to ffmpeg command")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
                 }
             }
             .padding(.top, 4)
@@ -1223,7 +1221,7 @@ struct ContentView: View {
         fullLogText = ""
         isRunning = true
 
-        let (extraArgsForRun, extraWarnings) = resolveExtraFFmpegArgs()
+        let (extraArgsForRun, extraWarnings, rawExtraArgs) = resolveExtraFFmpegArgs()
 
         if !extraWarnings.isEmpty {
             appendToLog(extraWarnings.joined(separator: "\n") + "\n", capped: false)
@@ -1235,7 +1233,10 @@ struct ContentView: View {
 
         DispatchQueue.global(qos: .userInitiated).async {
             do {
-                let (process, pipe) = try self.makeProcess(extraArgs: extraArgsForRun)
+                let (process, pipe) = try self.makeProcess(
+                    extraArgs: extraArgsForRun,
+                    rawExtraArgs: rawExtraArgs
+                )
 
                 DispatchQueue.main.async {
                     self.currentProcess = process
@@ -1286,7 +1287,10 @@ struct ContentView: View {
 
     // MARK: - Process builder
 
-    private func makeProcess(extraArgs: [String]) throws -> (Process, Pipe) {
+    private func makeProcess(
+        extraArgs: [String],
+        rawExtraArgs: String?
+    ) throws -> (Process, Pipe) {
         let bundleRoot = Bundle.main.resourceURL ?? Bundle.main.bundleURL
         let fm = FileManager.default
 
@@ -1388,9 +1392,8 @@ struct ContentView: View {
             args.append("--scratch-dir=\(trimmedScratch)")
         }
 
-        if !extraArgs.isEmpty {
-            let joined = extraArgs.joined(separator: "\u{001F}")
-            args.append("--extra-args=\(joined)")
+        if let rawExtraArgs, !rawExtraArgs.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            args.append("--extra-ffmpeg-flags=\(rawExtraArgs)")
         }
 
         args.append(contentsOf: ["--", inputPath])
@@ -1732,10 +1735,19 @@ struct ContentView: View {
         return cleaned.isEmpty ? nil : cleaned
     }
 
-    private func resolveExtraFFmpegArgs() -> ([String], [String]) {
-        guard advancedFFmpegOptions else { return ([], []) }
-        let parsed = parseExtraFFmpegArgs(from: extraFFmpegArgsText)
-        return sanitizeExtraFFmpegArgs(parsed)
+    private func resolveExtraFFmpegArgs() -> ([String], [String], String?) {
+        guard advancedFFmpegOptions else { return ([], [], nil) }
+
+        let raw = extraFFmpegArgsText
+        let parsed = parseExtraFFmpegArgs(from: raw)
+        var (sanitized, warnings) = sanitizeExtraFFmpegArgs(parsed)
+
+        let trimmedRaw = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedRaw.isEmpty {
+            warnings.insert("[extra-args] Raw extra flags: \(trimmedRaw)", at: 0)
+        }
+
+        return (sanitized, warnings, trimmedRaw.isEmpty ? nil : raw)
     }
 
     private func parseExtraFFmpegArgs(from text: String) -> [String] {
@@ -1778,24 +1790,35 @@ struct ContentView: View {
         var sanitized: [String] = []
         var warnings: [String] = []
         var skipNextInput = false
+        var skippedOption: String?
         let blockedExtensions: Set<String> = [
             "mov", "mp4", "mkv", "avi", "flv", "wmv", "mpg", "mpeg", "m4v", "ts", "webm", "mxf", "mp3", "wav"
         ]
+        let blockedOptionsWithValue: Set<String> = ["-i", "-filter_complex", "-vf", "-af", "-map"]
+        let blockedStandalone: Set<String> = ["-y", "-n"]
 
         for token in args {
             if skipNextInput {
-                warnings.append("[extra-args] Dropping input path following -i: \(token)")
+                warnings.append("[extra-args] Dropping value following \(skippedOption ?? "managed option"): \(token)")
                 skipNextInput = false
-                continue
-            }
-
-            if token == "-i" {
-                warnings.append("[extra-args] Ignoring '-i' to protect managed inputs.")
-                skipNextInput = true
+                skippedOption = nil
                 continue
             }
 
             let lowerToken = token.lowercased()
+
+            if blockedOptionsWithValue.contains(lowerToken) {
+                warnings.append("[extra-args] Ignoring '\(token)' to protect managed inputs.")
+                skipNextInput = true
+                skippedOption = token
+                continue
+            }
+
+            if blockedStandalone.contains(lowerToken) {
+                warnings.append("[extra-args] Ignoring '\(token)' to protect managed outputs.")
+                continue
+            }
+
             let extensionMatch = URL(fileURLWithPath: lowerToken).pathExtension
             if !extensionMatch.isEmpty, blockedExtensions.contains(extensionMatch) {
                 warnings.append("[extra-args] Ignoring possible output override '\(token)'.")
