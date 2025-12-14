@@ -180,6 +180,12 @@ struct ContentView: View {
     private var advancedFFmpegOptions: Bool = false
     @AppStorage("DVMetaExtraFFmpegArgsText")
     private var extraFFmpegArgsText: String = ""
+    private let placeholderText = """
+    # Optional: extra ffmpeg flags (leave unchanged to ignore)
+    # Examples:
+    #   -b:v 6M -maxrate 8M -bufsize 16M
+    #   -preset slow
+    """
     @State private var debugMode: Bool = false
     @State private var selectedOutputFolder: String? =
         UserDefaults.standard.string(forKey: "DVMetaLastOutputFolder")
@@ -524,11 +530,30 @@ struct ContentView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Toggle("Advanced: extra ffmpeg flags", isOn: $advancedFFmpegOptions)
                     .help("Enable power-user overrides to append additional ffmpeg arguments.")
+                    .onChange(of: advancedFFmpegOptions) { newValue in
+                        if newValue && extraFFmpegArgsText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            extraFFmpegArgsText = placeholderText
+                        }
+                    }
 
                 if advancedFFmpegOptions {
                     Text("Extra ffmpeg flags")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Enter raw ffmpeg args exactly as you would in Terminal. Example: -b:v 4M -maxrate 6M -bufsize 12M")
+                        Text("Do NOT include -i, -vf/-filter_complex, -map, or output filename; the app manages those.")
+                        Text("Leave blank to do nothing.")
+                    }
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+                    .padding(10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color(NSColor.windowBackgroundColor))
+                            .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+                    )
 
                     TextEditor(text: $extraFFmpegArgsText)
                         .font(.system(.body, design: .monospaced))
@@ -540,6 +565,10 @@ struct ContentView: View {
                         .help("Appended to ffmpeg command")
 
                     Text("Appended to ffmpeg command")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+
+                    Text("Will apply: \(sanitizedExtraArgsPreview())")
                         .font(.footnote)
                         .foregroundColor(.secondary)
                 }
@@ -1603,6 +1632,9 @@ struct ContentView: View {
         guard advancedFFmpegOptions else { return ([], [], nil) }
 
         let raw = extraFFmpegArgsText
+
+        guard !shouldIgnoreExtraArgs(raw) else { return ([], [], nil) }
+
         let parsed = parseExtraFFmpegArgs(from: raw)
         var (sanitized, warnings) = sanitizeExtraFFmpegArgs(parsed)
 
@@ -1612,6 +1644,16 @@ struct ContentView: View {
         }
 
         return (sanitized, warnings, trimmedRaw.isEmpty ? nil : raw)
+    }
+
+    private func sanitizedExtraArgsPreview() -> String {
+        guard advancedFFmpegOptions else { return "(none)" }
+        guard !shouldIgnoreExtraArgs(extraFFmpegArgsText) else { return "(none)" }
+
+        let parsed = parseExtraFFmpegArgs(from: extraFFmpegArgsText)
+        let (sanitized, _) = sanitizeExtraFFmpegArgs(parsed)
+
+        return sanitized.isEmpty ? "(none)" : sanitized.joined(separator: " ")
     }
 
     private func parseExtraFFmpegArgs(from text: String) -> [String] {
@@ -1697,6 +1739,24 @@ struct ContentView: View {
         }
 
         return (sanitized, warnings)
+    }
+
+    private func shouldIgnoreExtraArgs(_ text: String) -> Bool {
+        if text == placeholderText {
+            return true
+        }
+
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            return true
+        }
+
+        let lines = trimmed
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+
+        return !lines.isEmpty && lines.allSatisfy { $0.hasPrefix("#") }
     }
 
     private func escapeSingleQuotes(_ path: String) -> String {
