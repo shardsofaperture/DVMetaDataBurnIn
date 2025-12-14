@@ -217,7 +217,7 @@ func resolveQuality(
     case .mkv:
         switch selection {
         case .passthrough:
-            return ResolvedQuality(selection: selection, qscale: nil, audioBitrateKbps: 192)
+            qscale = QualityPreset.high.qscale
         case .preset(let preset):
             qscale = preset.qscale ?? QualityPreset.high.qscale
         case .slider(let value):
@@ -230,6 +230,11 @@ func resolveQuality(
     return ResolvedQuality(selection: selection, qscale: qscale, audioBitrateKbps: 192)
 }
 
+func qscaleToCRF(_ qscale: Int) -> Int {
+    // Map legacy qscale values to a reasonable H.264 CRF range (lower is better)
+    return max(10, min(40, 16 + (qscale * 2)))
+}
+
 func buildCodecArgs(format: OutputFormat, resolvedQuality: ResolvedQuality, outputMode: OutputMode) -> [String] {
     if outputMode == .audioOnly {
         let bitrate = resolvedQuality.audioBitrateKbps ?? 192
@@ -237,6 +242,10 @@ func buildCodecArgs(format: OutputFormat, resolvedQuality: ResolvedQuality, outp
     }
 
     if resolvedQuality.isPassthrough {
+        if format == .mov {
+            return ["-c:v", "dvvideo", "-c:a", "pcm_s16le"]
+        }
+
         return ["-c:v", "copy", "-c:a", "copy"]
     }
 
@@ -244,7 +253,8 @@ func buildCodecArgs(format: OutputFormat, resolvedQuality: ResolvedQuality, outp
         return ["-c:v", "copy", "-c:a", "copy"]
     }
 
-    return ["-c:v", "mpeg4", "-qscale:v", "\(qscale)", "-c:a", "aac", "-b:a", "192k"]
+    let crf = qscaleToCRF(qscale)
+    return ["-c:v", "libx264", "-crf", "\(crf)", "-preset", "medium", "-c:a", "aac", "-b:a", "192k"]
 }
 
 func outputExtension(for format: OutputFormat, outputMode: OutputMode) -> String {
@@ -313,10 +323,6 @@ struct ContentView: View {
 
         if burnMode == .subtitleTrack && subtitleMode == nil {
             return "Choose a subtitle timing mode before starting."
-        }
-
-        if format == .mkv && burnMode == .burnin && resolvedQuality.isPassthrough {
-            return "MKV burn-in is unavailable with passthrough quality. Pick a transcode quality to continue."
         }
 
         return nil
@@ -620,13 +626,17 @@ struct ContentView: View {
 
                     Picker("", selection: $format) {
                         Text("MOV (DV, Passthrough)").tag(OutputFormat.mov)
-                        Text("MP4 (MPEG-4, Transcode)").tag(OutputFormat.mp4)
-                        Text("MKV (Matroska)").tag(OutputFormat.mkv)
+                        Text("MP4 (H.264, Transcode)").tag(OutputFormat.mp4)
+                        Text("MKV (H.264, Transcode)").tag(OutputFormat.mkv)
                     }
                     .pickerStyle(SegmentedPickerStyle())
                     .frame(width: 420)
                     .help("Pick the container format for the output file.")
                 }
+
+                Text("MOV = DV passthrough only · MP4 / MKV = transcode")
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
 
                 HStack(spacing: 12) {
                     Text(qualityLabel)
@@ -1521,6 +1531,8 @@ struct ContentView: View {
             log += "\n[STITCH] stream copy failed (exit \(copyStatus))"
         }
 
+        let crfValue = qscaleToCRF(resolvedQuality.qscale ?? 2)
+        let containerArgs = targetExtension == "mkv" ? ["-f", "matroska"] : []
         var fallbackArgs: [String]
         if outputMode == .audioOnly {
             let bitrate = resolvedQuality.audioBitrateKbps ?? 192
@@ -1553,8 +1565,9 @@ struct ContentView: View {
                     "-f", "concat",
                     "-safe", "0",
                     "-i", listFile.path,
-                    "-c:v", "mpeg4",
-                    "-qscale:v", "2",
+                    "-c:v", "libx264",
+                    "-crf", "\(crfValue)",
+                    "-preset", "medium",
                     "-c:a", "aac",
                     "-b:a", "192k"
                 ]
@@ -1565,14 +1578,16 @@ struct ContentView: View {
                     "-f", "concat",
                     "-safe", "0",
                     "-i", listFile.path,
-                    "-c:v", "mpeg4",
-                    "-qscale:v", "2",
+                    "-c:v", "libx264",
+                    "-crf", "\(crfValue)",
+                    "-preset", "medium",
                     "-c:a", "aac",
                     "-b:a", "192k"
                 ]
             }
         }
 
+        fallbackArgs.append(contentsOf: containerArgs)
         fallbackArgs.append(contentsOf: extraArgs)
         fallbackArgs.append(finalOutput.path)
 
