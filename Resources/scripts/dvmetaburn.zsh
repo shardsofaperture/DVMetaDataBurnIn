@@ -335,6 +335,12 @@ if [[ "$effective_format" == "mp4" && "$effective_encode_quality" == "passthroug
   effective_encode_quality="high"
 fi
 
+if [[ "$effective_format" == "mkv" && "$burn_mode" == "burnin" && "$effective_encode_quality" == "passthrough" ]]; then
+  warn "MKV burn-in is not compatible with passthrough; disabling burn-in for this run."
+  append_run_note "Burn-in disabled because MKV passthrough cannot apply filters"
+  burn_mode="off"
+fi
+
 append_run_note "Effective burn mode: $burn_mode (subtitle mode: $subtitle_mode), container: $effective_format, quality: $effective_encode_quality"
 info "[config] burn_mode=$burn_mode, subtitle_mode=$subtitle_mode, container=$effective_format (requested: $requested_format), quality=$effective_encode_quality (requested: $requested_encode_quality)"
 initial_run_notes=("${run_notes[@]}")
@@ -1912,10 +1918,7 @@ process_file_core() {
 
     # We have a valid ASS file – mux it as MKV with true ASS subtitles
     local out_subbed="${base}_dvsub.mkv"
-    local -a sub_video_args=(
-      -c:v mpeg4 -qscale:v 2
-      -c:a aac -b:a 192k
-    )
+    local -a sub_video_args=("${codec_args[@]}")
     local subtitle_codec="ass"
 
     echo "[INFO] Muxing subtitle track into: $out_subbed" >&2
