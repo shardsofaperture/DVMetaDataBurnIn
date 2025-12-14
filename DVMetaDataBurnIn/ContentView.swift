@@ -184,6 +184,7 @@ struct ContentView: View {
         UserDefaults.standard.string(forKey: "DVMetaLastOutputFolder")
     @State private var defaultOutputFolder: String? =
         UserDefaults.standard.string(forKey: "DVMetaDefaultOutputFolder")
+    @State private var isLogExpanded: Bool = true
 
     private var startBlockReason: String? {
         if outputToLocationFolder && sanitizedDestinationOverride() == nil {
@@ -284,10 +285,13 @@ struct ContentView: View {
     ]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("DV Metadata Date/Time Burn-In")
-                .font(.title2)
-                .bold()
+        HStack(alignment: .top, spacing: 12) {
+            logPanel
+
+            VStack(alignment: .leading, spacing: 16) {
+                Text("DV Metadata Date/Time Burn-In")
+                    .font(.title2)
+                    .bold()
             
             // Input picker
             HStack {
@@ -597,128 +601,150 @@ struct ContentView: View {
             .disabled(outputMode == .audioOnly)
             .opacity(outputMode == .audioOnly ? 0.5 : 1.0)
 
-            // Controls: log buttons on left, run controls on right
-            HStack(alignment: .top) {
-                // Left: Clear / dvrescue, Open temp / Save log
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Button("Clear Log") {
-                            logText = ""
-                            fullLogText = ""
-                        }
-                        .help("Remove all log output from the window.")
+                // Controls: run controls on the right
+                HStack(alignment: .top) {
+                    Spacer()
 
-                        Button("dvrescue debug only") {
-                            runDVRescueDebug()
+                    // Right: Stop / Start, then choose output folder button under them
+                    VStack(alignment: .trailing, spacing: 4) {
+
+                        HStack(spacing: 8) {
+                            let coneOrange = Color(red: 1.0, green: 0.4, blue: 0.0)
+
+                            // START button — cone orange
+                            Button(action: { runBurn() }) {
+                                Text(isRunning ? "Running…" : "Start Burn/Encode")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(.black)
+                                    .frame(width: 150, height: 22)   // FIXED HEIGHT
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .fill((isRunning || inputPath.isEmpty || shouldBlockStart)
+                                                  ? coneOrange.opacity(0.45)
+                                                  : coneOrange)
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(isRunning || inputPath.isEmpty || shouldBlockStart)
+
+                            // STOP button — match *same height + corner radius*
+                            Button(action: { stopCurrentProcess() }) {
+                                Text("Stop")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(.white)
+                                    .frame(width: 70, height: 22)   // EXACT SAME HEIGHT
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .fill(isRunning ? Color.red : Color.gray.opacity(0.5))
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(!isRunning || currentProcess == nil)
+                        }
+
+                        if let reason = startBlockReason {
+                            Text(reason)
+                                .font(.footnote)
+                                .foregroundColor(.orange)
+                                .multilineTextAlignment(.trailing)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+                        }
+
+                        // existing button – leave this as-is
+                        Button("Choose output folder…") {
+                            if promptForOutputFolder() {
+                                outputToLocationFolder = true
+                            }
                         }
                         .disabled(isRunning)
-                        .help("Run dvrescue to inspect metadata without creating output.")
-                    }
-
-                    HStack {
-                        Button("Open temp folder") {
-                            openTempFolder()
-                        }
-                        .help("Open the DVMeta log/artifact folder in Finder.")
-
-                        Button("Save Log…") {
-                            saveLogToFile()
-                        }
-                        .help("Save the full session log to a text file.")
+                        .help("Pick a destination folder for processed files.")
                     }
                 }
 
-                Spacer()
-
-                // Right: Stop / Start, then choose output folder button under them
-                VStack(alignment: .trailing, spacing: 4) {
-
-                    HStack(spacing: 8) {
-                        let coneOrange = Color(red: 1.0, green: 0.4, blue: 0.0)
-
-                        // START button — cone orange
-                        Button(action: { runBurn() }) {
-                            Text(isRunning ? "Running…" : "Start Burn/Encode")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(.black)
-                                .frame(width: 150, height: 22)   // FIXED HEIGHT
-                                .background(
-                                    RoundedRectangle(cornerRadius: 6)
-                                        .fill((isRunning || inputPath.isEmpty || shouldBlockStart)
-                                              ? coneOrange.opacity(0.45)
-                                              : coneOrange)
-                                )
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(isRunning || inputPath.isEmpty || shouldBlockStart)
-
-                        // STOP button — match *same height + corner radius*
-                        Button(action: { stopCurrentProcess() }) {
-                            Text("Stop")
-                                .font(.system(size: 13))
-                                .foregroundColor(.white)
-                                .frame(width: 70, height: 22)   // EXACT SAME HEIGHT
-                                .background(
-                                    RoundedRectangle(cornerRadius: 6)
-                                        .fill(isRunning ? Color.red : Color.gray.opacity(0.5))
-                                )
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(!isRunning || currentProcess == nil)
+                // About & Licenses button
+                HStack {
+                    Spacer()
+                    Button("About & Licenses") {
+                        showingAbout = true
                     }
-
-                    if let reason = startBlockReason {
-                        Text(reason)
-                            .font(.footnote)
-                            .foregroundColor(.orange)
-                            .multilineTextAlignment(.trailing)
-                            .frame(maxWidth: .infinity, alignment: .trailing)
-                    }
-
-                    // existing button – leave this as-is
-                    Button("Choose output folder…") {
-                        if promptForOutputFolder() {
-                            outputToLocationFolder = true
-                        }
-                    }
-                    .disabled(isRunning)
-                    .help("Pick a destination folder for processed files.")
+                    .help("View app version info and license details.")
                 }
             }
-
-            // Enhanced debug toggle lives near the log now
-            Toggle("Enhanced debug logging", isOn: $debugMode)
-                .help("Include extra script settings and debug details at the top of the log.")
-                .padding(.top, 4)
-
-            // Log output
-            Text("Log:")
-                .bold()
-
-            ScrollView {
-                Text(logText)
-                    .font(.system(.footnote, design: .monospaced))
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
-                    .textSelection(.enabled)
-            }
-            .border(Color.gray.opacity(0.4))
-            .help("Live output from dvrescue, ffmpeg, and script diagnostics.")
-
-            // About & Licenses button
-            HStack {
-                Spacer()
-                Button("About & Licenses") {
-                    showingAbout = true
-                }
-                .help("View app version info and license details.")
-            }
+            .padding()
+            .frame(minWidth: 640, minHeight: 480)
         }
-        .padding()
-        .frame(minWidth: 640, minHeight: 480)
         .sheet(isPresented: $showingAbout) {
             AboutView()
         }
         .onAppear(perform: loadAvailableFonts)
+    }
+
+    private var logPanel: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Button(action: { withAnimation { isLogExpanded.toggle() } }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: isLogExpanded ? "chevron.left" : "chevron.right")
+                        Text("Log")
+                            .font(.subheadline)
+                            .bold()
+                            .opacity(isLogExpanded ? 1.0 : 0.8)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+            }
+
+            if isLogExpanded {
+                VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Button("Clear Log") {
+                                logText = ""
+                                fullLogText = ""
+                            }
+                            .help("Remove all log output from the window.")
+
+                            Button("dvrescue debug only") {
+                                runDVRescueDebug()
+                            }
+                            .disabled(isRunning)
+                            .help("Run dvrescue to inspect metadata without creating output.")
+                        }
+
+                        HStack {
+                            Button("Open temp folder") {
+                                openTempFolder()
+                            }
+                            .help("Open the DVMeta log/artifact folder in Finder.")
+
+                            Button("Save Log…") {
+                                saveLogToFile()
+                            }
+                            .help("Save the full session log to a text file.")
+                        }
+                    }
+
+                    Toggle("Enhanced debug logging", isOn: $debugMode)
+                        .help("Include extra script settings and debug details at the top of the log.")
+
+                    Text("Log:")
+                        .bold()
+
+                    ScrollView {
+                        Text(logText)
+                            .font(.system(.footnote, design: .monospaced))
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                            .textSelection(.enabled)
+                    }
+                    .border(Color.gray.opacity(0.4))
+                    .help("Live output from dvrescue, ffmpeg, and script diagnostics.")
+                }
+                .transition(.move(edge: .leading).combined(with: .opacity))
+            }
+        }
+        .frame(minWidth: isLogExpanded ? 280 : 52, maxWidth: isLogExpanded ? 320 : 60)
+        .padding(8)
     }
     
     // MARK: - Save log
