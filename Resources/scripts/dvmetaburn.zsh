@@ -187,6 +187,22 @@ slider_to_qscale() {
   echo "$rounded"
 }
 
+qscale_to_crf() {
+  local qscale="$1"
+  local -i crf
+
+  if ! [[ "$qscale" =~ ^[0-9]+$ ]]; then
+    qscale=3
+  fi
+
+  (( crf = 16 + (qscale * 2) ))
+
+  (( crf < 10 )) && crf=10
+  (( crf > 40 )) && crf=40
+
+  echo "$crf"
+}
+
 audio_extension_for_format() {
   local fmt="${1:l}"
   case "$fmt" in
@@ -198,6 +214,20 @@ audio_extension_for_format() {
       ;;
     *)
       echo "m4a"
+      ;;
+  esac
+}
+
+container_flag_for_format() {
+  local fmt="${1:l}"
+  reply=()
+
+  case "$fmt" in
+    mkv)
+      reply=(-f matroska)
+      ;;
+    *)
+      reply=()
       ;;
   esac
 }
@@ -507,12 +537,6 @@ fi
 
 effective_encode_quality="$(quality_descriptor "$effective_quality_mode" "$effective_quality_kind" "$effective_slider_value")"
 
-if [[ "$effective_format" == "mkv" && "$burn_mode" == "burnin" && "$effective_quality_kind" == "passthrough" ]]; then
-  warn "MKV burn-in is not compatible with passthrough; disabling burn-in for this run."
-  append_run_note "Burn-in disabled because MKV passthrough cannot apply filters"
-  burn_mode="off"
-fi
-
 append_run_note "Output mode: $output_mode"
 append_run_note "Effective burn mode: $burn_mode (subtitle mode: $subtitle_mode), container: $effective_format, quality: $effective_encode_quality"
 info "[config] output_mode=$output_mode, burn_mode=$burn_mode, subtitle_mode=$subtitle_mode, container=$effective_format (requested: $requested_format), quality=$effective_encode_quality (requested: $requested_encode_quality)"
@@ -579,6 +603,8 @@ typeset -g resolved_quality_kind
 typeset -g resolved_quality_label
 typeset -g resolved_quality_slider
 typeset -g resolved_qscale
+typeset -g resolved_video_codec
+typeset -g resolved_audio_codec
 typeset -g format_coerced=0
 typeset -g format_coercion_reason=""
 typeset -g cleanup_stage_done=0
@@ -1885,7 +1911,7 @@ resolve_encode_quality() {
       resolved_quality_mode="preset"
       resolved_quality_kind="passthrough"
       ;;
-    mp4)
+    mp4|mkv)
       if [[ "$quality_kind" == "passthrough" ]]; then
         resolved_quality_kind="high"
       fi
@@ -1918,25 +1944,63 @@ build_codec_args() {
   local -a args
   local quality_kind="$quality"
 
+  resolved_video_codec=""
+  resolved_audio_codec=""
+
   resolve_encode_quality "$format" "$quality_kind"
 
   if [[ "$output_mode" == "audio" ]]; then
     local bitrate
     bitrate=${resolved_audio_bitrate:-192}
     args=(-vn -c:a aac -b:a "${bitrate}k")
-    info "[codec] Resolved audio bitrate: ${bitrate}k (quality=${resolved_quality_label}) | codec args: ${args[*]}"
+    resolved_video_codec="(none)"
+    resolved_audio_codec="aac"
+    info "[codec] Resolved audio bitrate: ${bitrate}k (quality=${resolved_quality_label}) | container=${format} | codecs: v=${resolved_video_codec} a=${resolved_audio_codec} | codec args: ${args[*]}"
     reply=("${args[@]}")
     return
   fi
 
-  if [[ -z "$resolved_qscale" ]]; then
-    args=(-c:v copy -c:a copy)
-  else
-    args=(-c:v mpeg4 -qscale:v "$resolved_qscale" -c:a aac -b:a 192k)
-  fi
+  case "$format" in
+    mov)
+      args=(-c:v dvvideo -c:a pcm_s16le)
+      resolved_video_codec="dvvideo"
+      resolved_audio_codec="pcm_s16le"
+      ;;
+    *)
+      if [[ -z "$resolved_qscale" ]]; then
+        args=(-c:v copy -c:a copy)
+        resolved_video_codec="copy"
+        resolved_audio_codec="copy"
+      else
+        local crf
+        crf="$(qscale_to_crf "$resolved_qscale")"
+        args=(-c:v libx264 -crf "$crf" -preset medium -c:a aac -b:a 192k)
+        resolved_video_codec="libx264 (crf=${crf})"
+        resolved_audio_codec="aac"
+      fi
+      ;;
+  esac
 
-  info "[codec] Resolved encode quality: $resolved_quality_label (slider=${resolved_quality_slider:-n/a}, qscale=${resolved_qscale:-passthrough}) | codec args: ${args[*]}"
+  info "[codec] Resolved encode quality: $resolved_quality_label (slider=${resolved_quality_slider:-n/a}, qscale=${resolved_qscale:-passthrough}) | container=${format} | codecs: v=${resolved_video_codec} a=${resolved_audio_codec} | codec args: ${args[*]}"
   reply=("${args[@]}")
+}
+
+log_container_resolution() {
+  local subtitle_label
+
+  case "$burn_mode" in
+    subtitleTrack)
+      subtitle_label="embedded subtitle track"
+      ;;
+    burnin)
+      subtitle_label="burn-in filtergraph"
+      ;;
+    *)
+      subtitle_label="disabled"
+      ;;
+  esac
+
+  info "[mux] Container: ${effective_format} | Video: ${resolved_video_codec:-unknown} | Audio: ${resolved_audio_codec:-unknown} | Subtitles: ${subtitle_label}"
 }
 
 ########################################################
@@ -1984,6 +2048,12 @@ process_file_core() {
   build_codec_args "$format" "$effective_quality_kind"
   codec_args=("${reply[@]}")
 
+  container_flag_for_format "$format"
+  local -a container_args
+  container_args=("${reply[@]}")
+
+  log_container_resolution
+
   if (( ${#codec_args[@]} == 0 )); then
     warn "Unknown format for codec args: $format"
     manifest_status="error"
@@ -2027,6 +2097,7 @@ process_file_core() {
     local -a audio_cmd=(
       "$ffmpeg_bin" -y -i "$source_video"
       "${codec_args[@]}"
+      "${container_args[@]}"
       "${sanitized_extra_args[@]}"
       "$out_audio"
     )
@@ -2079,6 +2150,7 @@ process_file_core() {
     local -a transcode_cmd=(
       "$ffmpeg_bin" -y -i "$source_video"
       "${codec_args[@]}"
+      "${container_args[@]}"
       "${sanitized_extra_args[@]}"
       "$out_passthrough"
     )
@@ -2155,12 +2227,13 @@ process_file_core() {
           local out_passthrough="${base}_conv.${out_ext}"
           ensure_cleanup_stage
           log_stage_marker "encode"
-          local -a subtitle_fallback_cmd=(
-            "$ffmpeg_bin" -y -i "$source_video"
-            "${codec_args[@]}"
-            "${sanitized_extra_args[@]}"
-            "$out_passthrough"
-          )
+        local -a subtitle_fallback_cmd=(
+          "$ffmpeg_bin" -y -i "$source_video"
+          "${codec_args[@]}"
+          "${container_args[@]}"
+          "${sanitized_extra_args[@]}"
+          "$out_passthrough"
+        )
           log_ffmpeg_command "subtitle-fallback" "${subtitle_fallback_cmd[@]}"
           "${subtitle_fallback_cmd[@]}"
           exit_status=$?
@@ -2205,6 +2278,8 @@ process_file_core() {
       -map 0:v:0 -map 0:a? -map 1:s:0
       "${sub_video_args[@]}"
       -c:s "$subtitle_codec"
+      -disposition:s:0 default
+      "${container_args[@]}"
       "${sanitized_extra_args[@]}"
       "$out_subbed"
     )
@@ -2242,6 +2317,7 @@ process_file_core() {
         local -a timeline_fallback_cmd=(
           "$ffmpeg_bin" -y -i "$source_video"
           "${codec_args[@]}"
+          "${container_args[@]}"
           "${sanitized_extra_args[@]}"
           "$out_passthrough"
         )
@@ -2274,6 +2350,14 @@ process_file_core() {
     return 1
   fi
 
+  if [[ "$format" == "mkv" && "$burn_mode" == "burnin" ]]; then
+    if [[ "$vf" == *"sendcmd"* && "$vf" == *"drawtext"* ]]; then
+      info "[burn] MKV burn-in filtergraph contains sendcmd and drawtext"
+    else
+      warn "[burn] MKV burn-in filtergraph missing sendcmd/drawtext markers"
+    fi
+  fi
+
 
   local out="${base}_dateburn.${out_ext}"
 
@@ -2284,6 +2368,7 @@ process_file_core() {
     "$ffmpeg_bin" -y -i "$source_video"
     -vf "$vf"
     "${codec_args[@]}"
+    "${container_args[@]}"
     "${sanitized_extra_args[@]}"
     "$out"
   )
@@ -2511,6 +2596,10 @@ if [[ "$mode" == "batch" ]]; then
 
     stitched_output="${output_dir_override%/}/${base_name}${stitched_suffix}"
 
+    container_flag_for_format "$format"
+    local -a stitch_container_args
+    stitch_container_args=("${reply[@]}")
+
     info "[stitch/batch] Concatenating ${stitched_inputs} burned parts into $stitched_output (stream copy)"
     prepare_subprocess_env
     local -a stitch_copy_cmd=(
@@ -2530,6 +2619,7 @@ if [[ "$mode" == "batch" ]]; then
         local -a stitch_encode_cmd=(
           "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file"
           "${stitch_codec_args[@]}"
+          "${stitch_container_args[@]}"
           "${sanitized_extra_args[@]}"
           "$stitched_output"
         )
@@ -2545,6 +2635,7 @@ if [[ "$mode" == "batch" ]]; then
             local -a stitch_encode_cmd=(
               "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file"
               "${stitch_codec_args[@]}"
+              "${stitch_container_args[@]}"
               "${sanitized_extra_args[@]}"
               "$stitched_output"
             )
@@ -2555,7 +2646,8 @@ if [[ "$mode" == "batch" ]]; then
             prepare_subprocess_env
             local -a stitch_default_cmd=(
               "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file"
-              -c:v mpeg4 -qscale:v 2 -c:a aac -b:a 192k
+              -c:v libx264 -crf 20 -preset medium -c:a aac -b:a 192k
+              "${stitch_container_args[@]}"
               "${sanitized_extra_args[@]}"
               "$stitched_output"
             )
