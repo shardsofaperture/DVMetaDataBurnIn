@@ -132,85 +132,6 @@ log_stage_marker() {
   echo "[STAGE] $stage" >&2
 }
 
-sanitize_slider_value() {
-  local raw="$1"
-
-  if ! [[ "$raw" =~ ^[0-9]+$ ]]; then
-    raw=5
-  fi
-
-  (( raw < 1 )) && raw=1
-  (( raw > 10 )) && raw=10
-
-  echo "$raw"
-}
-
-quality_descriptor() {
-  local mode="$1"
-  local preset="$2"
-  local slider="$3"
-
-  case "$mode" in
-    slider)
-      echo "slider-${slider}"
-      ;;
-    *)
-      echo "$preset"
-      ;;
-  esac
-}
-
-preset_to_qscale() {
-  local preset="$1"
-
-  case "$preset" in
-    low)
-      echo 5
-      ;;
-    medium)
-      echo 3
-      ;;
-    high|custom|"")
-      echo 2
-      ;;
-    veryhigh)
-      echo 1
-      ;;
-    *)
-      echo 2
-      ;;
-  esac
-}
-
-slider_to_qscale() {
-  local slider_val="$(sanitize_slider_value "$1")"
-  local computed rounded
-
-  computed=$(( 9.0 - (slider_val * 0.8) ))
-  rounded=$(printf '%.0f' "$computed")
-
-  (( rounded < 1 )) && rounded=1
-  (( rounded > 8 )) && rounded=8
-
-  echo "$rounded"
-}
-
-qscale_to_crf() {
-  local qscale="$1"
-  local -i crf
-
-  if ! [[ "$qscale" =~ ^[0-9]+$ ]]; then
-    qscale=3
-  fi
-
-  (( crf = 16 + (qscale * 2) ))
-
-  (( crf < 10 )) && crf=10
-  (( crf > 40 )) && crf=40
-
-  echo "$crf"
-}
-
 audio_extension_for_format() {
   local fmt="${1:l}"
   case "$fmt" in
@@ -247,20 +168,31 @@ resolve_audio_bitrate() {
     low)
       resolved_audio_bitrate=128
       ;;
-    medium)
+    medium|"")
       resolved_audio_bitrate=192
       ;;
     high)
       resolved_audio_bitrate=256
       ;;
-    veryhigh)
-      resolved_audio_bitrate=320
-      ;;
-    slider)
-      resolved_audio_bitrate=$(( 96 + (effective_slider_value * 16) ))
-      ;;
     *)
       resolved_audio_bitrate=192
+      ;;
+  esac
+}
+
+quality_to_video_args() {
+  local quality_kind="$1"
+  reply=()
+
+  case "$quality_kind" in
+    high)
+      reply=(-c:v libx264 -crf 18 -preset slow)
+      ;;
+    low)
+      reply=(-c:v libx264 -crf 28 -preset veryfast)
+      ;;
+    *)
+      reply=(-c:v libx264 -crf 22 -preset medium)
       ;;
   esac
 }
@@ -272,10 +204,7 @@ resolve_audio_bitrate() {
 mode="single"        # "single" or "batch"
 layout="stacked"     # "stacked" or "single"
 format="mov"         # "mov", "mp4", or "mkv"
-encode_quality="high" # passthrough, low, medium, high, veryhigh, custom, slider
-encode_quality_mode="preset"
-encode_quality_preset="high"
-encode_slider_value=5
+encode_quality="medium" # low, medium, high (passthrough for mov)
 output_mode="video"   # "video" or "audio"
 burn_mode="burnin"   # "burnin" or "off" or "subtitleTrack"
 subtitle_mode="per-clip" # "per-clip" or "continuous"
@@ -311,13 +240,14 @@ run_scratch_root=""
 
 subtitle_mode_arg_set=0
 encode_quality_arg_set=0
+deprecated_encode_quality_used=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --mode=*) mode="${1#*=}"; shift ;;
     --layout=*) layout="${1#*=}"; shift ;;
     --format=*) format="${1#*=}"; shift ;;
-    --encode-quality=*) encode_quality="${1#*=}"; encode_quality_arg_set=1; shift ;;
+    --encode-quality=*) encode_quality="${1#*=}"; encode_quality_arg_set=1; deprecated_encode_quality_used=1; shift ;;
     --quality=*) encode_quality="${1#*=}"; encode_quality_arg_set=1; shift ;;
     --output-mode=*) output_mode="${1#*=}"; shift ;;
     --burn-mode=*) burn_mode="${1#*=}"; shift ;;
@@ -366,9 +296,9 @@ format="${format:l}"
 encode_quality="${encode_quality//[[:space:]]/}"
 encode_quality="${encode_quality//_/-}"
 encode_quality="${encode_quality:l}"
-encode_quality_mode="preset"
-encode_quality_preset="high"
-encode_slider_value=$(sanitize_slider_value "$encode_slider_value")
+if [[ -z "$encode_quality" ]]; then
+  encode_quality="medium"
+fi
 
 output_mode="${output_mode//[[:space:]]/}"
 output_mode="${output_mode:l}"
@@ -462,53 +392,30 @@ case "$subtitle_mode" in
 esac
 
 case "$encode_quality" in
-  slider-*)
-    encode_quality_mode="slider"
-    encode_slider_value=$(sanitize_slider_value "${encode_quality#slider-}")
-    encode_quality_preset="slider"
-    encode_quality="slider"
-    ;;
-  preset-*)
-    encode_quality_mode="preset"
-    encode_quality_preset="${encode_quality#preset-}"
-    encode_quality="$encode_quality_preset"
+  low|medium|high)
     ;;
   passthrough|pass-through)
     encode_quality="passthrough"
-    encode_quality_preset="passthrough"
     ;;
-  low)
-    encode_quality_preset="low"
-    ;;
-  medium)
-    encode_quality_preset="medium"
-    ;;
-  high|"")
-    encode_quality="high"
-    encode_quality_preset="high"
-    ;;
-  veryhigh|very-high)
-    encode_quality="veryhigh"
-    encode_quality_preset="veryhigh"
-    ;;
-  custom)
-    encode_quality_preset="custom"
+  "")
+    encode_quality="medium"
     ;;
   *)
-    fatal "Invalid encode-quality '$encode_quality'; expected passthrough, low, medium, high, veryhigh, custom, preset-<level>, or slider-<1-10>."
+    warn "Unknown quality '$encode_quality'; defaulting to medium."
+    encode_quality="medium"
     ;;
 esac
 
+if (( deprecated_encode_quality_used == 1 )); then
+  warn "[config] --encode-quality is deprecated; use --quality=low|medium|high"
+fi
+
 requested_format="$format"
-requested_encode_quality_mode="$encode_quality_mode"
-requested_slider_value="$encode_slider_value"
-requested_encode_quality="$(quality_descriptor "$encode_quality_mode" "$encode_quality_preset" "$encode_slider_value")"
+requested_encode_quality="$encode_quality"
 
 # Track effective values after validation/coercion
 effective_format="$format"
-effective_quality_mode="$encode_quality_mode"
-effective_quality_kind="$encode_quality_preset"
-effective_slider_value="$encode_slider_value"
+effective_quality_kind="$encode_quality"
 
 if (( subtitle_mode_arg_set == 1 )) && [[ "$burn_mode" != "subtitleTrack" ]]; then
   fatal "--subtitle-mode requires --burn-mode=subtitleTrack."
@@ -528,22 +435,20 @@ if [[ "$burn_mode" == "subtitleTrack" ]] && [[ "$format" == "mp4" || "$format" =
 fi
 
 if [[ "$effective_format" == "mov" ]]; then
-  effective_quality_mode="preset"
   effective_quality_kind="passthrough"
 fi
 
-if [[ "$effective_format" == "mp4" && "$effective_quality_kind" == "passthrough" ]]; then
-  warn "MP4 passthrough not supported; coercing encode quality to high."
-  append_run_note "MP4 passthrough request coerced to high-quality transcode"
-  effective_quality_mode="preset"
-  effective_quality_kind="high"
+if [[ "$effective_format" != "mov" && "$effective_quality_kind" == "passthrough" ]]; then
+  warn "${effective_format:u} passthrough not supported; coercing encode quality to medium."
+  append_run_note "${effective_format:u} passthrough request coerced to medium-quality transcode"
+  effective_quality_kind="medium"
 fi
 
-if [[ "$effective_quality_kind" == "slider" && "$effective_quality_mode" != "slider" ]]; then
-  effective_quality_mode="slider"
+effective_encode_quality="$effective_quality_kind"
+quality_log_suffix=""
+if (( encode_quality_arg_set == 0 )); then
+  quality_log_suffix=" (default)"
 fi
-
-effective_encode_quality="$(quality_descriptor "$effective_quality_mode" "$effective_quality_kind" "$effective_slider_value")"
 
 append_run_note "Output mode: $output_mode"
 if [[ "$effective_format" == "mov" ]]; then
@@ -551,7 +456,7 @@ if [[ "$effective_format" == "mov" ]]; then
   info "[config] output_mode=$output_mode, burn_mode=$burn_mode, subtitle_mode=$subtitle_mode, container=$effective_format (requested: $requested_format)"
 else
   append_run_note "Effective burn mode: $burn_mode (subtitle mode: $subtitle_mode), container: $effective_format, quality: $effective_encode_quality"
-  info "[config] output_mode=$output_mode, burn_mode=$burn_mode, subtitle_mode=$subtitle_mode, container=$effective_format (requested: $requested_format), quality=$effective_encode_quality (requested: $requested_encode_quality)"
+  info "[config] output_mode=$output_mode, burn_mode=$burn_mode, subtitle_mode=$subtitle_mode, container=$effective_format (requested: $requested_format), quality=$effective_encode_quality${quality_log_suffix} (requested: $requested_encode_quality)"
 fi
 initial_run_notes=("${run_notes[@]}")
 
@@ -603,19 +508,12 @@ typeset -g timestamps_normalized=0
 typeset -g primary_input_path=""
 typeset -g requested_format
 typeset -g requested_encode_quality
-typeset -g requested_encode_quality_mode
-typeset -g requested_slider_value
 typeset -g effective_format
 typeset -g effective_encode_quality
-typeset -g effective_quality_mode
 typeset -g effective_quality_kind
-typeset -g effective_slider_value
 typeset -g resolved_audio_bitrate
-typeset -g resolved_quality_mode
 typeset -g resolved_quality_kind
 typeset -g resolved_quality_label
-typeset -g resolved_quality_slider
-typeset -g resolved_qscale
 typeset -g resolved_video_codec
 typeset -g resolved_audio_codec
 typeset -g format_coerced=0
@@ -1902,53 +1800,32 @@ resolve_encode_quality() {
   local format="$1"
   local quality_kind="$2"
 
-  resolved_quality_mode="$effective_quality_mode"
-  resolved_quality_kind="$quality_kind"
-  resolved_quality_slider=""
-  resolved_qscale=""
+  resolved_quality_kind="${quality_kind:-medium}"
+  resolved_quality_label="$resolved_quality_kind"
   resolved_audio_bitrate=""
 
   if [[ "$output_mode" == "audio" ]]; then
-    if [[ "$quality_kind" == "slider" ]]; then
-      resolved_quality_mode="slider"
-      resolved_quality_slider="$effective_slider_value"
-    fi
-
-    resolve_audio_bitrate "$quality_kind"
-    resolved_quality_label="$(quality_descriptor "$resolved_quality_mode" "$quality_kind" "$resolved_quality_slider")"
+    resolve_audio_bitrate "$resolved_quality_kind"
+    resolved_quality_label="$resolved_quality_kind"
     return
   fi
 
   case "$format" in
     mov)
-      resolved_quality_mode="preset"
       resolved_quality_kind="passthrough"
+      resolved_quality_label="passthrough"
       ;;
     mp4|mkv)
-      if [[ "$quality_kind" == "passthrough" ]]; then
-        resolved_quality_kind="high"
-      fi
+      case "$resolved_quality_kind" in
+        low|medium|high)
+          ;;
+        *)
+          resolved_quality_kind="medium"
+          resolved_quality_label="medium"
+          ;;
+      esac
       ;;
   esac
-
-  case "$resolved_quality_kind" in
-    passthrough)
-      resolved_qscale=""
-      ;;
-    slider)
-      resolved_quality_mode="slider"
-      resolved_quality_slider="$effective_slider_value"
-      resolved_qscale="$(slider_to_qscale "$effective_slider_value")"
-      ;;
-    low|medium|high|veryhigh|custom|"")
-      resolved_qscale="$(preset_to_qscale "$resolved_quality_kind")"
-      ;;
-    *)
-      resolved_qscale="$(preset_to_qscale "high")"
-      ;;
-  esac
-
-  resolved_quality_label="$(quality_descriptor "$resolved_quality_mode" "$resolved_quality_kind" "$resolved_quality_slider")"
 }
 
 build_codec_args() {
@@ -1980,21 +1857,14 @@ build_codec_args() {
       resolved_audio_codec="pcm_s16le"
       ;;
     *)
-      if [[ -z "$resolved_qscale" ]]; then
-        args=(-c:v copy -c:a copy)
-        resolved_video_codec="copy"
-        resolved_audio_codec="copy"
-      else
-        local crf
-        crf="$(qscale_to_crf "$resolved_qscale")"
-        args=(-c:v libx264 -crf "$crf" -preset medium -c:a aac -b:a 192k)
-        resolved_video_codec="libx264 (crf=${crf})"
-        resolved_audio_codec="aac"
-      fi
+      quality_to_video_args "$resolved_quality_kind"
+      args=("${reply[@]}" -c:a aac -b:a 192k)
+      resolved_video_codec="libx264 (${resolved_quality_kind})"
+      resolved_audio_codec="aac"
       ;;
   esac
 
-  info "[codec] Resolved encode quality: $resolved_quality_label (slider=${resolved_quality_slider:-n/a}, qscale=${resolved_qscale:-passthrough}) | container=${format} | codecs: v=${resolved_video_codec} a=${resolved_audio_codec} | codec args: ${args[*]}"
+  info "[codec] Resolved encode quality: $resolved_quality_label | container=${format} | codecs: v=${resolved_video_codec} a=${resolved_audio_codec} | codec args: ${args[*]}"
   reply=("${args[@]}")
 }
 
