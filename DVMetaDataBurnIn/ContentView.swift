@@ -28,6 +28,72 @@ enum MissingMetaMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+enum OutputFormat: String, CaseIterable, Identifiable {
+    case mov
+    case mp4
+    case mkv
+
+    var id: String { rawValue }
+}
+
+enum EncodeQuality: String, CaseIterable, Identifiable {
+    case passthrough
+    case low
+    case medium
+    case high
+    case veryHigh
+    case custom
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .passthrough:
+            return "Passthrough"
+        case .low:
+            return "Low"
+        case .medium:
+            return "Medium"
+        case .high:
+            return "High"
+        case .veryHigh:
+            return "Very High"
+        case .custom:
+            return "Custom"
+        }
+    }
+}
+
+func buildCodecArgs(format: OutputFormat, quality: EncodeQuality) -> [String] {
+    var resolvedQuality = quality
+
+    switch format {
+    case .mov:
+        resolvedQuality = .passthrough
+    case .mp4:
+        if quality == .passthrough {
+            resolvedQuality = .high
+        }
+    case .mkv:
+        if quality == .passthrough {
+            return ["-c:v", "copy", "-c:a", "copy"]
+        }
+    }
+
+    switch resolvedQuality {
+    case .passthrough:
+        return ["-c:v", "copy", "-c:a", "copy"]
+    case .low:
+        return ["-c:v", "mpeg4", "-qscale:v", "5", "-c:a", "aac", "-b:a", "192k"]
+    case .medium:
+        return ["-c:v", "mpeg4", "-qscale:v", "3", "-c:a", "aac", "-b:a", "192k"]
+    case .high, .custom:
+        return ["-c:v", "mpeg4", "-qscale:v", "2", "-c:a", "aac", "-b:a", "192k"]
+    case .veryHigh:
+        return ["-c:v", "mpeg4", "-qscale:v", "1", "-c:a", "aac", "-b:a", "192k"]
+    }
+}
+
 
 // MARK: - Main view
 struct ContentView: View {
@@ -35,8 +101,8 @@ struct ContentView: View {
     @State private var inputPath: String = ""
     @State private var mode: String = "single"      // "single" or "batch"
     @State private var layout: String = "stacked"   // "stacked" or "single"
-    @State private var format: String = "mov"       // "mov", "mp4", or "mkv"
-    @State private var mp4Preset: String = ""
+    @State private var format: OutputFormat = .mov
+    @State private var encodeQuality: EncodeQuality = .passthrough
     @State private var logText: String = ""
     @State private var isRunning: Bool = false
     @State private var showingAbout: Bool = false
@@ -228,7 +294,7 @@ struct ContentView: View {
                     if newMode == .subtitleTrack {
                         if subtitleMode == nil { subtitleMode = .perClip }
                         // subtitleTrack forces mkv (optional UI-side convenience)
-                        if format != "mkv" { format = "mkv" }
+                        if format != .mkv { format = .mkv }
                     } else {
                         subtitleMode = nil
                     }
@@ -236,7 +302,7 @@ struct ContentView: View {
             }
              
 
-            // Format + preset area (kept together so it never overlaps subtitle timing)
+            // Format + quality area (kept together so it never overlaps subtitle timing)
             VStack(alignment: .leading, spacing: 10) {
 
                 HStack(spacing: 12) {
@@ -244,36 +310,35 @@ struct ContentView: View {
                         .frame(width: 110, alignment: .leading)
 
                     Picker("", selection: $format) {
-                        Text("MOV (DV, Passthrough)").tag("mov")
-                        Text("MP4 (MPEG-4, Transcode)").tag("mp4")
-                        Text("MKV (Matroska)").tag("mkv")
+                        Text("MOV (DV, Passthrough)").tag(OutputFormat.mov)
+                        Text("MP4 (MPEG-4, Transcode)").tag(OutputFormat.mp4)
+                        Text("MKV (Matroska)").tag(OutputFormat.mkv)
                     }
                     .pickerStyle(SegmentedPickerStyle())
                     .frame(width: 420)
                     .help("Pick the container format for the output file.")
                 }
 
-                if format == "mp4" {
-                    HStack(spacing: 12) {
-                        Text("MP4 preset:")
-                            .frame(width: 110, alignment: .leading)
+                HStack(spacing: 12) {
+                    Text("Quality:")
+                        .frame(width: 110, alignment: .leading)
 
-                        Picker("", selection: $mp4Preset) {
-                            Text("Best quality").tag("best-quality")
-                            Text("Default").tag("default")
-                            Text("Audio only").tag("audio-only")
+                    Picker("", selection: $encodeQuality) {
+                        ForEach(EncodeQuality.allCases) { quality in
+                            Text(quality.displayName).tag(quality)
                         }
-                        .pickerStyle(SegmentedPickerStyle())
-                        .frame(width: 420)
-                        .help("Choose an encoding preset for MP4 outputs.")
                     }
+                    .pickerStyle(SegmentedPickerStyle())
+                    .frame(width: 420)
+                    .disabled(format == .mov || encodeQuality == .passthrough)
+                    .help("Select the encode quality for MP4 or MKV outputs.")
                 }
             }
             .onChange(of: format) { newValue in
-                if newValue == "mp4" {
-                    if mp4Preset.isEmpty { mp4Preset = "default" }
-                } else {
-                    mp4Preset = ""
+                if newValue == .mov {
+                    encodeQuality = .passthrough
+                } else if encodeQuality == .passthrough {
+                    encodeQuality = .high
                 }
             }
 
@@ -897,7 +962,8 @@ struct ContentView: View {
             tempScriptURL.path,
             "--mode=\(mode)",
             "--layout=\(layout)",
-            "--format=\(format)",
+            "--format=\(format.rawValue)",
+            "--encode-quality=\(encodeQuality.rawValue)",
             "--missing-meta=\(missingMetaArg)",
             "--fontfile=\(resolvedFontPath())",
             "--fontname=\(resolvedFontName())",
@@ -918,18 +984,6 @@ struct ContentView: View {
             if let subtitleMode {
                 args.append("--subtitle-mode=\(subtitleMode.rawValue)")
             }
-        }
-
-        if format == "mp4" {
-            let resolvedPreset = mp4Preset.isEmpty ? "default" : mp4Preset
-            args.append("--preset=\(resolvedPreset)")
-        } else if !mp4Preset.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            throw NSError(
-                domain: "DVMeta",
-                code: 7,
-                userInfo: [NSLocalizedDescriptionKey:
-                           "ERROR: MP4 presets can only be used when the output format is set to MP4."]
-            )
         }
 
         if debugMode {
@@ -978,7 +1032,7 @@ struct ContentView: View {
         }
 
         let fm = FileManager.default
-        let targetExtension = format.lowercased()
+        let targetExtension = format.rawValue.lowercased()
 
         guard let entries = try? fm.contentsOfDirectory(at: burnedPartsDir, includingPropertiesForKeys: nil) else {
             return (
@@ -1394,12 +1448,7 @@ struct ContentView: View {
         lines.append("[DEBUG] Input path: \(inputPath)")
         lines.append("[DEBUG] Input exists: \(inputExists)")
         lines.append("[DEBUG] Mode: \(mode) | Layout: \(layout) | Format: \(format)")
-        if format == "mp4" {
-            let preset = mp4Preset.isEmpty ? "default" : mp4Preset
-            lines.append("[DEBUG] MP4 preset: \(preset)")
-        } else if !mp4Preset.isEmpty {
-            lines.append("[DEBUG] MP4 preset ignored for format: \(format)")
-        }
+        lines.append("[DEBUG] Encode quality: \(encodeQuality.rawValue)")
         lines.append("[DEBUG] Burn mode: \(burnMode.rawValue) | Missing metadata handling: \(missingMetaMode.rawValue)")
         lines.append("[DEBUG] Subtitle timing mode: \(subtitleModeValue)")
         lines.append("[DEBUG] Font path: \(resolvedFontPath()) | Font name: \(resolvedFontName())")
