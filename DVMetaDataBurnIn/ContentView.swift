@@ -808,9 +808,15 @@ struct ContentView: View {
                 process.waitUntilExit()
                 let status = process.terminationStatus
 
+                let (finalStatus, stitchLog) = self.performBatchStitchConcatIfNeeded(
+                    originalStatus: status,
+                    inputPath: self.inputPath
+                )
+
                 DispatchQueue.main.async {
                     self.isRunning = false
-                    self.appendToLog("\n\n[process exit status: \(status)]")
+                    if !stitchLog.isEmpty { self.appendToLog(stitchLog, capped: false) }
+                    self.appendToLog("\n\n[process exit status: \(finalStatus)]")
                     handle.readabilityHandler = nil
                     self.currentProcess = nil
                 }
@@ -831,24 +837,11 @@ struct ContentView: View {
         let bundleRoot = Bundle.main.resourceURL ?? Bundle.main.bundleURL
         let fm = FileManager.default
 
-        func findResource(named name: String) -> URL? {
-            guard let enumerator = fm.enumerator(at: bundleRoot,
-                                                 includingPropertiesForKeys: nil)
-            else { return nil }
-
-            for case let url as URL in enumerator {
-                if url.lastPathComponent == name {
-                    return url
-                }
-            }
-            return nil
-        }
-
         func findScriptURL() -> URL? {
-            if let u = findResource(named: "dvmetaburn.zsh") {
+            if let u = findBundledResource(named: "dvmetaburn.zsh") {
                 return u
             }
-            if let u = findResource(named: "dvmetaburn") {
+            if let u = findBundledResource(named: "dvmetaburn") {
                 return u
             }
             return nil
@@ -860,17 +853,17 @@ struct ContentView: View {
                                      "ERROR: Could not find dvmetaburn(.zsh) in app bundle (root: \(bundleRoot.path))."])
         }
 
-        guard let ffmpegURL = findResource(named: "ffmpeg") else {
+        guard let ffmpegURL = findBundledResource(named: "ffmpeg") else {
             throw NSError(domain: "DVMeta", code: 4,
                           userInfo: [NSLocalizedDescriptionKey: "ERROR: Could not find ffmpeg in app bundle."])
         }
 
-        guard let dvrescueURL = findResource(named: "dvrescue") else {
+        guard let dvrescueURL = findBundledResource(named: "dvrescue") else {
             throw NSError(domain: "DVMeta", code: 5,
                           userInfo: [NSLocalizedDescriptionKey: "ERROR: Could not find dvrescue in app bundle."])
         }
 
-        guard let fontURL = findResource(named: "UAV-OSD-Mono.ttf") else {
+        guard let fontURL = findBundledResource(named: "UAV-OSD-Mono.ttf") else {
             throw NSError(domain: "DVMeta", code: 6,
                           userInfo: [NSLocalizedDescriptionKey: "ERROR: Could not find UAV-OSD-Mono.ttf in app bundle."])
         }
@@ -966,6 +959,267 @@ struct ContentView: View {
         process.standardError = pipe
 
         return (process, pipe)
+    }
+
+    private func performBatchStitchConcatIfNeeded(originalStatus: Int32, inputPath: String) -> (Int32, String) {
+        guard mode == "batch", stitchMode == "stitch", burnMode != .off else {
+            return (originalStatus, "")
+        }
+
+        guard let ffmpegURL = findBundledResource(named: "ffmpeg") else {
+            return (max(originalStatus, 1), "\n[STITCH] ERROR: ffmpeg not found in app bundle.\n")
+        }
+
+        guard let burnedPartsDir = locateLatestBurnedPartsDirectory() else {
+            return (
+                max(originalStatus, 1),
+                "\n[STITCH] ERROR: Unable to locate burned parts for stitching in scratch or log directories.\n"
+            )
+        }
+
+        let fm = FileManager.default
+        let targetExtension = format.lowercased()
+
+        guard let entries = try? fm.contentsOfDirectory(at: burnedPartsDir, includingPropertiesForKeys: nil) else {
+            return (
+                max(originalStatus, 1),
+                "\n[STITCH] ERROR: Failed to read burned parts directory: \(burnedPartsDir.path)\n"
+            )
+        }
+
+        let parts = entries
+            .filter { url in
+                url.pathExtension.lowercased() == targetExtension &&
+                url.lastPathComponent.contains("_dateburn")
+            }
+            .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+
+        guard !parts.isEmpty else {
+            return (
+                max(originalStatus, 1),
+                "\n[STITCH] ERROR: No burned parts found to stitch at \(burnedPartsDir.path)\n"
+            )
+        }
+
+        let escapedList = parts
+            .map { "file '\(escapeSingleQuotes($0.path))'" }
+            .joined(separator: "\n")
+
+        let listFile = burnedPartsDir.appendingPathComponent("list.txt")
+        do {
+            try escapedList.write(to: listFile, atomically: true, encoding: .utf8)
+        } catch {
+            return (
+                max(originalStatus, 1),
+                "\n[STITCH] ERROR: Unable to write concat list: \(error.localizedDescription)\n"
+            )
+        }
+
+        let outputDirectory: URL
+        if outputToLocationFolder, let destination = selectedOutputFolder, !destination.isEmpty {
+            outputDirectory = URL(fileURLWithPath: destination, isDirectory: true)
+        } else {
+            outputDirectory = URL(fileURLWithPath: inputPath, isDirectory: true)
+        }
+
+        _ = try? fm.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
+
+        let baseName = URL(fileURLWithPath: inputPath, isDirectory: true).lastPathComponent
+        let outputName = "\(baseName)_stitched_dateburn.\(targetExtension)"
+        let finalOutput = outputDirectory.appendingPathComponent(outputName)
+
+        var log = "\n[STITCH] list.txt => \(listFile.path)" +
+        "\n[STITCH] ffmpeg concat => \(finalOutput.path)"
+
+        let concatArgs = [
+            "-hide_banner",
+            "-y",
+            "-f", "concat",
+            "-safe", "0",
+            "-i", listFile.path,
+            "-c", "copy",
+            finalOutput.path
+        ]
+
+        let (copyStatus, copyOutput) = runFFmpegProcess(at: ffmpegURL, arguments: concatArgs)
+        var finalStatus = originalStatus
+
+        if copyStatus == 0, fm.fileExists(atPath: finalOutput.path) {
+            log += "\n[STITCH] success (exit 0)"
+            finalStatus = 0
+            return (finalStatus, log)
+        }
+
+        if !copyOutput.isEmpty {
+            log += "\n[STITCH] stream copy failed (exit \(copyStatus))\n\(copyOutput)"
+        } else {
+            log += "\n[STITCH] stream copy failed (exit \(copyStatus))"
+        }
+
+        let fallbackArgs: [String]
+        switch targetExtension {
+        case "mov":
+            fallbackArgs = [
+                "-hide_banner",
+                "-y",
+                "-f", "concat",
+                "-safe", "0",
+                "-i", listFile.path,
+                "-c:v", "dvvideo",
+                "-c:a", "pcm_s16le",
+                finalOutput.path
+            ]
+        case "mp4":
+            fallbackArgs = [
+                "-hide_banner",
+                "-y",
+                "-f", "concat",
+                "-safe", "0",
+                "-i", listFile.path,
+                "-c:v", "mpeg4",
+                "-qscale:v", "2",
+                "-c:a", "aac",
+                "-b:a", "192k",
+                finalOutput.path
+            ]
+        default:
+            fallbackArgs = [
+                "-hide_banner",
+                "-y",
+                "-f", "concat",
+                "-safe", "0",
+                "-i", listFile.path,
+                "-c:v", "mpeg4",
+                "-qscale:v", "2",
+                "-c:a", "aac",
+                "-b:a", "192k",
+                finalOutput.path
+            ]
+        }
+
+        let (fallbackStatus, fallbackOutput) = runFFmpegProcess(at: ffmpegURL, arguments: fallbackArgs)
+
+        if fallbackStatus == 0, fm.fileExists(atPath: finalOutput.path) {
+            log += "\n[STITCH] fallback succeeded (exit 0)"
+            finalStatus = 0
+        } else {
+            log += "\n[STITCH] fallback failed (exit \(fallbackStatus))"
+            if !fallbackOutput.isEmpty {
+                log += "\n\(fallbackOutput)"
+            }
+            finalStatus = max(originalStatus, 1)
+        }
+
+        return (finalStatus, log)
+    }
+
+    private func findBundledResource(named name: String) -> URL? {
+        let fm = FileManager.default
+        let bundleRoot = Bundle.main.resourceURL ?? Bundle.main.bundleURL
+
+        guard let enumerator = fm.enumerator(at: bundleRoot, includingPropertiesForKeys: nil) else {
+            return nil
+        }
+
+        for case let url as URL in enumerator where url.lastPathComponent == name {
+            return url
+        }
+        return nil
+    }
+
+    private func locateLatestBurnedPartsDirectory() -> URL? {
+        let fm = FileManager.default
+        var searchRoots: [URL] = []
+
+        let trimmedScratch = scratchDirectory.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedScratch.isEmpty {
+            searchRoots.append(URL(fileURLWithPath: trimmedScratch, isDirectory: true)
+                .appendingPathComponent("DVMetaDataBurnIn"))
+        }
+
+        let defaultArtifacts = URL(fileURLWithPath: NSHomeDirectory())
+            .appendingPathComponent("Library/Logs/DVMeta")
+        searchRoots.append(defaultArtifacts)
+
+        for root in searchRoots {
+            guard let runDirs = try? fm.contentsOfDirectory(
+                at: root,
+                includingPropertiesForKeys: [.isDirectoryKey, .contentModificationDateKey],
+                options: [.skipsHiddenFiles]
+            ) else { continue }
+
+            let sortedRuns = runDirs.sorted {
+                modificationDate(for: $0) ?? .distantPast > modificationDate(for: $1) ?? .distantPast
+            }
+
+            for runDir in sortedRuns {
+                if let burnedParts = burnedPartsDirectory(in: runDir) {
+                    return burnedParts
+                }
+            }
+        }
+
+        return nil
+    }
+
+    private func burnedPartsDirectory(in runDir: URL) -> URL? {
+        let fm = FileManager.default
+
+        let artifactsDir = runDir.appendingPathComponent("artifacts")
+        if let artifactRuns = try? fm.contentsOfDirectory(
+            at: artifactsDir,
+            includingPropertiesForKeys: [.isDirectoryKey, .contentModificationDateKey],
+            options: [.skipsHiddenFiles]
+        ) {
+            let sortedArtifacts = artifactRuns.sorted {
+                modificationDate(for: $0) ?? .distantPast > modificationDate(for: $1) ?? .distantPast
+            }
+
+            for artifact in sortedArtifacts {
+                let burnedParts = artifact.appendingPathComponent("burned_parts")
+                if fm.fileExists(atPath: burnedParts.path) {
+                    return burnedParts
+                }
+            }
+        }
+
+        let direct = runDir.appendingPathComponent("burned_parts")
+        if fm.fileExists(atPath: direct.path) {
+            return direct
+        }
+
+        return nil
+    }
+
+    private func modificationDate(for url: URL) -> Date? {
+        let values = try? url.resourceValues(forKeys: [.contentModificationDateKey])
+        return values?.contentModificationDate
+    }
+
+    private func runFFmpegProcess(at executable: URL, arguments: [String]) -> (Int32, String) {
+        let process = Process()
+        process.executableURL = executable
+        process.arguments = arguments
+
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+
+        do {
+            try process.run()
+        } catch {
+            return (1, "\n[STITCH] ERROR: Failed to launch ffmpeg: \(error.localizedDescription)")
+        }
+
+        process.waitUntilExit()
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        let output = String(data: data, encoding: .utf8) ?? ""
+
+        return (process.terminationStatus, output)
+    }
+
+    private func escapeSingleQuotes(_ path: String) -> String {
+        path.replacingOccurrences(of: "'", with: "'\\''")
     }
 
     // MARK: - Font discovery
