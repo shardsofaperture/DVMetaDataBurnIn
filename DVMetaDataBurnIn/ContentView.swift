@@ -172,6 +172,7 @@ struct ContentView: View {
     @State private var includeSystemFonts: Bool = false
     @State private var hoveredFontPreviewName: String?
     @State private var hoveredLayoutPreviewName: String?
+    @State private var hoveredQuality: Quality?
     @State private var outputToLocationFolder: Bool = false
     @State private var scratchDirectory: String =
         UserDefaults.standard.string(forKey: "DVMetaScratchDirectory") ?? ""
@@ -276,6 +277,38 @@ struct ContentView: View {
 
     private var qualityPickerDisabled: Bool {
         format == .mov || outputMode == .audioOnly
+    }
+
+    private func qualityDescription(for option: Quality) -> String {
+        let resolvedQuality = resolveQuality(option, format: format, outputMode: outputMode)
+
+        if outputMode == .audioOnly {
+            let bitrate = resolvedQuality.audioBitrateKbps ?? 192
+            return "\(option.displayName): AAC \(bitrate)k audio transcode (lower = smaller, higher = cleaner)."
+        }
+
+        if resolvedQuality.isPassthrough {
+            return "\(option.displayName): DV passthrough (quality ignored)."
+        }
+
+        let crf = qscaleToCRF(resolvedQuality.qscale ?? option.qscale)
+        return "\(option.displayName): H.264 (libx264) CRF \(crf), preset medium. Lower = smaller files, higher = cleaner image. Audio stays AAC 192k unless overridden."
+    }
+
+    private func qualityExample(for option: Quality) -> String {
+        let resolvedQuality = resolveQuality(option, format: format, outputMode: outputMode)
+
+        if outputMode == .audioOnly {
+            let bitrate = resolvedQuality.audioBitrateKbps ?? 192
+            return "Example: AAC \(bitrate)k audio-only."
+        }
+
+        if resolvedQuality.isPassthrough {
+            return "Example: DV video passthrough with PCM audio."
+        }
+
+        let crf = qscaleToCRF(resolvedQuality.qscale ?? option.qscale)
+        return "Example: H.264 CRF \(crf) · preset medium · AAC 192k audio."
     }
 
     private let camcorderFontPreviews: [String: String] = [
@@ -454,6 +487,10 @@ struct ContentView: View {
                         ForEach(Quality.allCases) { option in
                             Text(option.displayName)
                                 .tag(option)
+                                .onHover { hovering in
+                                    hoveredQuality = hovering ? option : nil
+                                }
+                                .help(qualityDescription(for: option))
                         }
                     }
                     .pickerStyle(SegmentedPickerStyle())
@@ -461,6 +498,26 @@ struct ContentView: View {
                     .help("Choose the transcode quality for MP4 or MKV outputs.")
                     .disabled(qualityPickerDisabled)
                     .opacity(qualityPickerDisabled ? 0.5 : 1.0)
+                }
+
+                if let hoveredQuality, !qualityPickerDisabled, outputMode == .video {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(qualityDescription(for: hoveredQuality))
+                            .font(.subheadline)
+                            .bold()
+
+                        Text(qualityExample(for: hoveredQuality))
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color(NSColor.windowBackgroundColor))
+                            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                    )
+                    .frame(maxWidth: 340, alignment: .leading)
+                    .offset(y: -4)
                 }
             }
 
