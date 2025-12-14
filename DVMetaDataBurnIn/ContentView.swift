@@ -43,38 +43,18 @@ enum OutputFormat: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
-enum QualityMode: String, Identifiable {
-    case presets
-    case slider
-
-    var id: String { rawValue }
-}
-
-enum QualityPreset: String, CaseIterable, Identifiable {
+enum Quality: String, CaseIterable, Identifiable {
     case low
     case medium
     case high
-    case veryHigh
-    case passthrough
 
     var id: String { rawValue }
 
     var displayName: String {
-        switch self {
-        case .low:
-            return "Low"
-        case .medium:
-            return "Medium"
-        case .high:
-            return "High"
-        case .veryHigh:
-            return "Very High"
-        case .passthrough:
-            return "Passthrough"
-        }
+        rawValue.capitalized
     }
 
-    var qscale: Int? {
+    var qscale: Int {
         switch self {
         case .low:
             return 5
@@ -82,93 +62,22 @@ enum QualityPreset: String, CaseIterable, Identifiable {
             return 3
         case .high:
             return 2
-        case .veryHigh:
-            return 1
-        case .passthrough:
-            return nil
-        }
-    }
-}
-
-enum EncodeQuality: Identifiable, Equatable {
-    case passthrough
-    case preset(QualityPreset)
-    case slider(Int)
-    case custom
-
-    var id: String {
-        switch self {
-        case .passthrough:
-            return "passthrough"
-        case .preset(let preset):
-            return "preset-\(preset.rawValue)"
-        case .slider(let value):
-            return "slider-\(value)"
-        case .custom:
-            return "custom"
-        }
-    }
-
-    var mode: QualityMode {
-        switch self {
-        case .slider:
-            return .slider
-        default:
-            return .presets
-        }
-    }
-
-    var presetValue: QualityPreset? {
-        if case let .preset(value) = self { return value }
-        if self == .passthrough { return .passthrough }
-        return nil
-    }
-
-    var sliderValue: Int? {
-        if case let .slider(value) = self { return value }
-        return nil
-    }
-
-    var argumentValue: String {
-        switch self {
-        case .passthrough:
-            return "passthrough"
-        case .preset(let preset):
-            return "preset-\(preset.rawValue)"
-        case .slider(let value):
-            return "slider-\(value)"
-        case .custom:
-            return "custom"
         }
     }
 }
 
 struct ResolvedQuality {
-    let selection: EncodeQuality
+    let selection: Quality
     let qscale: Int?
     let audioBitrateKbps: Int?
 
     var isPassthrough: Bool {
         qscale == nil
     }
-
-    var sliderValue: Int? {
-        selection.sliderValue
-    }
-}
-
-func clampSliderValue(_ value: Int) -> Int {
-    min(max(value, 1), 10)
-}
-
-func sliderToQscale(_ sliderValue: Int) -> Int {
-    let clamped = clampSliderValue(sliderValue)
-    let computed = Int((9.0 - (Double(clamped) * 0.8)).rounded())
-    return max(1, min(8, computed))
 }
 
 func resolveQuality(
-    _ selection: EncodeQuality,
+    _ selection: Quality,
     format: OutputFormat,
     outputMode: OutputMode
 ) -> ResolvedQuality {
@@ -177,24 +86,12 @@ func resolveQuality(
 
     if outputMode == .audioOnly {
         switch selection {
-        case .preset(let preset):
-            switch preset {
-            case .low:
-                audioBitrate = 128
-            case .medium:
-                audioBitrate = 192
-            case .high:
-                audioBitrate = 256
-            case .veryHigh:
-                audioBitrate = 320
-            case .passthrough:
-                audioBitrate = 192
-            }
-        case .slider(let value):
-            let clamped = clampSliderValue(value)
-            audioBitrate = 96 + (clamped * 16)
-        default:
+        case .low:
+            audioBitrate = 128
+        case .medium:
             audioBitrate = 192
+        case .high:
+            audioBitrate = 256
         }
 
         return ResolvedQuality(selection: selection, qscale: nil, audioBitrateKbps: audioBitrate)
@@ -202,29 +99,9 @@ func resolveQuality(
 
     switch format {
     case .mov:
-        return ResolvedQuality(selection: .passthrough, qscale: nil, audioBitrateKbps: 192)
-    case .mp4:
-        switch selection {
-        case .passthrough:
-            qscale = QualityPreset.high.qscale
-        case .preset(let preset):
-            qscale = preset.qscale ?? QualityPreset.high.qscale
-        case .slider(let value):
-            qscale = sliderToQscale(value)
-        case .custom:
-            qscale = QualityPreset.high.qscale
-        }
-    case .mkv:
-        switch selection {
-        case .passthrough:
-            qscale = QualityPreset.high.qscale
-        case .preset(let preset):
-            qscale = preset.qscale ?? QualityPreset.high.qscale
-        case .slider(let value):
-            qscale = sliderToQscale(value)
-        case .custom:
-            qscale = QualityPreset.high.qscale
-        }
+        return ResolvedQuality(selection: selection, qscale: nil, audioBitrateKbps: 192)
+    case .mp4, .mkv:
+        qscale = selection.qscale
     }
 
     return ResolvedQuality(selection: selection, qscale: qscale, audioBitrateKbps: 192)
@@ -276,10 +153,8 @@ struct ContentView: View {
     @State private var mode: String = "single"      // "single" or "batch"
     @State private var layout: String = "stacked"   // "stacked" or "single"
     @State private var format: OutputFormat = .mov
-    @State private var encodeQuality: EncodeQuality = .passthrough
+    @State private var quality: Quality = .high
     @State private var outputMode: OutputMode = .video
-    @State private var lastPresetSelection: QualityPreset = .veryHigh
-    @State private var sliderQualityValue: Int = 5
     @State private var logText: String = ""
     @State private var isRunning: Bool = false
     @State private var showingAbout: Bool = false
@@ -314,8 +189,6 @@ struct ContentView: View {
         if outputToLocationFolder && sanitizedDestinationOverride() == nil {
             return "Choose an output folder before starting."
         }
-
-        let resolvedQuality = resolveQuality(encodeQuality, format: format, outputMode: outputMode)
 
         if outputMode == .audioOnly {
             return nil
@@ -400,75 +273,8 @@ struct ContentView: View {
         camcorderFonts + (includeSystemFonts ? systemFonts : [])
     }
 
-    private var availablePresets: [QualityPreset] {
-        if outputMode == .audioOnly {
-            return [.low, .medium, .high, .veryHigh]
-        }
-
-        var presets: [QualityPreset] = [.low, .medium, .high, .veryHigh]
-        if format == .mov {
-            presets.append(.passthrough)
-        }
-        return presets
-    }
-
-    private var qualityModeBinding: Binding<QualityMode> {
-        Binding {
-            encodeQuality.mode
-        } set: { newMode in
-            switch newMode {
-            case .presets:
-                if let preset = encodeQuality.presetValue, preset != .passthrough {
-                    lastPresetSelection = preset
-                }
-
-                if format == .mov {
-                    encodeQuality = .passthrough
-                } else {
-                    encodeQuality = .preset(lastPresetSelection)
-                }
-            case .slider:
-                let latest = encodeQuality.sliderValue ?? sliderQualityValue
-                let clamped = clampSliderValue(latest)
-                sliderQualityValue = clamped
-                encodeQuality = .slider(clamped)
-            }
-        }
-    }
-
-    private var qualityLabel: String {
-        outputMode == .audioOnly ? "Audio bitrate:" : "Quality:"
-    }
-
-    private var presetBinding: Binding<QualityPreset> {
-        Binding {
-            if let preset = encodeQuality.presetValue {
-                if preset == .passthrough && format != .mov {
-                    return lastPresetSelection
-                }
-
-                return preset
-            }
-
-            return lastPresetSelection
-        } set: { newValue in
-            if newValue == .passthrough {
-                encodeQuality = .passthrough
-            } else {
-                lastPresetSelection = newValue
-                encodeQuality = .preset(newValue)
-            }
-        }
-    }
-
-    private var sliderBinding: Binding<Double> {
-        Binding {
-            Double(encodeQuality.sliderValue ?? sliderQualityValue)
-        } set: { newValue in
-            let intValue = clampSliderValue(Int(newValue.rounded()))
-            sliderQualityValue = intValue
-            encodeQuality = .slider(intValue)
-        }
+    private var qualityPickerDisabled: Bool {
+        format == .mov || outputMode == .audioOnly
     }
 
     private let camcorderFontPreviews: [String: String] = [
@@ -521,8 +327,6 @@ struct ContentView: View {
                 if newMode == .audioOnly {
                     burnMode = .off
                     subtitleMode = nil
-                    encodeQuality = .preset(.high)
-                    lastPresetSelection = .high
                 }
             }
             // Stitch / string clips together (only meaningful for batch + burnin/subtitleTrack)
@@ -639,46 +443,20 @@ struct ContentView: View {
                     .foregroundColor(.secondary)
 
                 HStack(spacing: 12) {
-                    Text(qualityLabel)
+                    Text("Quality:")
                         .frame(width: 110, alignment: .leading)
 
-                    VStack(alignment: .leading, spacing: 8) {
-                        Picker("", selection: qualityModeBinding) {
-                            Text("Presets").tag(QualityMode.presets)
-                            Text("Slider").tag(QualityMode.slider)
-                        }
-                        .pickerStyle(SegmentedPickerStyle())
-                        .frame(width: 240)
-                        .help("Choose between preset qualities or a numeric slider.")
-
-                        if encodeQuality.mode == .presets {
-                            Picker("", selection: presetBinding) {
-                                ForEach(availablePresets) { preset in
-                                    Text(preset.displayName).tag(preset)
-                                }
-                            }
-                            .pickerStyle(SegmentedPickerStyle())
-                            .frame(width: 420)
-                            .help("Select an encode quality preset.")
-                        } else {
-                            HStack(spacing: 10) {
-                                Slider(value: sliderBinding, in: 1...10, step: 1)
-                                    .frame(width: 320)
-                                    .help("Choose a numeric quality level (1 = worst, 10 = best).")
-                                Text("\(Int(sliderBinding.wrappedValue))")
-                                    .font(.system(.body, design: .monospaced))
-                                    .frame(width: 32, alignment: .leading)
-                            }
-                            .frame(width: 420, alignment: .leading)
+                    Picker("", selection: $quality) {
+                        ForEach(Quality.allCases) { option in
+                            Text(option.displayName)
+                                .tag(option)
                         }
                     }
-                }
-            }
-            .onChange(of: format) { newValue in
-                if newValue == .mov {
-                    encodeQuality = .passthrough
-                } else if encodeQuality.presetValue == .passthrough || encodeQuality == .passthrough {
-                    encodeQuality = .preset(lastPresetSelection)
+                    .pickerStyle(SegmentedPickerStyle())
+                    .frame(width: 320)
+                    .help("Choose the transcode quality for MP4 or MKV outputs.")
+                    .disabled(qualityPickerDisabled)
+                    .opacity(qualityPickerDisabled ? 0.5 : 1.0)
                 }
             }
 
@@ -1356,7 +1134,7 @@ struct ContentView: View {
             "--layout=\(layout)",
             "--format=\(format.rawValue)",
             "--output-mode=\(outputMode.rawValue)",
-            "--encode-quality=\(encodeQuality.argumentValue)",
+            "--quality=\(quality.rawValue)",
             "--missing-meta=\(missingMetaArg)",
             "--fontfile=\(resolvedFontPath())",
             "--fontname=\(resolvedFontName())",
@@ -1435,7 +1213,7 @@ struct ContentView: View {
         let fm = FileManager.default
         let targetExtension = outputExtension(for: format, outputMode: outputMode)
         let partSuffix = outputMode == .audioOnly ? "_audio" : "_dateburn"
-        let resolvedQuality = resolveQuality(encodeQuality, format: format, outputMode: outputMode)
+        let resolvedQuality = resolveQuality(quality, format: format, outputMode: outputMode)
 
         guard let entries = try? fm.contentsOfDirectory(at: burnedPartsDir, includingPropertiesForKeys: nil) else {
             return (
@@ -2006,15 +1784,14 @@ struct ContentView: View {
         let inputExists = fm.fileExists(atPath: inputPath) ? "yes" : "no"
         let systemFontsEnabled = includeSystemFonts ? "yes" : "no"
         let debugFlag = debugMode ? "on" : "off"
-        let resolvedQuality = resolveQuality(encodeQuality, format: format, outputMode: outputMode)
-        let sliderDisplay = resolvedQuality.sliderValue.map { String($0) } ?? "-"
+        let resolvedQuality = resolveQuality(quality, format: format, outputMode: outputMode)
         let qscaleDisplay = resolvedQuality.qscale.map { String($0) } ?? "passthrough"
         let subtitleModeValue = subtitleMode?.rawValue ?? "(none selected)"
 
         lines.append("[DEBUG] Input path: \(inputPath)")
         lines.append("[DEBUG] Input exists: \(inputExists)")
         lines.append("[DEBUG] Mode: \(mode) | Layout: \(layout) | Format: \(format) | Output: \(outputMode.rawValue)")
-        lines.append("[DEBUG] Encode quality: \(encodeQuality.argumentValue) | slider=\(sliderDisplay) | qscale=\(qscaleDisplay)")
+        lines.append("[DEBUG] Quality: \(quality.rawValue) | qscale=\(qscaleDisplay)")
         lines.append("[DEBUG] Burn mode: \(burnMode.rawValue) | Missing metadata handling: \(missingMetaMode.rawValue)")
         lines.append("[DEBUG] Subtitle timing mode: \(subtitleModeValue)")
         lines.append("[DEBUG] Font path: \(resolvedFontPath()) | Font name: \(resolvedFontName())")
