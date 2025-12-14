@@ -1134,13 +1134,16 @@ struct ContentView: View {
             "--layout=\(layout)",
             "--format=\(format.rawValue)",
             "--output-mode=\(outputMode.rawValue)",
-            "--quality=\(quality.rawValue)",
             "--missing-meta=\(missingMetaArg)",
             "--fontfile=\(resolvedFontPath())",
             "--fontname=\(resolvedFontName())",
             "--ffmpeg=\(ffmpegURL.path)",
             "--dvrescue=\(dvrescueURL.path)"
         ]
+
+        if format == .mp4 || format == .mkv {
+            args.append("--quality=\(quality.rawValue)")
+        }
         if mode == "batch" && stitchMode == "stitch" && (burnMode != .off || outputMode == .audioOnly) {
             args.append("--stitch-mode=stitch")
         }
