@@ -301,6 +301,10 @@ struct ContentView: View {
         UserDefaults.standard.string(forKey: "DVMetaDefaultOutputFolder")
 
     private var startBlockReason: String? {
+        if outputToLocationFolder && sanitizedDestinationOverride() == nil {
+            return "Choose an output folder before starting."
+        }
+
         let resolvedQuality = resolveQuality(encodeQuality, format: format, outputMode: outputMode)
 
         if outputMode == .audioOnly {
@@ -320,6 +324,29 @@ struct ContentView: View {
 
     private var shouldBlockStart: Bool {
         startBlockReason != nil
+    }
+
+    private func sanitizedDestinationOverride() -> String? {
+        guard outputToLocationFolder else { return nil }
+
+        let trimmed = selectedOutputFolder?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private func resolvedDestinationPath(for input: String) -> String? {
+        if let override = sanitizedDestinationOverride() {
+            return override
+        }
+
+        let trimmedInput = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedInput.isEmpty else { return nil }
+
+        let inputURL = URL(fileURLWithPath: trimmedInput)
+        if inputURL.hasDirectoryPath {
+            return inputURL.path
+        }
+
+        return inputURL.deletingLastPathComponent().path
     }
 
     //font preview handling
@@ -1177,11 +1204,9 @@ struct ContentView: View {
 
         }
 
-        if outputToLocationFolder && (selectedOutputFolder?.isEmpty ?? true) {
-            if !promptForOutputFolder() {
-                logText = "Output cancelled. Please choose an output folder or disable the location override."
-                return
-            }
+        if outputToLocationFolder && sanitizedDestinationOverride() == nil {
+            logText = "Please choose an output folder before starting."
+            return
         }
 
         logText = ""
@@ -1344,7 +1369,7 @@ struct ContentView: View {
             args.append("--debug")
         }
 
-        if outputToLocationFolder, let destination = selectedOutputFolder, !destination.isEmpty {
+        if let destination = sanitizedDestinationOverride() {
             args.append("--dest-dir=\(destination)")
         }
 
@@ -1434,12 +1459,14 @@ struct ContentView: View {
             )
         }
 
-        let outputDirectory: URL
-        if outputToLocationFolder, let destination = selectedOutputFolder, !destination.isEmpty {
-            outputDirectory = URL(fileURLWithPath: destination, isDirectory: true)
-        } else {
-            outputDirectory = URL(fileURLWithPath: inputPath, isDirectory: true)
+        guard let destinationPath = resolvedDestinationPath(for: inputPath) else {
+            return (
+                max(originalStatus, 1),
+                "\n[STITCH] ERROR: Unable to resolve destination output directory.\n"
+            )
         }
+
+        let outputDirectory = URL(fileURLWithPath: destinationPath, isDirectory: true)
 
         _ = try? fm.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
 
@@ -1954,12 +1981,12 @@ struct ContentView: View {
         lines.append("[DEBUG] Subtitle timing mode: \(subtitleModeValue)")
         lines.append("[DEBUG] Font path: \(resolvedFontPath()) | Font name: \(resolvedFontName())")
         lines.append("[DEBUG] System fonts enabled: \(systemFontsEnabled)")
-        if outputToLocationFolder {
-            let destination = selectedOutputFolder ?? "(none chosen)"
-            lines.append("[DEBUG] Output destination: \(destination)")
-        } else {
-            lines.append("[DEBUG] Output destination: source folder")
-        }
+        let requestedDestination = sanitizedDestinationOverride() ?? "(default: input folder)"
+        let resolvedDestination = resolvedDestinationPath(for: inputPath) ?? "(unresolved)"
+        lines.append("[DEBUG] Requested destination: \(requestedDestination)")
+        lines.append("[DEBUG] Resolved destination: \(resolvedDestination)")
+        let scratchDisplay = scratchDirectory.trimmingCharacters(in: .whitespacesAndNewlines)
+        lines.append("[DEBUG] Scratch directory override: \(scratchDisplay.isEmpty ? "(default)" : scratchDisplay)")
         lines.append("[DEBUG] Debug flag passed to script: \(debugFlag)")
         return lines.joined(separator: "\n") + "\n\n"
     }

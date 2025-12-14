@@ -1038,6 +1038,13 @@ finish_run() {
     emit_debug_snapshots "$timeline_path" "$cmd_path"
   fi
 
+  local final_output
+  final_output="${burn_output:-${subtitle_output:-${passthrough_output:-}}}"
+  if [[ -n "$final_output" ]]; then
+    info "[output] Final output path: $final_output"
+    debug_log "Final output path: $final_output"
+  fi
+
   return "$exit_code"
 }
 
@@ -1240,10 +1247,11 @@ debug_log "Missing meta handling: $missing_meta"
 debug_log "Requested font name: ${subtitle_font_name:-<auto>}"
 debug_log "ffmpeg path: $ffmpeg_bin"
 debug_log "dvrescue path: $dvrescue_bin"
+dest_dir="${dest_dir%/}"
 if [[ -n "$dest_dir" ]]; then
-  debug_log "Destination override: $dest_dir"
+  debug_log "Requested destination override: $dest_dir"
 else
-  debug_log "Destination override: <source folder>"
+  debug_log "Requested destination override: (default: input folder)"
 fi
 
 ########################################################
@@ -2313,6 +2321,18 @@ process_file_controller() {
   base="$reply[2]"
   base_name="$reply[3]"
   out_ext="$reply[4]"
+
+  local requested_destination resolved_destination
+  if [[ -n "$dest_dir" ]]; then
+    requested_destination="$dest_dir"
+  else
+    requested_destination="<input folder>"
+  fi
+  resolved_destination="$output_dir"
+
+  info "[pathing] Requested destination: $requested_destination"
+  info "[pathing] Resolved destination: $resolved_destination"
+  debug_log "[pathing] Scratch root: ${run_scratch_root:-<default>}"
 
   if [[ "$base_name" != "$expected_base_name" ]]; then
     fatal "Base filename changed unexpectedly (expected '$expected_base_name', got '$base_name')"
