@@ -546,8 +546,13 @@ fi
 effective_encode_quality="$(quality_descriptor "$effective_quality_mode" "$effective_quality_kind" "$effective_slider_value")"
 
 append_run_note "Output mode: $output_mode"
-append_run_note "Effective burn mode: $burn_mode (subtitle mode: $subtitle_mode), container: $effective_format, quality: $effective_encode_quality"
-info "[config] output_mode=$output_mode, burn_mode=$burn_mode, subtitle_mode=$subtitle_mode, container=$effective_format (requested: $requested_format), quality=$effective_encode_quality (requested: $requested_encode_quality)"
+if [[ "$effective_format" == "mov" ]]; then
+  append_run_note "Effective burn mode: $burn_mode (subtitle mode: $subtitle_mode), container: $effective_format"
+  info "[config] output_mode=$output_mode, burn_mode=$burn_mode, subtitle_mode=$subtitle_mode, container=$effective_format (requested: $requested_format)"
+else
+  append_run_note "Effective burn mode: $burn_mode (subtitle mode: $subtitle_mode), container: $effective_format, quality: $effective_encode_quality"
+  info "[config] output_mode=$output_mode, burn_mode=$burn_mode, subtitle_mode=$subtitle_mode, container=$effective_format (requested: $requested_format), quality=$effective_encode_quality (requested: $requested_encode_quality)"
+fi
 initial_run_notes=("${run_notes[@]}")
 
 # Scratch directory setup (optional)
@@ -2464,7 +2469,7 @@ fi
 
 if [[ "$mode" == "single" ]]; then
   if [[ $# -ne 1 ]]; then
-    echo "Usage: $0 [--mode=single] [--layout=stacked|single] [--format=mov|mp4|mkv] [--encode-quality=passthrough|low|medium|high|veryhigh|custom] [--burn-mode=burnin|off|subtitleTrack] [--subtitle-mode=per-clip|continuous] [--scratch-dir=/path (or DVMETA_SCRATCH_DIR)] [--stitch [--stitch-inputs=/path/to/list.txt]] /path/to/clip.avi" >&2
+    echo "Usage: $0 [--mode=single] [--layout=stacked|single] [--format=mov|mp4|mkv] [--quality=low|medium|high] [--burn-mode=burnin|off|subtitleTrack] [--subtitle-mode=per-clip|continuous] [--scratch-dir=/path (or DVMETA_SCRATCH_DIR)] [--stitch [--stitch-inputs=/path/to/list.txt]] /path/to/clip.avi" >&2
     exit 1
   fi
   debug_log "Running in single-file mode with target: $1"
@@ -2474,7 +2479,7 @@ fi
 
 if [[ "$mode" == "batch" ]]; then
   if [[ $# -ne 1 ]]; then
-    echo "Usage: $0 --mode=batch [--layout=stacked|single] [--format=mov|mp4|mkv] [--encode-quality=passthrough|low|medium|high|veryhigh|custom] [--burn-mode=burnin|off|subtitleTrack] [--subtitle-mode=per-clip|continuous] [--scratch-dir=/path (or DVMETA_SCRATCH_DIR)] [--stitch [--stitch-inputs=/path/to/list.txt]] /path/to/folder" >&2
+    echo "Usage: $0 --mode=batch [--layout=stacked|single] [--format=mov|mp4|mkv] [--quality=low|medium|high] [--burn-mode=burnin|off|subtitleTrack] [--subtitle-mode=per-clip|continuous] [--scratch-dir=/path (or DVMETA_SCRATCH_DIR)] [--stitch [--stitch-inputs=/path/to/list.txt]] /path/to/folder" >&2
     exit 1
   fi
 
