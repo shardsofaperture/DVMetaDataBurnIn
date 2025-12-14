@@ -69,7 +69,7 @@ log_stage_marker() {
 mode="single"        # "single" or "batch"
 layout="stacked"     # "stacked" or "single"
 format="mov"         # "mov", "mp4", or "mkv"
-mp4_preset="default" # "default", "best-quality", or "audio-only"
+encode_quality="high" # passthrough, low, medium, high, veryhigh, custom
 burn_mode="burnin"   # "burnin" or "off" or "subtitleTrack"
 subtitle_mode="per-clip" # "per-clip" or "continuous"
 missing_meta="skip_burnin_convert"  # behavior when metadata is missing
@@ -103,15 +103,15 @@ run_scratch_root=""
 ########################################################
 
 subtitle_mode_arg_set=0
-mp4_preset_arg_set=0
+encode_quality_arg_set=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --mode=*) mode="${1#*=}"; shift ;;
     --layout=*) layout="${1#*=}"; shift ;;
     --format=*) format="${1#*=}"; shift ;;
-    --mp4-preset=*) mp4_preset="${1#*=}"; mp4_preset_arg_set=1; shift ;;
-    --preset=*) mp4_preset="${1#*=}"; mp4_preset_arg_set=1; shift ;;
+    --encode-quality=*) encode_quality="${1#*=}"; encode_quality_arg_set=1; shift ;;
+    --quality=*) encode_quality="${1#*=}"; encode_quality_arg_set=1; shift ;;
     --burn-mode=*) burn_mode="${1#*=}"; shift ;;
     --subtitle-mode=*) subtitle_mode="${1#*=}"; subtitle_mode_arg_set=1; shift ;;
     --missing-meta=*) missing_meta="${1#*=}"; shift ;;
@@ -153,9 +153,9 @@ missing_meta="${missing_meta:l}"
 format="${format//[[:space:]]/}"
 format="${format:l}"
 
-mp4_preset="${mp4_preset//[[:space:]]/}"
-mp4_preset="${mp4_preset//_/-}"
-mp4_preset="${mp4_preset:l}"
+encode_quality="${encode_quality//[[:space:]]/}"
+encode_quality="${encode_quality//_/-}"
+encode_quality="${encode_quality:l}"
 
 burn_mode="${burn_mode//[[:space:]]/}"
 burn_mode="${burn_mode//_/-}"
@@ -220,39 +220,33 @@ case "$subtitle_mode" in
     ;;
 esac
 
-case "$mp4_preset" in
-  best-quality)
+case "$encode_quality" in
+  passthrough|pass-through)
+    encode_quality="passthrough"
     ;;
-  bestquality)
-    mp4_preset="best-quality"
+  low)
     ;;
-  audio-only)
+  medium)
     ;;
-  audioonly)
-    mp4_preset="audio-only"
+  high|"")
+    encode_quality="high"
     ;;
-  default|"")
-    mp4_preset="default"
+  veryhigh|very-high)
+    encode_quality="veryhigh"
+    ;;
+  custom)
     ;;
   *)
-    fatal "Invalid preset '$mp4_preset'; expected best-quality, default, or audio-only."
+    fatal "Invalid encode-quality '$encode_quality'; expected passthrough, low, medium, high, veryhigh, or custom."
     ;;
 esac
 
 requested_format="$format"
-requested_mp4_preset="$mp4_preset"
+requested_encode_quality="$encode_quality"
 
 # Track effective values after validation/coercion
 effective_format="$format"
-effective_mp4_preset="$mp4_preset"
-
-if (( mp4_preset_arg_set == 1 )) && [[ "$format" != "mp4" ]]; then
-  fatal "--preset/--mp4-preset requires --format=mp4."
-fi
-
-if [[ "$format" != "mp4" && "$mp4_preset" != "default" ]]; then
-  fatal "MP4 presets are only valid with the mp4 container; received preset '$mp4_preset' for format '$format'."
-fi
+effective_encode_quality="$encode_quality"
 
 if (( subtitle_mode_arg_set == 1 )) && [[ "$burn_mode" != "subtitleTrack" ]]; then
   fatal "--subtitle-mode requires --burn-mode=subtitleTrack."
@@ -260,14 +254,6 @@ fi
 
 if [[ "$burn_mode" == "subtitleTrack" ]] && [[ "$subtitle_mode" != "per-clip" && "$subtitle_mode" != "continuous" ]]; then
   fatal "--burn-mode=subtitleTrack requires a valid --subtitle-mode (per-clip or continuous)."
-fi
-
-if [[ "$format" == "mp4" && "$mp4_preset" == "audio-only" && "$burn_mode" == "burnin" ]]; then
-  warn "MP4 audio-only preset is not compatible with burn-in; falling back to default video encode"
-  append_run_note "Audio-only preset incompatible with burn-in; coerced to default preset for MP4 container"
-  preset_adjusted=1
-  preset_adjustment_reason="audio-only preset incompatible with burn-in"
-  mp4_preset="default"
 fi
 
 if [[ "$burn_mode" == "subtitleTrack" ]] && [[ "$format" == "mp4" || "$format" == "mov" ]]; then
@@ -279,11 +265,18 @@ if [[ "$burn_mode" == "subtitleTrack" ]] && [[ "$format" == "mp4" || "$format" =
   effective_format="$format"
 fi
 
-effective_format="$format"
-effective_mp4_preset="$mp4_preset"
+if [[ "$effective_format" == "mov" ]]; then
+  effective_encode_quality="passthrough"
+fi
 
-append_run_note "Effective burn mode: $burn_mode (subtitle mode: $subtitle_mode), container: $effective_format, preset: $effective_mp4_preset"
-info "[config] burn_mode=$burn_mode, subtitle_mode=$subtitle_mode, container=$effective_format (requested: $requested_format), preset=$effective_mp4_preset (requested: $requested_mp4_preset)"
+if [[ "$effective_format" == "mp4" && "$effective_encode_quality" == "passthrough" ]]; then
+  warn "MP4 passthrough not supported; coercing encode quality to high."
+  append_run_note "MP4 passthrough request coerced to high-quality transcode"
+  effective_encode_quality="high"
+fi
+
+append_run_note "Effective burn mode: $burn_mode (subtitle mode: $subtitle_mode), container: $effective_format, quality: $effective_encode_quality"
+info "[config] burn_mode=$burn_mode, subtitle_mode=$subtitle_mode, container=$effective_format (requested: $requested_format), quality=$effective_encode_quality (requested: $requested_encode_quality)"
 initial_run_notes=("${run_notes[@]}")
 
 # Scratch directory setup (optional)
@@ -333,13 +326,11 @@ typeset -g last_detected_fps=""
 typeset -g timestamps_normalized=0
 typeset -g primary_input_path=""
 typeset -g requested_format
-typeset -g requested_mp4_preset
+typeset -g requested_encode_quality
 typeset -g effective_format
-typeset -g effective_mp4_preset
+typeset -g effective_encode_quality
 typeset -g format_coerced=0
 typeset -g format_coercion_reason=""
-typeset -g preset_adjusted=0
-typeset -g preset_adjustment_reason=""
 typeset -g cleanup_stage_done=0
 
 prepare_artifact_dir() {
@@ -715,17 +706,15 @@ write_run_manifest() {
   "subtitle_mode": "$subtitle_mode",
   "layout": "$layout",
   "format": "$effective_format",
-  "mp4_preset": "$effective_mp4_preset",
+  "encode_quality": "$effective_encode_quality",
   "cleanup_stage_completed": $([[ $cleanup_stage_done -eq 1 ]] && echo true || echo false),
   "decisions": {
     "requested_format": "$requested_format",
     "effective_format": "$effective_format",
     "format_coerced": $([[ $format_coerced -eq 1 ]] && echo true || echo false),
     "coercion_reason": "$format_coercion_reason",
-    "requested_mp4_preset": "$requested_mp4_preset",
-    "effective_mp4_preset": "$effective_mp4_preset",
-    "preset_adjusted": $([[ $preset_adjusted -eq 1 ]] && echo true || echo false),
-    "preset_adjustment_reason": "$preset_adjustment_reason",
+    "requested_encode_quality": "$requested_encode_quality",
+    "effective_encode_quality": "$effective_encode_quality",
     "burn_mode": "$burn_mode",
     "subtitle_mode": "$subtitle_mode"
   },
@@ -986,11 +975,7 @@ subtitle_font_name="$fontname"
 debug_log "Mode: $mode"
 debug_log "Layout: $layout"
 debug_log "Format: $format"
-if [[ "$format" == "mp4" ]]; then
-  debug_log "MP4 preset: $mp4_preset"
-else
-  debug_log "MP4 preset ignored for format: $format"
-fi
+debug_log "Encode quality (requested/effective): $requested_encode_quality/$effective_encode_quality"
 debug_log "Burn mode: $burn_mode"
 if [[ "$burn_mode" == "subtitleTrack" ]]; then
   debug_log "Subtitle mode: $subtitle_mode"
@@ -1568,23 +1553,74 @@ offline_smoke_test() {
   echo "[INFO] offline_smoke_test artifacts: timeline=$timeline sendcmd=$cmdfile (source=log fps=$fps)" >&2
 }
 
-mp4_codec_args_for_preset() {
-  local preset="$1"
+typeset -g resolved_encode_quality=""
 
-  case "$preset" in
-    best-quality)
-      debug_log "Using MP4 best-quality preset"
-      echo "-c:v" "mpeg4" "-qscale:v" "1" "-c:a" "aac" "-b:a" "256k"
+encode_quality_codec_args() {
+  local quality="$1"
+  local -a args
+
+  case "$quality" in
+    low)
+      args=(-c:v mpeg4 -qscale:v 5)
       ;;
-    audio-only)
-      debug_log "Using MP4 audio-only preset"
-      echo "-vn" "-c:a" "aac" "-b:a" "192k"
+    medium)
+      args=(-c:v mpeg4 -qscale:v 3)
+      ;;
+    high|custom|"")
+      args=(-c:v mpeg4 -qscale:v 2)
+      ;;
+    veryhigh)
+      args=(-c:v mpeg4 -qscale:v 1)
+      ;;
+    passthrough)
+      args=(-c:v copy -c:a copy)
       ;;
     *)
-      debug_log "Using MP4 default preset"
-      echo "-c:v" "mpeg4" "-qscale:v" "2" "-c:a" "aac" "-b:a" "192k"
+      args=(-c:v mpeg4 -qscale:v 2)
       ;;
   esac
+
+  if [[ "$quality" != "passthrough" ]]; then
+    args+=(-c:a aac -b:a 192k)
+  fi
+
+  reply=("${args[@]}")
+}
+
+build_codec_args() {
+  local format="$1"
+  local quality="$2"
+  local -a args
+  local resolved_quality="$quality"
+
+  case "$format" in
+    mov)
+      resolved_quality="passthrough"
+      args=(-c:v copy -c:a copy)
+      ;;
+    mp4)
+      if [[ "$quality" == "passthrough" ]]; then
+        resolved_quality="high"
+      fi
+      encode_quality_codec_args "$resolved_quality"
+      args=("${reply[@]}")
+      ;;
+    mkv)
+      if [[ "$quality" == "passthrough" ]]; then
+        args=(-c:v copy -c:a copy)
+      else
+        encode_quality_codec_args "$resolved_quality"
+        args=("${reply[@]}")
+      fi
+      ;;
+    *)
+      args=()
+      ;;
+  esac
+
+  resolved_encode_quality="$resolved_quality"
+  info "[codec] Resolved encode quality: $resolved_encode_quality | codec args: ${args[*]}"
+  reply=("${args[@]}")
 }
 
 ########################################################
@@ -1629,23 +1665,15 @@ process_file_core() {
   run_notes=("${initial_run_notes[@]}")
 
   local -a codec_args
-  case "$format" in
-    mov)
-      codec_args=(-c:v dvvideo -c:a copy)
-      ;;
-    mp4)
-      codec_args=($(mp4_codec_args_for_preset "$mp4_preset"))
-      ;;
-    mkv)
-      codec_args=(-c:v mpeg4 -qscale:v 2 -c:a aac -b:a 192k)
-      ;;
-    *)
-      warn "Unknown format: $format"
-      manifest_status="error"
-      finish_run 1 "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
-      return 1
-      ;;
-  esac
+  build_codec_args "$format" "$effective_encode_quality"
+  codec_args=("${reply[@]}")
+
+  if (( ${#codec_args[@]} == 0 )); then
+    warn "Unknown format for codec args: $format"
+    manifest_status="error"
+    finish_run 1 "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
+    return 1
+  fi
   
  # --- Stitching (optional) ---
   if (( stitch_enabled == 1 )) && [[ "$mode" != "batch" ]]; then
@@ -1965,7 +1993,7 @@ fi
 
 if [[ "$mode" == "single" ]]; then
   if [[ $# -ne 1 ]]; then
-    echo "Usage: $0 [--mode=single] [--layout=stacked|single] [--format=mov|mp4|mkv] [--preset=default|best-quality|audio-only] [--burn-mode=burnin|off|subtitleTrack] [--subtitle-mode=per-clip|continuous] [--scratch-dir=/path (or DVMETA_SCRATCH_DIR)] [--stitch [--stitch-inputs=/path/to/list.txt]] /path/to/clip.avi" >&2
+    echo "Usage: $0 [--mode=single] [--layout=stacked|single] [--format=mov|mp4|mkv] [--encode-quality=passthrough|low|medium|high|veryhigh|custom] [--burn-mode=burnin|off|subtitleTrack] [--subtitle-mode=per-clip|continuous] [--scratch-dir=/path (or DVMETA_SCRATCH_DIR)] [--stitch [--stitch-inputs=/path/to/list.txt]] /path/to/clip.avi" >&2
     exit 1
   fi
   debug_log "Running in single-file mode with target: $1"
@@ -1975,7 +2003,7 @@ fi
 
 if [[ "$mode" == "batch" ]]; then
   if [[ $# -ne 1 ]]; then
-    echo "Usage: $0 --mode=batch [--layout=stacked|single] [--format=mov|mp4|mkv] [--preset=default|best-quality|audio-only] [--burn-mode=burnin|off|subtitleTrack] [--subtitle-mode=per-clip|continuous] [--scratch-dir=/path (or DVMETA_SCRATCH_DIR)] [--stitch [--stitch-inputs=/path/to/list.txt]] /path/to/folder" >&2
+    echo "Usage: $0 --mode=batch [--layout=stacked|single] [--format=mov|mp4|mkv] [--encode-quality=passthrough|low|medium|high|veryhigh|custom] [--burn-mode=burnin|off|subtitleTrack] [--subtitle-mode=per-clip|continuous] [--scratch-dir=/path (or DVMETA_SCRATCH_DIR)] [--stitch [--stitch-inputs=/path/to/list.txt]] /path/to/folder" >&2
     exit 1
   fi
 
@@ -2090,15 +2118,12 @@ if [[ "$mode" == "batch" ]]; then
       warn "[stitch/batch] Stream copy concat failed; retrying with re-encode fallback"
 
       case "$format" in
-        mov)
+        mov|mp4|mkv)
+          local -a stitch_codec_args
+          build_codec_args "$format" "$effective_encode_quality"
+          stitch_codec_args=("${reply[@]}")
           prepare_subprocess_env
-          "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file" -c:v dvvideo -c:a pcm_s16le "$stitched_output" || true
-          ;;
-        mp4)
-          local -a mp4_args
-          mp4_args=($(mp4_codec_args_for_preset "$mp4_preset"))
-          prepare_subprocess_env
-          "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file" "${mp4_args[@]}" "$stitched_output" || true
+          "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file" "${stitch_codec_args[@]}" "$stitched_output" || true
           ;;
         *)
           prepare_subprocess_env
