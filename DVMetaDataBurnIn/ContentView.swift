@@ -133,8 +133,20 @@ struct ContentView: View {
     @State private var defaultOutputFolder: String? =
         UserDefaults.standard.string(forKey: "DVMetaDefaultOutputFolder")
 
+    private var startBlockReason: String? {
+        if burnMode == .subtitleTrack && subtitleMode == nil {
+            return "Choose a subtitle timing mode before starting."
+        }
+
+        if format == .mkv && burnMode == .burnin && encodeQuality == .passthrough {
+            return "MKV burn-in is unavailable with passthrough quality. Pick a transcode quality to continue."
+        }
+
+        return nil
+    }
+
     private var shouldBlockStart: Bool {
-        burnMode == .subtitleTrack && subtitleMode == nil
+        startBlockReason != nil
     }
 
     //font preview handling
@@ -334,14 +346,14 @@ struct ContentView: View {
                     }
                     .pickerStyle(SegmentedPickerStyle())
                     .frame(width: 420)
-                    .disabled(format == .mov || encodeQuality == .passthrough)
+                    .disabled(format == .mov)
                     .help("Select the encode quality for MP4 or MKV outputs.")
                 }
             }
             .onChange(of: format) { newValue in
                 if newValue == .mov {
                     encodeQuality = .passthrough
-                } else if encodeQuality == .passthrough {
+                } else if newValue == .mp4 && encodeQuality == .passthrough {
                     encodeQuality = .high
                 }
             }
@@ -550,6 +562,14 @@ struct ContentView: View {
                         }
                         .buttonStyle(.plain)
                         .disabled(!isRunning || currentProcess == nil)
+                    }
+
+                    if let reason = startBlockReason {
+                        Text(reason)
+                            .font(.footnote)
+                            .foregroundColor(.orange)
+                            .multilineTextAlignment(.trailing)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
                     }
 
                     // existing button – leave this as-is
@@ -856,10 +876,15 @@ struct ContentView: View {
             return
         }
 
+        if let reason = startBlockReason {
+            logText = reason
+            return
+        }
+
         if burnMode == .subtitleTrack && subtitleMode == nil {
             logText = "Please choose a subtitle timing mode before starting."
             return
-            
+
         }
 
         if outputToLocationFolder && (selectedOutputFolder?.isEmpty ?? true) {
@@ -1129,15 +1154,6 @@ struct ContentView: View {
         let outputName = "\(baseName)_stitched_dateburn.\(targetExtension)"
         let finalOutput = outputDirectory.appendingPathComponent(outputName)
 
-        var log = "\n[STITCH] list.txt => \(listFile.path)" +
-        "\n[STITCH] ffmpeg concat => \(finalOutput.path)"
-
-        if !extraArgs.isEmpty {
-            log += "\n[STITCH] extra args: \(extraArgs.joined(separator: " "))"
-        }
-
-        log += "\n[STITCH] concat cmd: \(concatArgs.joined(separator: " "))"
-
         var concatArgs = [
             "-hide_banner",
             "-y",
@@ -1149,6 +1165,16 @@ struct ContentView: View {
 
         concatArgs.append(contentsOf: extraArgs)
         concatArgs.append(finalOutput.path)
+
+        var log = "\n[STITCH] part extension: .\(targetExtension)"
+        log += "\n[STITCH] concat list => \(listFile.path)"
+        log += "\n[STITCH] ffmpeg concat => \(finalOutput.path)"
+
+        if !extraArgs.isEmpty {
+            log += "\n[STITCH] extra args: \(extraArgs.joined(separator: " "))"
+        }
+
+        log += "\n[STITCH] concat cmd: \(concatArgs.joined(separator: " "))"
 
         let (copyStatus, copyOutput) = runFFmpegProcess(at: ffmpegURL, arguments: concatArgs)
         var finalStatus = originalStatus
