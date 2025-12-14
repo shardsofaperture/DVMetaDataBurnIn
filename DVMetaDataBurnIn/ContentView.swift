@@ -123,6 +123,10 @@ struct ContentView: View {
     @State private var outputToLocationFolder: Bool = false
     @State private var scratchDirectory: String =
         UserDefaults.standard.string(forKey: "DVMetaScratchDirectory") ?? ""
+    @State private var advancedFFmpegOptions: Bool =
+        UserDefaults.standard.bool(forKey: "DVMetaAdvancedFFmpegOptions")
+    @State private var extraFFmpegArgsText: String =
+        UserDefaults.standard.string(forKey: "DVMetaExtraFFmpegArgsText") ?? ""
     @State private var debugMode: Bool = false
     @State private var selectedOutputFolder: String? =
         UserDefaults.standard.string(forKey: "DVMetaLastOutputFolder")
@@ -341,6 +345,33 @@ struct ContentView: View {
                     encodeQuality = .high
                 }
             }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Toggle("Advanced FFmpeg options", isOn: $advancedFFmpegOptions)
+                    .onChange(of: advancedFFmpegOptions) { enabled in
+                        UserDefaults.standard.set(enabled, forKey: "DVMetaAdvancedFFmpegOptions")
+                    }
+                    .help("Enable power-user overrides to append additional ffmpeg arguments.")
+
+                if advancedFFmpegOptions {
+                    Text("Extra FFmpeg args")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+
+                    TextEditor(text: $extraFFmpegArgsText)
+                        .font(.system(.body, design: .monospaced))
+                        .frame(minHeight: 80, maxHeight: 140)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                        )
+                        .onChange(of: extraFFmpegArgsText) { newValue in
+                            UserDefaults.standard.set(newValue, forKey: "DVMetaExtraFFmpegArgsText")
+                        }
+                        .help("Raw ffmpeg arguments (whitespace/quotes respected) appended to generated commands.")
+                }
+            }
+            .padding(.top, 4)
 
 
             // Output location toggle (stays up here)
@@ -842,13 +873,19 @@ struct ContentView: View {
         fullLogText = ""
         isRunning = true
 
+        let (extraArgsForRun, extraWarnings) = resolveExtraFFmpegArgs()
+
+        if !extraWarnings.isEmpty {
+            appendToLog(extraWarnings.joined(separator: "\n") + "\n", capped: false)
+        }
+
         if debugMode {
             appendToLog(debugSnapshot(), capped: false)
         }
 
         DispatchQueue.global(qos: .userInitiated).async {
             do {
-                let (process, pipe) = try self.makeProcess()
+                let (process, pipe) = try self.makeProcess(extraArgs: extraArgsForRun)
 
                 DispatchQueue.main.async {
                     self.currentProcess = process
@@ -875,7 +912,8 @@ struct ContentView: View {
 
                 let (finalStatus, stitchLog) = self.performBatchStitchConcatIfNeeded(
                     originalStatus: status,
-                    inputPath: self.inputPath
+                    inputPath: self.inputPath,
+                    extraArgs: extraArgsForRun
                 )
 
                 DispatchQueue.main.async {
@@ -898,7 +936,7 @@ struct ContentView: View {
 
     // MARK: - Process builder
 
-    private func makeProcess() throws -> (Process, Pipe) {
+    private func makeProcess(extraArgs: [String]) throws -> (Process, Pipe) {
         let bundleRoot = Bundle.main.resourceURL ?? Bundle.main.bundleURL
         let fm = FileManager.default
 
@@ -999,6 +1037,11 @@ struct ContentView: View {
             args.append("--scratch-dir=\(trimmedScratch)")
         }
 
+        if !extraArgs.isEmpty {
+            let joined = extraArgs.joined(separator: "\u{001F}")
+            args.append("--extra-args=\(joined)")
+        }
+
         args.append(contentsOf: ["--", inputPath])
 
         process.arguments = args
@@ -1015,7 +1058,11 @@ struct ContentView: View {
         return (process, pipe)
     }
 
-    private func performBatchStitchConcatIfNeeded(originalStatus: Int32, inputPath: String) -> (Int32, String) {
+    private func performBatchStitchConcatIfNeeded(
+        originalStatus: Int32,
+        inputPath: String,
+        extraArgs: [String]
+    ) -> (Int32, String) {
         guard mode == "batch", stitchMode == "stitch", burnMode != .off else {
             return (originalStatus, "")
         }
@@ -1085,15 +1132,23 @@ struct ContentView: View {
         var log = "\n[STITCH] list.txt => \(listFile.path)" +
         "\n[STITCH] ffmpeg concat => \(finalOutput.path)"
 
-        let concatArgs = [
+        if !extraArgs.isEmpty {
+            log += "\n[STITCH] extra args: \(extraArgs.joined(separator: " "))"
+        }
+
+        log += "\n[STITCH] concat cmd: \(concatArgs.joined(separator: " "))"
+
+        var concatArgs = [
             "-hide_banner",
             "-y",
             "-f", "concat",
             "-safe", "0",
             "-i", listFile.path,
-            "-c", "copy",
-            finalOutput.path
+            "-c", "copy"
         ]
+
+        concatArgs.append(contentsOf: extraArgs)
+        concatArgs.append(finalOutput.path)
 
         let (copyStatus, copyOutput) = runFFmpegProcess(at: ffmpegURL, arguments: concatArgs)
         var finalStatus = originalStatus
@@ -1110,7 +1165,7 @@ struct ContentView: View {
             log += "\n[STITCH] stream copy failed (exit \(copyStatus))"
         }
 
-        let fallbackArgs: [String]
+        var fallbackArgs: [String]
         switch targetExtension {
         case "mov":
             fallbackArgs = [
@@ -1120,8 +1175,7 @@ struct ContentView: View {
                 "-safe", "0",
                 "-i", listFile.path,
                 "-c:v", "dvvideo",
-                "-c:a", "pcm_s16le",
-                finalOutput.path
+                "-c:a", "pcm_s16le"
             ]
         case "mp4":
             fallbackArgs = [
@@ -1133,8 +1187,7 @@ struct ContentView: View {
                 "-c:v", "mpeg4",
                 "-qscale:v", "2",
                 "-c:a", "aac",
-                "-b:a", "192k",
-                finalOutput.path
+                "-b:a", "192k"
             ]
         default:
             fallbackArgs = [
@@ -1146,10 +1199,14 @@ struct ContentView: View {
                 "-c:v", "mpeg4",
                 "-qscale:v", "2",
                 "-c:a", "aac",
-                "-b:a", "192k",
-                finalOutput.path
+                "-b:a", "192k"
             ]
         }
+
+        fallbackArgs.append(contentsOf: extraArgs)
+        fallbackArgs.append(finalOutput.path)
+
+        log += "\n[STITCH] fallback cmd: \(fallbackArgs.joined(separator: " "))"
 
         let (fallbackStatus, fallbackOutput) = runFFmpegProcess(at: ffmpegURL, arguments: fallbackArgs)
 
@@ -1270,6 +1327,86 @@ struct ContentView: View {
         let output = String(data: data, encoding: .utf8) ?? ""
 
         return (process.terminationStatus, output)
+    }
+
+    private func resolveExtraFFmpegArgs() -> ([String], [String]) {
+        guard advancedFFmpegOptions else { return ([], []) }
+        let parsed = parseExtraFFmpegArgs(from: extraFFmpegArgsText)
+        return sanitizeExtraFFmpegArgs(parsed)
+    }
+
+    private func parseExtraFFmpegArgs(from text: String) -> [String] {
+        let normalized = text.replacingOccurrences(of: "\n", with: " ")
+        var args: [String] = []
+        var current = ""
+        var inSingle = false
+        var inDouble = false
+
+        func flush() {
+            if !current.isEmpty {
+                args.append(current)
+                current = ""
+            }
+        }
+
+        for char in normalized {
+            if char == "\"" && !inSingle {
+                inDouble.toggle()
+                continue
+            }
+
+            if char == "'" && !inDouble {
+                inSingle.toggle()
+                continue
+            }
+
+            if char.isWhitespace && !inSingle && !inDouble {
+                flush()
+            } else {
+                current.append(char)
+            }
+        }
+
+        flush()
+        return args
+    }
+
+    private func sanitizeExtraFFmpegArgs(_ args: [String]) -> ([String], [String]) {
+        var sanitized: [String] = []
+        var warnings: [String] = []
+        var skipNextInput = false
+        let blockedExtensions: Set<String> = [
+            "mov", "mp4", "mkv", "avi", "flv", "wmv", "mpg", "mpeg", "m4v", "ts", "webm", "mxf", "mp3", "wav"
+        ]
+
+        for token in args {
+            if skipNextInput {
+                warnings.append("[extra-args] Dropping input path following -i: \(token)")
+                skipNextInput = false
+                continue
+            }
+
+            if token == "-i" {
+                warnings.append("[extra-args] Ignoring '-i' to protect managed inputs.")
+                skipNextInput = true
+                continue
+            }
+
+            let lowerToken = token.lowercased()
+            let extensionMatch = URL(fileURLWithPath: lowerToken).pathExtension
+            if !extensionMatch.isEmpty, blockedExtensions.contains(extensionMatch) {
+                warnings.append("[extra-args] Ignoring possible output override '\(token)'.")
+                continue
+            }
+
+            sanitized.append(token)
+        }
+
+        if !sanitized.isEmpty {
+            warnings.append("[extra-args] Sanitized args: \(sanitized.joined(separator: " "))")
+        }
+
+        return (sanitized, warnings)
     }
 
     private func escapeSingleQuotes(_ path: String) -> String {
