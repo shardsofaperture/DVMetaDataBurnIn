@@ -1123,13 +1123,17 @@ struct ContentView: View {
 
         DispatchQueue.global(qos: .userInitiated).async {
             do {
-                let (process, pipe) = try self.makeProcess(
+                let (process, pipe, argv) = try self.makeProcess(
                     extraArgs: extraArgsForRun,
                     rawExtraArgs: rawExtraArgs
                 )
 
                 DispatchQueue.main.async {
                     self.currentProcess = process
+                }
+
+                DispatchQueue.main.async {
+                    self.appendToLog("[launch argv] \(argv)", capped: false)
                 }
 
                 let handle = pipe.fileHandleForReading
@@ -1180,7 +1184,7 @@ struct ContentView: View {
     private func makeProcess(
         extraArgs: [String],
         rawExtraArgs: String?
-    ) throws -> (Process, Pipe) {
+    ) throws -> (Process, Pipe, [String]) {
         let bundleRoot = Bundle.main.resourceURL ?? Bundle.main.bundleURL
         let fm = FileManager.default
 
@@ -1293,6 +1297,7 @@ struct ContentView: View {
 
         process.arguments = args
 
+        // Debug logging is limited to the appended flag above; runtime environment stays identical.
         var env = ProcessInfo.processInfo.environment
         env["TMPDIR"] = tempDir.path
         process.environment = env
@@ -1302,7 +1307,9 @@ struct ContentView: View {
         process.standardOutput = pipe
         process.standardError = pipe
 
-        return (process, pipe)
+        let argv = [process.executableURL?.path ?? ""] + args
+
+        return (process, pipe, argv)
     }
 
     private func performBatchStitchConcatIfNeeded(
