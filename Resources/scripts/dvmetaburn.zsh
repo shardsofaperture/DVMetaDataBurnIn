@@ -21,6 +21,11 @@ fatal() {
   exit 1
 }
 
+die() {
+  echo "[ERROR] $1" >&2
+  exit "${2:-1}"
+}
+
 warn() {
   echo "[WARN] $*" >&2
 }
@@ -132,6 +137,24 @@ log_stage_marker() {
   local stage="$1"
   last_stage_marker="$stage"
   echo "[STAGE] $stage" >&2
+}
+
+run_stage() {
+  local stage="$1"
+  shift
+
+  log_stage_marker "$stage"
+
+  set +e
+  "$@"
+  local status=$?
+  set -e
+
+  if (( status != 0 )); then
+    echo "[ERROR] ${stage} failed (exit ${status})" >&2
+  fi
+
+  return $status
 }
 
 audio_extension_for_format() {
@@ -1973,8 +1996,6 @@ process_file_core() {
 
   if [[ "$output_mode" == "audio" ]]; then
     ensure_cleanup_stage
-    log_stage_marker "audio-extract"
-
     local audio_ext out_audio
     audio_ext="$(audio_extension_for_format "$format")"
     out_audio="${base}_audio.${audio_ext}"
@@ -1989,7 +2010,16 @@ process_file_core() {
 
     prepare_subprocess_env
     log_ffmpeg_command "audio-only" "${audio_cmd[@]}"
-    "${audio_cmd[@]}"
+    if ! run_stage "audio-extract" "${audio_cmd[@]}"; then
+      exit_status=$?
+      manifest_status="error"
+      passthrough_output="$out_audio"
+      last_passthrough_output_path="$passthrough_output"
+      last_burn_output_path="$out_audio"
+      finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debu
+g" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
+      die "ffmpeg encode failed for: $source_video"
+    fi
 
     exit_status=$?
     manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
@@ -2018,8 +2048,6 @@ process_file_core() {
   log_artifact_path_and_size "dvrescue XML" "$dvrescue_xml"
   log_artifact_path_and_size "dvrescue log" "$dvrescue_log"
 
-  log_stage_marker "timeline"
-
   if [[ "$burn_mode" != "off" ]]; then
     normalize_dvrescue_timestamps "$dvrescue_log" "${artifact_dir}/dvrescue.normalized.log" || \
       warn "Proceeding with unnormalized timestamps due to prior error"
@@ -2031,7 +2059,6 @@ process_file_core() {
     echo "[INFO] Transcode-only conversion (no burn-in) to: $out_passthrough"
     debug_log "Running transcode-only encode with args: ${codec_args[*]}"
     ensure_cleanup_stage
-    log_stage_marker "encode"
     local -a transcode_cmd=(
       "$ffmpeg_bin" -y -i "$source_video"
       "${codec_args[@]}"
@@ -2041,7 +2068,15 @@ process_file_core() {
     )
     prepare_subprocess_env
     log_ffmpeg_command "transcode-only" "${transcode_cmd[@]}"
-    "${transcode_cmd[@]}"
+    if ! run_stage "encode" "${transcode_cmd[@]}"; then
+      exit_status=$?
+      manifest_status="error"
+      passthrough_output="$out_passthrough"
+      last_passthrough_output_path="$passthrough_output"
+      finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
+      die "ffmpeg encode failed for: $source_video"
+    fi
+
     exit_status=$?
     manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
     passthrough_output="$out_passthrough"
@@ -2111,16 +2146,24 @@ process_file_core() {
           echo "[WARN] Missing timestamp metadata for $source_video; converting without subtitle track." >&2
           local out_passthrough="${base}_conv.${out_ext}"
           ensure_cleanup_stage
-          log_stage_marker "encode"
-        local -a subtitle_fallback_cmd=(
-          "$ffmpeg_bin" -y -i "$source_video"
-          "${codec_args[@]}"
-          "${container_args[@]}"
-          "${sanitized_extra_args[@]}"
-          "$out_passthrough"
-        )
+          local -a subtitle_fallback_cmd=(
+            "$ffmpeg_bin" -y -i "$source_video"
+            "${codec_args[@]}"
+            "${container_args[@]}"
+            "${sanitized_extra_args[@]}"
+            "$out_passthrough"
+          )
+          prepare_subprocess_env
           log_ffmpeg_command "subtitle-fallback" "${subtitle_fallback_cmd[@]}"
-          "${subtitle_fallback_cmd[@]}"
+          if ! run_stage "encode" "${subtitle_fallback_cmd[@]}"; then
+            exit_status=$?
+            manifest_status="error"
+            passthrough_output="$out_passthrough"
+            last_passthrough_output_path="$passthrough_output"
+            finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
+            die "ffmpeg encode failed for: $source_video"
+          fi
+
           exit_status=$?
           manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
           passthrough_output="$out_passthrough"
@@ -2150,7 +2193,6 @@ process_file_core() {
     fi
 
     ensure_cleanup_stage
-    log_stage_marker "encode"
 
     # We have a valid ASS file – mux it as MKV with true ASS subtitles
     local out_subbed="${base}_dvsub.mkv"
@@ -2170,7 +2212,14 @@ process_file_core() {
     )
     prepare_subprocess_env
     log_ffmpeg_command "subtitle-mux" "${mux_cmd[@]}"
-    "${mux_cmd[@]}"
+    if ! run_stage "encode" "${mux_cmd[@]}"; then
+      exit_status=$?
+      manifest_status="error"
+      finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" \
+        "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" \
+        "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
+      die "ffmpeg encode failed for: $source_video"
+    fi
 
     exit_status=$?
     manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
@@ -2183,7 +2232,7 @@ process_file_core() {
   fi
 
   local timeline_fail=0
-  if ! make_timestamp_cmd "$source_video" "$cmdfile" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$fps"; then
+  if ! run_stage "timeline" make_timestamp_cmd "$source_video" "$cmdfile" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$fps"; then
     timeline_fail=1
   fi
 
@@ -2192,13 +2241,12 @@ process_file_core() {
     case "$missing_meta" in
       error)
         finish_run 1 "error" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
-        return 1
+        die "timeline generation failed for: $source_video (see artifacts: $artifact_dir)"
         ;;
       skip_burnin_convert)
         echo "[WARN] Converting without burn-in due to missing timestamp metadata." >&2
         local out_passthrough="${base}_conv.${out_ext}"
         ensure_cleanup_stage
-        log_stage_marker "encode"
         local -a timeline_fallback_cmd=(
           "$ffmpeg_bin" -y -i "$source_video"
           "${codec_args[@]}"
@@ -2208,7 +2256,14 @@ process_file_core() {
         )
         prepare_subprocess_env
         log_ffmpeg_command "timeline-fallback" "${timeline_fallback_cmd[@]}"
-        "${timeline_fallback_cmd[@]}"
+        if ! run_stage "encode" "${timeline_fallback_cmd[@]}"; then
+          exit_status=$?
+          manifest_status="error"
+          passthrough_output="$out_passthrough"
+          last_passthrough_output_path="$passthrough_output"
+          finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
+          die "ffmpeg encode failed for: $source_video"
+        fi
         exit_status=$?
         manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
         passthrough_output="$out_passthrough"
@@ -2226,7 +2281,6 @@ process_file_core() {
   fi
 
   ensure_cleanup_stage
-  log_stage_marker "encode"
 
   local vf
   if ! vf=$(build_burnin_filtergraph "$layout" "$cmdfile" "$font"); then
@@ -2259,7 +2313,14 @@ process_file_core() {
   )
   prepare_subprocess_env
   log_ffmpeg_command "burn-in" "${burn_cmd[@]}"
-  "${burn_cmd[@]}"
+  if ! run_stage "encode" "${burn_cmd[@]}"; then
+    exit_status=$?
+    manifest_status="error"
+    burn_output="$out"
+    last_burn_output_path="$burn_output"
+    finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
+    die "ffmpeg encode failed for: $source_video"
+  fi
 
   exit_status=$?
   manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
