@@ -373,9 +373,12 @@ struct ContentView: View {
                 }
             }
             // Stitch / string clips together (only meaningful for batch + burnin/subtitleTrack)
-            if mode == "batch" && (burnMode != .off || outputMode == .audioOnly) {
-                HStack(spacing: 12) {
-                    Text("Stitch:")
+                if mode == "batch"
+                    && (burnMode != .off || outputMode == .audioOnly)
+                    && burnMode != .subtitleTrack
+                {
+                    HStack(spacing: 12) {
+                        Text("Stitch:")
                         .frame(width: 110, alignment: .leading)
 
                     Picker("", selection: $stitchMode) {
@@ -452,13 +455,14 @@ struct ContentView: View {
                 .padding(.top, 2)
                 .onChange(of: burnMode) { newMode in
                     if newMode == .subtitleTrack {
+                        stitchMode = "none"   // ✅ add this
                         if subtitleMode == nil { subtitleMode = .perClip }
-                        // subtitleTrack forces mkv (optional UI-side convenience)
                         if format != .mkv { format = .mkv }
                     } else {
                         subtitleMode = nil
                     }
                 }
+
                 .disabled(outputMode == .audioOnly)
                 .opacity(outputMode == .audioOnly ? 0.5 : 1.0)
             }
@@ -609,6 +613,16 @@ struct ContentView: View {
                 .frame(width: 340, alignment: .leading)
                 .help("Choose between burning metadata into the image, keeping video unchanged, or adding a subtitle track.")
                 .disabled(outputMode == .audioOnly)
+                .onChange(of: burnMode) { newMode in
+                    if newMode == .subtitleTrack {
+                        stitchMode = "none"                 // kill stale stitch
+                        if subtitleMode == nil { subtitleMode = .perClip }
+                        if format != .mkv { format = .mkv }
+                    } else {
+                        subtitleMode = nil
+                    }
+                }
+
             }
             
             // Subtitle font selector
@@ -1260,7 +1274,11 @@ struct ContentView: View {
         if format == .mp4 || format == .mkv {
             args.append("--quality=\(quality.rawValue)")
         }
-        if mode == "batch" && stitchMode == "stitch" && (burnMode != .off || outputMode == .audioOnly) {
+        if mode == "batch"
+            && stitchMode == "stitch"
+            && (burnMode != .off || outputMode == .audioOnly)
+            && burnMode != .subtitleTrack
+        {
             args.append("--stitch-mode=stitch")
         }
 
@@ -1320,6 +1338,13 @@ struct ContentView: View {
         guard mode == "batch", stitchMode == "stitch", (burnMode != .off || outputMode == .audioOnly) else {
             return (originalStatus, "")
         }
+        if burnMode == .subtitleTrack {
+            return (
+                originalStatus,
+                "\n[STITCH] SKIP: subtitleTrack mode produces per-clip *_dvsub.mkv files; no burned_parts stitch step.\n"
+            )
+        }
+
 
         guard let ffmpegURL = findBundledResource(named: "ffmpeg") else {
             return (max(originalStatus, 1), "\n[STITCH] ERROR: ffmpeg not found in app bundle.\n")

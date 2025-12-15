@@ -147,14 +147,14 @@ run_stage() {
 
   set +e
   "$@"
-  local status=$?
+  local rc=$?
   set -e
 
-  if (( status != 0 )); then
-    echo "[ERROR] ${stage} failed (exit ${status})" >&2
+  if (( rc != 0 )); then
+    echo "[ERROR] ${stage} failed (exit ${rc})" >&2
   fi
 
-  return $status
+  return $rc
 }
 
 audio_extension_for_format() {
@@ -2114,6 +2114,7 @@ g" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_outp
     local per_clip_ass_path="$ass_target"
     local subtitle_ass_path="$ass_target"
     if (( stitch_enabled == 1 )); then
+    
       if [[ "$subtitle_mode" == "continuous" ]]; then
         subtitle_ass_path="${artifact_dir%/}/timestamps.stitched.ass"
         ass_target="$subtitle_ass_path"
@@ -2202,7 +2203,7 @@ g" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_outp
     echo "[INFO] Muxing subtitle track into: $out_subbed" >&2
     local -a mux_cmd=(
       "$ffmpeg_bin" -y -i "$source_video" -i "$ass_target"
-      -map 0:v:0 -map 0:a? -map 1:s:0
+      -map 0:v:0 -map "0:a?" -map 1:s:0
       "${sub_video_args[@]}"
       -c:s "$subtitle_codec"
       -disposition:s:0 default
@@ -2446,6 +2447,10 @@ if [[ "$mode" == "batch" ]]; then
   fi
 
   if (( stitch_enabled == 1 )); then
+    if [[ "$burn_mode" == "subtitleTrack" ]]; then
+      fatal "[STITCH] Batch stitch is not supported with --burn-mode=subtitleTrack (no burned parts are produced)."
+    fi
+    
     primary_input_path="$folder_abs"
     local base_name output_dir_override ts artifact_dir_override burned_parts_dir list_file stitched_output
     base_name="${folder_abs:t}_stitched"
