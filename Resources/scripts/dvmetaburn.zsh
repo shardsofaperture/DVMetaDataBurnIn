@@ -119,6 +119,7 @@ sanitize_extra_ffmpeg_args() {
 typeset -ga run_notes=()
 typeset -ga initial_run_notes=()
 typeset -ga sanitized_extra_args=()
+typeset -g last_stage_marker=""
 extra_args_raw=""
 
 append_run_note() {
@@ -129,6 +130,7 @@ append_run_note() {
 
 log_stage_marker() {
   local stage="$1"
+  last_stage_marker="$stage"
   echo "[STAGE] $stage" >&2
 }
 
@@ -2417,16 +2419,22 @@ if [[ "$mode" == "batch" ]]; then
     typeset -a burned_files=()
     local idx=1
     local abs part_base part_artifact_dir
+    local had_part_failure=0
 
     for abs in "${batch_files[@]}"; do
       part_base=$(printf "%04d" "$idx")
       part_artifact_dir="${burned_parts_dir%/}/${part_base}_artifacts"
       debug_log "[stitch/batch] Burning part $part_base from $abs (artifacts -> $part_artifact_dir)"
 
+      last_stage_marker=""
       if ! process_file_controller "$abs" "$part_base" "$burned_parts_dir" "$part_artifact_dir"; then
-        warn "[stitch/batch] Failed while processing part $part_base: $abs"
-        (( idx++ ))
-        continue
+        had_part_failure=1
+        local stage_suffix=""
+        if [[ -n "$last_stage_marker" ]]; then
+          stage_suffix=" (stage: $last_stage_marker)"
+        fi
+        echo "[ERROR] [stitch/batch] Failed part $part_base: $abs${stage_suffix}" >&2
+        break
       fi
 
       if [[ -n "$last_burn_output_path" && -f "$last_burn_output_path" ]]; then
@@ -2444,6 +2452,23 @@ if [[ "$mode" == "batch" ]]; then
       (( idx++ ))
     done
     suppress_finish_run=0
+
+    if (( had_part_failure == 1 )); then
+      echo "[STITCH] ABORT: at least one part failed; not attempting concat" >&2
+      exit 1
+    fi
+
+    if [[ ! -d "$burned_parts_dir" ]]; then
+      echo "[ERROR] No burned parts were produced; aborting stitch." >&2
+      exit 1
+    fi
+
+    setopt localoptions null_glob
+    local -a burned_part_outputs=("${burned_parts_dir%/}"/*"${part_suffix}")
+    if (( ${#burned_part_outputs[@]} == 0 )); then
+      echo "[ERROR] No burned parts were produced; aborting stitch." >&2
+      exit 1
+    fi
 
     if (( ${#burned_files[@]} == 0 )); then
       echo "[ERROR] No burned parts were produced; aborting stitch." >&2
