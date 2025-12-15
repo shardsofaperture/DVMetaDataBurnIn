@@ -1169,7 +1169,14 @@ struct ContentView: View {
                 try process.run()
                 process.waitUntilExit()
                 let status = process.terminationStatus
-
+                
+                let remainder = self.drainPipeRemainder(handle)
+                if !remainder.isEmpty {
+                    DispatchQueue.main.async {
+                        self.appendToLog(remainder)
+                    }
+                }
+                
                 let (finalStatus, stitchLog) = self.performBatchStitchConcatIfNeeded(
                     originalStatus: status,
                     inputPath: self.inputPath,
@@ -1193,7 +1200,14 @@ struct ContentView: View {
             }
         }
     }
-
+    private func drainPipeRemainder(_ handle: FileHandle) -> String {
+        handle.readabilityHandler = nil
+        let data = handle.readDataToEndOfFile()
+        guard !data.isEmpty, let s = String(data: data, encoding: .utf8), !s.isEmpty else {
+            return ""
+        }
+        return s
+    }
     // MARK: - Process builder
 
     private func makeProcess(
