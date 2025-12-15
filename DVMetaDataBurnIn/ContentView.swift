@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import UniformTypeIdentifiers   // for logoutput to txt
+import Foundation
 import CoreText
 
 // MARK: - Mode enums
