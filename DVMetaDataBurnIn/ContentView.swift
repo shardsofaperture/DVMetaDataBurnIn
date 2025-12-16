@@ -161,8 +161,7 @@ struct ContentView: View {
     @State private var showingAbout: Bool = false
     @State private var currentProcess: Process?
     @State private var fullLogText: String = ""
-    @State private var stitchMode: String = "none"   // "none" or "stitch"
-
+    @State private var stitchBatch: Bool = false
     // NEW OPTIONS
     @State private var burnMode: BurnMode = .burnin
     @State private var missingMetaMode: MissingMetaMode = .skipBurninConvert
@@ -357,6 +356,14 @@ struct ContentView: View {
                 .frame(width: 240)
                 .help("Choose whether to process one file or every DV file in a folder.")
             }
+            if mode == "batch" {
+                Toggle(
+                    "Stitch batch files together into one file",
+                    isOn: $stitchBatch
+                )
+                .toggleStyle(.checkbox)
+                .help("Produces one final stitched output instead of per-clip files.")
+            }
             HStack {
                 Text("Output:")
                 Picker("", selection: $outputMode) {
@@ -373,31 +380,11 @@ struct ContentView: View {
                     subtitleMode = nil
                 }
             }
-            // Stitch / string clips together
-                if mode == "batch"
-                    && (burnMode != .off || outputMode == .audioOnly)
-                    && burnMode != .subtitleTrack
-                {
-                    HStack(spacing: 12) {
-                        Text("Stitch:")
-                        .frame(width: 110, alignment: .leading)
-
-                    Picker("", selection: $stitchMode) {
-                        Text("No").tag("none")
-                        Text("Yes (one output file)").tag("stitch")
-                    }
-                    .pickerStyle(SegmentedPickerStyle())
-                    .frame(width: 320)
-                    .help("When enabled in batch mode, concatenates clips before burn-in/subtitle generation to produce one output file.")
+            .onChange(of: mode) { newMode in
+                if newMode == "single" {
+                    stitchBatch = false
                 }
-            } else {
-                // keep state sane if user flips modes
-                // (optional but prevents stale stitch selection)
-                EmptyView()
-                    .onAppear { stitchMode = "none" }
             }
-
-            
             // Layout: stacked vs single bar
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 12) {
@@ -606,7 +593,6 @@ struct ContentView: View {
                 .disabled(outputMode == .audioOnly)
                 .onChange(of: burnMode) { newMode in
                     if newMode == .subtitleTrack {
-                        stitchMode = "none"                 // kill stale stitch
                         if subtitleMode == nil { subtitleMode = .perClip }
                         if format != .mkv { format = .mkv }
                     } else {
@@ -1333,11 +1319,14 @@ struct ContentView: View {
             args.append("--quality=\(quality.rawValue)")
         }
         if mode == "batch"
-            && stitchMode == "stitch"
+            && stitchBatch
             && (burnMode != .off || outputMode == .audioOnly)
-            && burnMode != .subtitleTrack
         {
             args.append("--stitch-mode=stitch")
+        }
+
+        if mode == "batch" && stitchBatch {
+            args.append("--stitch-batch=1")
         }
 
         switch burnMode {
@@ -1395,12 +1384,11 @@ struct ContentView: View {
     ) -> (Int32, String) {
 
         // Stitch rules:
-        // - burnin/audio: only if user chose stitchMode == "stitch"
-        // - subtitleTrack: ALWAYS stitch in batch (to produce 1 final MKV)
+        // - Only applies when the batch toggle is enabled
         let wantsStitch =
             mode == "batch" &&
-            (burnMode != .off || outputMode == .audioOnly) &&
-            (burnMode == .subtitleTrack || stitchMode == "stitch")
+            stitchBatch &&
+            (burnMode != .off || outputMode == .audioOnly)
 
         guard wantsStitch else { return (originalStatus, "") }
 

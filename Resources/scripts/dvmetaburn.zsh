@@ -270,6 +270,7 @@ burn_granularity="per_second"  # "per_second" or "per_frame"
 debug_mode=0
 # Optional stitching
 stitch_enabled=0
+stitch_batch=0
 stitch_input_list=""
 stitched_source=""
 stitch_inputs_resolved=""
@@ -325,6 +326,8 @@ while [[ $# -gt 0 ]]; do
       ;;
 
     --stitch-inputs=*) stitch_input_list="${1#*=}"; shift ;;
+    --stitch-batch=*) stitch_batch="${1#*=}"; shift ;;
+    --stitch-batch) stitch_batch=1; shift ;;
     --debug) debug_mode=1; shift ;;
     --extra-ffmpeg-flags=*) extra_args_raw="${1#*=}"; shift ;;
     --extra-args=*) extra_args_raw="${1#*=}"; shift ;;
@@ -360,6 +363,21 @@ case "$output_mode" in
     ;;
   *)
     fatal "Invalid output mode '$output_mode'; expected video or audio."
+    ;;
+esac
+
+stitch_batch="${stitch_batch//[[:space:]]/}"
+stitch_batch="${stitch_batch//_/-}"
+stitch_batch="${stitch_batch:l}"
+case "$stitch_batch" in
+  1|true|yes|on)
+    stitch_batch=1
+    ;;
+  0|false|no|off|"")
+    stitch_batch=0
+    ;;
+  *)
+    stitch_batch=0
     ;;
 esac
 
@@ -1226,6 +1244,7 @@ if [[ "$burn_mode" == "subtitleTrack" ]]; then
   debug_log "Subtitle mode: $subtitle_mode"
 fi
 debug_log "Stitch enabled: $stitch_enabled"
+debug_log "Stitch batch enabled: $stitch_batch"
 if [[ -n "$stitch_input_list" ]]; then
   debug_log "Stitch input list: $stitch_input_list"
 fi
@@ -2443,6 +2462,7 @@ if [[ "${RUN_OFFLINE_TEST:-0}" == "1" ]]; then
 fi
 
 if [[ "$mode" == "single" ]]; then
+  stitch_batch=0
   if [[ $# -ne 1 ]]; then
     echo "Usage: $0 [--mode=single] [--layout=stacked|single] [--format=mov|mp4|mkv] [--quality=low|medium|high] [--burn-mode=burnin|off|subtitleTrack] [--subtitle-mode=per-clip|continuous] [--scratch-dir=/path (or DVMETA_SCRATCH_DIR)] [--stitch [--stitch-inputs=/path/to/list.txt]] /path/to/clip.avi" >&2
     exit 1
@@ -2487,17 +2507,17 @@ if [[ "$mode" == "batch" ]]; then
     exit 0
   fi
 
-  if (( stitch_enabled == 1 )); then
-    if [[ "$burn_mode" == "subtitleTrack" ]]; then
-      fatal "[STITCH] Batch stitch is not supported with --burn-mode=subtitleTrack (no burned parts are produced)."
-    fi
-    
+  if (( stitch_batch == 1 )); then
     primary_input_path="$folder_abs"
     local base_name output_dir_override ts artifact_dir_override burned_parts_dir list_file stitched_output
-    base_name="${folder_abs:t}_stitched"
+    base_name="${folder_abs:t}"
 
     local target_ext stitched_suffix part_suffix
-    if [[ "$output_mode" == "audio" ]]; then
+    if [[ "$burn_mode" == "subtitleTrack" ]]; then
+      target_ext="mkv"
+      stitched_suffix="_dvsub_stitched.mkv"
+      part_suffix="_dvsub.mkv"
+    elif [[ "$output_mode" == "audio" ]]; then
       target_ext="$(audio_extension_for_format "$format")"
       stitched_suffix="_audio.${target_ext}"
       part_suffix="_audio.${target_ext}"
@@ -2514,7 +2534,7 @@ if [[ "$mode" == "batch" ]]; then
     fi
 
     ts="$(date '+%Y%m%d_%H%M%S')"
-    artifact_dir_override="${artifact_root%/}/${base_name}_${ts}"
+    artifact_dir_override="${artifact_root%/}/${base_name}_stitched_${ts}"
     burned_parts_dir="${artifact_dir_override%/}/burned_parts"
 
     if ! mkdir -p "$burned_parts_dir"; then
