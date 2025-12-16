@@ -373,7 +373,7 @@ struct ContentView: View {
                     subtitleMode = nil
                 }
             }
-            // Stitch / string clips together (only meaningful for batch + burnin/subtitleTrack)
+            // Stitch / string clips together
                 if mode == "batch"
                     && (burnMode != .off || outputMode == .audioOnly)
                     && burnMode != .subtitleTrack
@@ -454,16 +454,6 @@ struct ContentView: View {
                     .help("Choose whether subtitle metadata restarts per clip or flows continuously across files.")
                 }
                 .padding(.top, 2)
-                .onChange(of: burnMode) { newMode in
-                    if newMode == .subtitleTrack {
-                        stitchMode = "none"   // ✅ add this
-                        if subtitleMode == nil { subtitleMode = .perClip }
-                        if format != .mkv { format = .mkv }
-                    } else {
-                        subtitleMode = nil
-                    }
-                }
-
                 .disabled(outputMode == .audioOnly)
                 .opacity(outputMode == .audioOnly ? 0.5 : 1.0)
             }
@@ -848,6 +838,53 @@ struct ContentView: View {
         .padding(8)
     }
     
+    
+    //New logic to try and fix stiching issues
+    private func findDvsubParts(
+        destFolderURL: URL,
+        inputPath: String
+    ) -> [URL] {
+        let fm = FileManager.default
+        var candidateDirs: [URL] = [destFolderURL]
+
+        // Also look in latest artifact dir (same logic you already use for burn-in stitching)
+        if let burnedPartsRoot = locateLatestBurnedPartsDirectory()?.deletingLastPathComponent() {
+            // burned_parts lives under run/artifacts/<artifactRun>/burned_parts
+            // so its parent is the artifact run dir where other outputs may live
+            candidateDirs.append(burnedPartsRoot)
+        }
+
+        // Also consider scratch root if set (script may drop outputs there)
+        let trimmedScratch = scratchDirectory.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedScratch.isEmpty {
+            candidateDirs.append(URL(fileURLWithPath: trimmedScratch, isDirectory: true))
+        }
+
+        func scan(_ dir: URL) -> [URL] {
+            guard let entries = try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { return [] }
+            return entries
+                .filter {
+                    $0.pathExtension.lowercased() == "mkv"
+                    && $0.lastPathComponent.localizedCaseInsensitiveContains("_dvsub")
+                    && !$0.lastPathComponent.localizedCaseInsensitiveContains("_dvsub_stitched")
+                }
+                .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+        }
+
+        // Pick the directory that yields the most parts
+        let scans = candidateDirs.map { (dir: $0, parts: scan($0)) }
+        let best = scans.max { $0.parts.count < $1.parts.count }
+
+        // Optional: log where we found them
+        if let best, best.parts.count > 0 {
+            appendToLog("\n[STITCH] dvsub scan picked: \(best.dir.path) (parts=\(best.parts.count))\n", capped: false)
+        } else {
+            appendToLog("\n[STITCH] dvsub scan found 0 parts in:\n" +
+                        scans.map { "  - \($0.dir.path)" }.joined(separator: "\n") + "\n", capped: false)
+        }
+
+        return best?.parts ?? []
+    }
     // MARK: - Save log
 
     private func saveLogToFile() {
@@ -1267,11 +1304,17 @@ struct ContentView: View {
         switch missingMetaMode {
         case .error:
             missingMetaArg = "error"
+
         case .skipBurninConvert:
-            missingMetaArg = "skip_burnin_convert"
+            // subtitleTrack has no burn-in stage; treat as skip_file
+            missingMetaArg = (burnMode == .subtitleTrack)
+                ? "skip_file"
+                : "skip_burnin_convert"
+
         case .skipFile:
             missingMetaArg = "skip_file"
         }
+
 
         var args: [String] = [
             tempScriptURL.path,
@@ -1286,7 +1329,7 @@ struct ContentView: View {
             "--dvrescue=\(dvrescueURL.path)"
         ]
 
-        if format == .mp4 || format == .mkv {
+        if burnMode != .subtitleTrack, (format == .mp4 || format == .mkv) {
             args.append("--quality=\(quality.rawValue)")
         }
         if mode == "batch"
@@ -1350,17 +1393,88 @@ struct ContentView: View {
         inputPath: String,
         extraArgs: [String]
     ) -> (Int32, String) {
-        guard mode == "batch", stitchMode == "stitch", (burnMode != .off || outputMode == .audioOnly) else {
-            return (originalStatus, "")
+
+        // Stitch rules:
+        // - burnin/audio: only if user chose stitchMode == "stitch"
+        // - subtitleTrack: ALWAYS stitch in batch (to produce 1 final MKV)
+        let wantsStitch =
+            mode == "batch" &&
+            (burnMode != .off || outputMode == .audioOnly) &&
+            (burnMode == .subtitleTrack || stitchMode == "stitch")
+
+        guard wantsStitch else { return (originalStatus, "") }
+
+        // If upstream failed, don't stitch.
+        guard originalStatus == 0 else {
+            return (originalStatus, "\n[STITCH] SKIP: upstream run failed; not stitching.\n")
         }
+
+        // ---------- subtitleTrack stitching (concat *_dvsub.mkv) ----------
         if burnMode == .subtitleTrack {
-            return (
-                originalStatus,
-                "\n[STITCH] SKIP: subtitleTrack mode produces per-clip *_dvsub.mkv files; no burned_parts stitch step.\n"
+
+            func shellEscapeForConcatFile(_ path: String) -> String {
+                path.replacingOccurrences(of: "'", with: "'\\''")
+            }
+
+            guard let ffmpegURL = findBundledResource(named: "ffmpeg") else {
+                return (1, "\n[STITCH] ERROR: ffmpeg not found in app bundle.\n")
+            }
+
+            let fm = FileManager.default
+            let inputURL = URL(fileURLWithPath: inputPath)
+
+            // Use the same destination logic as the run.
+            let destFolderPath =
+                sanitizedDestinationOverride()
+                ?? resolvedDestinationPath(for: inputPath)
+                ?? (inputURL.hasDirectoryPath ? inputURL.path : inputURL.deletingLastPathComponent().path)
+
+            let destFolderURL = URL(fileURLWithPath: destFolderPath, isDirectory: true)
+
+            let parts = findDvsubParts(
+                destFolderURL: destFolderURL,
+                inputPath: inputPath
             )
+
+            guard parts.count >= 2 else {
+                return (0, "\n[STITCH] NOTE: Found \(parts.count) *_dvsub.mkv file(s); nothing to stitch.\n")
+            }
+
+
+            let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            let listURL = tempDir.appendingPathComponent("dvmeta_subs_concat_list.txt")
+
+            let listBody = parts
+                .map { "file '\(shellEscapeForConcatFile($0.path))'" }
+                .joined(separator: "\n") + "\n"
+
+            do {
+                try listBody.write(to: listURL, atomically: true, encoding: .utf8)
+            } catch {
+                return (1, "\n[STITCH] ERROR: Failed writing concat list: \(error.localizedDescription)\n")
+            }
+
+            let baseName = inputURL.lastPathComponent.isEmpty ? "dvmeta" : inputURL.lastPathComponent
+            let outURL = destFolderURL.appendingPathComponent("\(baseName)_dvsub_stitched.mkv")
+
+            let args: [String] = [
+                "-hide_banner", "-y",
+                "-f", "concat", "-safe", "0",
+                "-i", listURL.path,
+                "-map", "0",
+                "-c", "copy",
+                outURL.path
+            ]
+
+            let (rc, out) = runFFmpegProcess(at: ffmpegURL, arguments: args)
+            if rc != 0 || !fm.fileExists(atPath: outURL.path) {
+                return (1, "\n[STITCH] ERROR: subtitleTrack concat failed (exit \(rc)).\n\(out)\n")
+            }
+
+            return (0, "\n[STITCH] OK: Created stitched subtitle MKV:\n  \(outURL.path)\n")
         }
 
-
+        // ---------- EXISTING: burn-in/audio stitching (burned_parts) ----------
         guard let ffmpegURL = findBundledResource(named: "ffmpeg") else {
             return (max(originalStatus, 1), "\n[STITCH] ERROR: ffmpeg not found in app bundle.\n")
         }
@@ -1420,7 +1534,6 @@ struct ContentView: View {
         }
 
         let outputDirectory = URL(fileURLWithPath: destinationPath, isDirectory: true)
-
         _ = try? fm.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
 
         let baseName = URL(fileURLWithPath: inputPath, isDirectory: true).lastPathComponent
@@ -1477,6 +1590,7 @@ struct ContentView: View {
         let crfValue = qscaleToCRF(resolvedQuality.qscale ?? 2)
         let containerArgs = targetExtension == "mkv" ? ["-f", "matroska"] : []
         var fallbackArgs: [String]
+
         if outputMode == .audioOnly {
             let bitrate = resolvedQuality.audioBitrateKbps ?? 192
             fallbackArgs = [
@@ -1546,14 +1660,13 @@ struct ContentView: View {
             }
         } else {
             log += "\n[STITCH] fallback failed (exit \(fallbackStatus))"
-            if !fallbackOutput.isEmpty {
-                log += "\n\(fallbackOutput)"
-            }
+            if !fallbackOutput.isEmpty { log += "\n\(fallbackOutput)" }
             finalStatus = max(originalStatus, 1)
         }
 
         return (finalStatus, log)
     }
+
 
     private func findBundledResource(named name: String) -> URL? {
         let fm = FileManager.default
@@ -1913,17 +2026,17 @@ struct ContentView: View {
         if let selected = selectedFontPath, fm.fileExists(atPath: selected) {
             return selected
         }
-
-        let bundleRoot = Bundle.main.resourceURL ?? Bundle.main.bundleURL
-        let bundledFont = bundleRoot.appendingPathComponent("fonts/UAV-OSD-Mono.ttf")
-        return bundledFont.path
+        if let u = findBundledResource(named: "UAV-OSD-Mono.ttf") {
+            return u.path
+        }
+        return "/Library/Fonts/UAV-OSD-Mono.ttf" // last-ditch; or just return ""
     }
 
     private func resolvedFontName() -> String {
         if let match = displayedFonts.first(where: { $0.path == selectedFontPath }) {
-            return match.displayName
+            return match.fontName ?? match.displayName
         }
-        return "UAV-OSD-Mono"
+        return "UAV OSD Mono"
     }
 
     private func currentFontSelectionName() -> String {

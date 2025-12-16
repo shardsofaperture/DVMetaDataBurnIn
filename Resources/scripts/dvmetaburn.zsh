@@ -1,6 +1,29 @@
 #!/bin/zsh
 
 set -euo pipefail
+setopt ERR_EXIT
+# ERR_FAIL is NOT a real zsh option -> remove it
+# setopt ERR_FAIL
+
+TRAPZERR() {
+  local rc=$?
+
+  # ZSH_COMMAND / ZSH_DEBUG_CMD can be unset; avoid blowing up under -u
+  local cmd="${ZSH_DEBUG_CMD-}"
+  [[ -z "$cmd" ]] && cmd="${ZSH_COMMAND-}"
+  [[ -z "$cmd" ]] && cmd="<unknown command>"
+
+  # funcfiletrace may be unset; guard it
+  local where
+  if (( ${+funcfiletrace} )); then
+    where="${funcfiletrace[1]}"
+  else
+    where="${(%):-%N}:${LINENO}"
+  fi
+
+  print -r -- "[FATAL] (exit=$rc) $cmd | $where" >&2
+}
+
 setopt NULL_GLOB
 
 # Ensure baseline coreutils are available even when PATH is sanitized by the
@@ -35,7 +58,7 @@ info() {
 }
 
 debug() {
-  (( debug_mode == 1 )) && echo "[DEBUG] $*" >&2
+  (( ${debug_mode:-0} == 1 )) && echo "[DEBUG] $*" >&2
 }
 
 json_escape() {
@@ -130,8 +153,9 @@ extra_args_raw=""
 append_run_note() {
   local msg="$*"
   run_notes+=("$msg")
-  debug "[note] $msg"
+  (( ${debug_mode:-0} == 1 )) && echo "[DEBUG] [note] $msg" >&2
 }
+
 
 log_stage_marker() {
   local stage="$1"
@@ -2093,12 +2117,18 @@ g" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_outp
     return 1
   fi
 
-  debug_log "Using font file: $font"
+ debug_log "Using font file: $font"
 
-  if [[ -z "$subtitle_font_name" ]]; then
-    subtitle_font_name="UAV OSD Mono"
-  fi
-  subtitle_font_name="${subtitle_font_name//,/ }"
+# Default if UI didn't pass a name
+if [[ -z "$subtitle_font_name" ]]; then
+  subtitle_font_name="UAV OSD Mono"
+fi
+
+# Normalize to ASS/libass font family matching
+subtitle_font_name="${subtitle_font_name//-/ }"   # UAV-OSD-Mono -> UAV OSD Mono
+subtitle_font_name="${subtitle_font_name//,/ }"   # commas to spaces (defensive)
+
+debug_log "ASS font family resolved to: '$subtitle_font_name'"
 
   # Subtitle track mode: generate ASS from timeline and mux into container
   if [[ "$burn_mode" == "subtitleTrack" ]]; then
@@ -2201,16 +2231,27 @@ g" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_outp
     local subtitle_codec="ass"
 
     echo "[INFO] Muxing subtitle track into: $out_subbed" >&2
-    local -a mux_cmd=(
-      "$ffmpeg_bin" -y -i "$source_video" -i "$ass_target"
-      -map 0:v:0 -map "0:a?" -map 1:s:0
-      "${sub_video_args[@]}"
-      -c:s "$subtitle_codec"
-      -disposition:s:0 default
-      "${container_args[@]}"
-      "${sanitized_extra_args[@]}"
-      "$out_subbed"
-    )
+    local font_attach="$font"
+    local font_filename="${font_attach:t}"
+
+   local -a mux_cmd=(
+  "$ffmpeg_bin" -y
+  -i "$source_video"
+  -f ass -i "$ass_target"
+
+  -attach "$font_attach"
+  -metadata:s:t:0 mimetype=application/x-truetype-font
+  -metadata:s:t:0 filename="$font_filename"
+
+  -map 0:v:0 -map "0:a?" -map 1:0
+  "${sub_video_args[@]}"
+  -c:s "$subtitle_codec"
+  -disposition:s:0 default
+  "${container_args[@]}"
+  "${sanitized_extra_args[@]}"
+  "$out_subbed"
+)
+
     prepare_subprocess_env
     log_ffmpeg_command "subtitle-mux" "${mux_cmd[@]}"
     if ! run_stage "encode" "${mux_cmd[@]}"; then
