@@ -58,7 +58,10 @@ info() {
 }
 
 debug() {
-  (( ${debug_mode:-0} == 1 )) && echo "[DEBUG] $*" >&2
+  if (( ${debug_mode:-0} == 1 )); then
+    echo "[DEBUG] $*" >&2
+  fi
+  return 0
 }
 
 json_escape() {
@@ -153,7 +156,10 @@ extra_args_raw=""
 append_run_note() {
   local msg="$*"
   run_notes+=("$msg")
-  (( ${debug_mode:-0} == 1 )) && echo "[DEBUG] [note] $msg" >&2
+  if (( ${debug_mode:-0} == 1 )); then
+    echo "[DEBUG] [note] $msg" >&2
+  fi
+  return 0
 }
 
 
