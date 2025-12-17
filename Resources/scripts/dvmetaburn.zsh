@@ -868,7 +868,7 @@ log_file_excerpt() {
     local -i count=0
     while IFS= read -r line && (( count < max_lines )); do
       debug_log "  $line"
-      (( count++ ))
+      (( ++count ))
     done <"$path"
 
     if (( $("$wc_cmd" -l <"$path") > max_lines )); then
@@ -950,7 +950,7 @@ write_run_manifest() {
       notes_json+="    \"${escaped}\""
       (( idx < total )) && notes_json+="," 
       notes_json+=$'\n'
-      (( idx++ ))
+      (( ++idx ))
     done
   fi
 
@@ -1764,10 +1764,10 @@ EOF
   local prev_start_sec="" prev_date="" prev_time="" prev_dt=""
 
   while IFS=$'\t' read -r frame_idx t_sec date_part time_part dt_key; do
-    (( raw_lines++ ))
+    (( ++raw_lines ))
 
     if [[ -z "$t_sec" || -z "$date_part" || -z "$time_part" ]]; then
-      (( skipped_lines++ ))
+      (( ++skipped_lines ))
       continue
     fi
 
@@ -1797,7 +1797,7 @@ EOF
         *)
           printf "Dialogue: 0,%s,%s,DVRight,,0,0,40,,%s\\N%s\n" \
             "$start_str" "$end_str" "$prev_date" "$prev_time" >> "$ass_out"
-          (( dialogue_count++ ))
+          (( ++dialogue_count ))
           ;;
       esac
     fi
@@ -1819,7 +1819,7 @@ EOF
       stacked)
         printf "Dialogue: 0,%s,%s,DVRight,,0,0,40,,%s\\N%s\n" \
           "$start_str" "$end_str" "$prev_date" "$prev_time" >> "$ass_out"
-        (( dialogue_count++ ))
+        (( ++dialogue_count ))
         ;;
       single)
         printf "Dialogue: 0,%s,%s,DVLeft,,20,0,40,,%s\n" \
@@ -2582,7 +2582,7 @@ if [[ "$mode" == "batch" ]]; then
         fi
       fi
 
-      (( idx++ ))
+      (( ++idx ))
     done
     suppress_finish_run=0
 
@@ -2614,7 +2614,7 @@ if [[ "$mode" == "batch" ]]; then
     for abs in "${burned_files[@]}"; do
       if [[ -f "$abs" ]]; then
         printf "file '%s'\n" "$(escape_for_single_quotes "$abs")" >> "$list_file"
-        (( stitched_inputs++ ))
+        (( ++stitched_inputs ))
       else
         warn "[stitch/batch] Skipping missing burned part: $abs"
       fi
