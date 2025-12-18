@@ -85,6 +85,12 @@ log_ffmpeg_command() {
   echo "[ffmpeg/${label}] ${(q)cmd[@]}" >&2
 }
 
+log_export() {
+  local src="$1"
+  local dst="$2"
+  echo "[EXPORT] src='${src}' -> dst='${dst}'" >&2
+}
+
 probe_media_duration() {
   local path="$1"
   if [[ -z "$path" || ! -f "$path" ]]; then
@@ -2061,6 +2067,7 @@ process_file_core() {
       "$out_audio"
     )
 
+    log_export "$source_video" "$out_audio"
     prepare_subprocess_env
     log_ffmpeg_command "audio-only" "${audio_cmd[@]}"
     if ! run_stage "audio-extract" "${audio_cmd[@]}"; then
@@ -2119,6 +2126,7 @@ g" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_outp
       "${sanitized_extra_args[@]}"
       "$out_passthrough"
     )
+    log_export "$source_video" "$out_passthrough"
     prepare_subprocess_env
     log_ffmpeg_command "transcode-only" "${transcode_cmd[@]}"
     if ! run_stage "encode" "${transcode_cmd[@]}"; then
@@ -2213,6 +2221,7 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
             "${sanitized_extra_args[@]}"
             "$out_passthrough"
           )
+          log_export "$source_video" "$out_passthrough"
           prepare_subprocess_env
           log_ffmpeg_command "subtitle-fallback" "${subtitle_fallback_cmd[@]}"
           if ! run_stage "encode" "${subtitle_fallback_cmd[@]}"; then
@@ -2281,6 +2290,7 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
   "$out_subbed"
 )
 
+    log_export "$source_video" "$out_subbed"
     prepare_subprocess_env
     log_ffmpeg_command "subtitle-mux" "${mux_cmd[@]}"
     if ! run_stage "encode" "${mux_cmd[@]}"; then
@@ -2325,6 +2335,7 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
           "${sanitized_extra_args[@]}"
           "$out_passthrough"
         )
+        log_export "$source_video" "$out_passthrough"
         prepare_subprocess_env
         log_ffmpeg_command "timeline-fallback" "${timeline_fallback_cmd[@]}"
         if ! run_stage "encode" "${timeline_fallback_cmd[@]}"; then
@@ -2382,6 +2393,7 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
     "${sanitized_extra_args[@]}"
     "$out"
   )
+  log_export "$source_video" "$out"
   prepare_subprocess_env
   log_ffmpeg_command "burn-in" "${burn_cmd[@]}"
   if ! run_stage "encode" "${burn_cmd[@]}"; then
@@ -2662,6 +2674,7 @@ if [[ "$mode" == "batch" ]]; then
     stitch_container_args=("${reply[@]}")
 
     info "[stitch/batch] Concatenating ${stitched_inputs} burned parts into $stitched_output (stream copy)"
+    log_export "$list_file" "$stitched_output"
     prepare_subprocess_env
     local -a stitch_copy_cmd=(
       "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file" -c copy
@@ -2676,6 +2689,7 @@ if [[ "$mode" == "batch" ]]; then
         local -a stitch_codec_args
         build_codec_args "$format" "$effective_quality_kind"
         stitch_codec_args=("${reply[@]}")
+        log_export "$list_file" "$stitched_output"
         prepare_subprocess_env
         local -a stitch_encode_cmd=(
           "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file"
@@ -2692,6 +2706,7 @@ if [[ "$mode" == "batch" ]]; then
             local -a stitch_codec_args
             build_codec_args "$format" "$effective_quality_kind"
             stitch_codec_args=("${reply[@]}")
+            log_export "$list_file" "$stitched_output"
             prepare_subprocess_env
             local -a stitch_encode_cmd=(
               "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file"
@@ -2704,6 +2719,7 @@ if [[ "$mode" == "batch" ]]; then
             "${stitch_encode_cmd[@]}" || true
             ;;
           *)
+            log_export "$list_file" "$stitched_output"
             prepare_subprocess_env
             local -a stitch_default_cmd=(
               "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file"
