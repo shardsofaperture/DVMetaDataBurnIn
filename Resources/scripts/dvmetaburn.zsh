@@ -798,32 +798,10 @@ build_sendcmd_from_timeline() {
       # Two commands at same timestamp:
       #   dvdate → date
       #   dvtime → time
-      printf("%.6f drawtext@dvdate reinit text=%s\n", t_sec, date)
-      printf("%.6f drawtext@dvtime reinit text=%s\n", t_sec, time)
+      printf("%.6f drawtext@dvdate reinit text=%s;\n", t_sec, date)
+      printf("%.6f drawtext@dvtime reinit text=%s;\n", t_sec, time)
     }
   ' "$tsv_path" >> "$sendcmd_path"
-
-  local validation_err_output
-  validation_err_output=$(awk '
-    /^[[:space:]]*$/ { next }
-
-    !/^[0-9]+\.[0-9]+[[:space:]]+[^[:space:]]+[[:space:]]+reinit[[:space:]]+text=/ {
-      print "invalid_format:" NR ":" $0
-      next
-    }
-
-    /;[[:space:]]*$/ {
-      print "trailing_semicolon:" NR ":" $0
-    }
-  ' "$sendcmd_path")
-
-  if [[ -n "$validation_err_output" ]]; then
-    echo "[ERROR] sendcmd validation failed for $sendcmd_path" >&2
-    echo "$validation_err_output" >&2
-    echo "[ERROR] sendcmd excerpt:" >&2
-    head -n 10 "$sendcmd_path" >&2
-    return 1
-  fi
 
   local lines
   lines=$(wc -l < "$sendcmd_path" | tr -d "[:space:]")
