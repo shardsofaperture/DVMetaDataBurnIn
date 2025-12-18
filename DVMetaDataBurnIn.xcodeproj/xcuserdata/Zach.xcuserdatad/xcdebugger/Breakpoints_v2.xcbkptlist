@@ -16,7 +16,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "234"
             endingLineNumber = "234"
-            landmarkName = "quality_to_video_args"
+            landmarkName = "resolve_audio_bitrate"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>

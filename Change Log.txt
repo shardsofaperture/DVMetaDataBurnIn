@@ -1,3 +1,17 @@
+## Change Log 1.0.5B
+
+---12/17/2025
+* All batch functions work now where
+* Added stiching modes for all file output formats
+* Fixed Debug issues where dual debug logs were casuing crashes
+* Added Settings for low/medium/high transcodes
+* Moved log window to the left
+* Added target folder output
+* Added (untested) custom FFMPEG options - option
+* broke "save to" so you have to manually select output folder otherwise ???
+* Subtitles can be per clip or do from start of file
+
+
 ## Change Log 1.0.3B
 
 ---12/6/2025
