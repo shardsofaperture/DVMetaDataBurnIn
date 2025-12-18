@@ -270,6 +270,7 @@ ffmpeg_bin="ffmpeg"
 dvrescue_bin="dvrescue"
 artifact_root="${HOME}/Library/Logs/DVMeta"
 dest_dir=""
+output_base=""
 # Controls how densely timestamps are emitted into the timeline
 burn_granularity="per_second"  # "per_second" or "per_frame"
 # Opt-in verbose logging for troubleshooting
@@ -314,6 +315,7 @@ while [[ $# -gt 0 ]]; do
     --ffmpeg=*) ffmpeg_bin="${1#*=}"; shift ;;
     --dvrescue=*) dvrescue_bin="${1#*=}"; shift ;;
     --dest-dir=*) dest_dir="${1#*=}"; shift ;;
+    --output-base=*) output_base="${1#*=}"; shift ;;
     --scratch-dir=*) scratch_dir="${1#*=}"; shift ;;
     --stitch) stitch_enabled=1; shift ;;
         --stitch-mode=*)
@@ -350,6 +352,8 @@ missing_meta="${missing_meta:l}"
 
 format="${format//[[:space:]]/}"
 format="${format:l}"
+
+output_base="${output_base%/}"
 
 encode_quality="${encode_quality//[[:space:]]/}"
 encode_quality="${encode_quality//_/-}"
@@ -2470,17 +2474,22 @@ fi
 if [[ "$mode" == "single" ]]; then
   stitch_batch=0
   if [[ $# -ne 1 ]]; then
-    echo "Usage: $0 [--mode=single] [--layout=stacked|single] [--format=mov|mp4|mkv] [--quality=low|medium|high] [--burn-mode=burnin|off|subtitleTrack] [--subtitle-mode=per-clip|continuous] [--scratch-dir=/path (or DVMETA_SCRATCH_DIR)] [--stitch [--stitch-inputs=/path/to/list.txt]] /path/to/clip.avi" >&2
+    echo "Usage: $0 [--mode=single] [--layout=stacked|single] [--format=mov|mp4|mkv] [--quality=low|medium|high] [--burn-mode=burnin|off|subtitleTrack] [--subtitle-mode=per-clip|continuous] [--scratch-dir=/path (or DVMETA_SCRATCH_DIR)] [--output-base=name] [--stitch [--stitch-inputs=/path/to/list.txt]] /path/to/clip.avi" >&2
     exit 1
   fi
   debug_log "Running in single-file mode with target: $1"
-  process_file_controller "$1"
+  single_base_override=""
+  if [[ -n "$output_base" ]]; then
+    single_base_override="$output_base"
+  fi
+
+  process_file_controller "$1" "$single_base_override"
   exit $?
 fi
 
 if [[ "$mode" == "batch" ]]; then
   if [[ $# -ne 1 ]]; then
-    echo "Usage: $0 --mode=batch [--layout=stacked|single] [--format=mov|mp4|mkv] [--quality=low|medium|high] [--burn-mode=burnin|off|subtitleTrack] [--subtitle-mode=per-clip|continuous] [--scratch-dir=/path (or DVMETA_SCRATCH_DIR)] [--stitch [--stitch-inputs=/path/to/list.txt]] /path/to/folder" >&2
+    echo "Usage: $0 --mode=batch [--layout=stacked|single] [--format=mov|mp4|mkv] [--quality=low|medium|high] [--burn-mode=burnin|off|subtitleTrack] [--subtitle-mode=per-clip|continuous] [--scratch-dir=/path (or DVMETA_SCRATCH_DIR)] [--output-base=name] [--stitch [--stitch-inputs=/path/to/list.txt]] /path/to/folder" >&2
     exit 1
   fi
 
@@ -2496,6 +2505,11 @@ if [[ "$mode" == "batch" ]]; then
   if [[ -z "$folder_abs" ]]; then
     echo "ERROR: Failed to resolve folder path: $folder" >&2
     exit 1
+  fi
+
+  batch_output_root="$folder_abs"
+  if [[ -n "$dest_dir" ]]; then
+    batch_output_root="${dest_dir%/}"
   fi
 
   echo "Batch mode: scanning $folder_abs"
@@ -2515,8 +2529,18 @@ if [[ "$mode" == "batch" ]]; then
 
   if (( stitch_batch == 1 )); then
     primary_input_path="$folder_abs"
-    local base_name output_dir_override ts artifact_dir_override burned_parts_dir list_file stitched_output
-    base_name="${folder_abs:t}"
+    base_name=""
+    output_dir_override=""
+    ts=""
+    artifact_dir_override=""
+    burned_parts_dir=""
+    list_file=""
+    stitched_output=""
+    if [[ -n "$output_base" ]]; then
+      base_name="$output_base"
+    else
+      base_name="${folder_abs:t}"
+    fi
 
     local target_ext stitched_suffix part_suffix
     if [[ "$burn_mode" == "subtitleTrack" ]]; then
@@ -2533,11 +2557,7 @@ if [[ "$mode" == "batch" ]]; then
       part_suffix="_dateburn.${format}"
     fi
 
-    if [[ -n "$dest_dir" ]]; then
-      output_dir_override="${dest_dir%/}"
-    else
-      output_dir_override="$folder_abs"
-    fi
+    output_dir_override="$batch_output_root"
 
     ts="$(date '+%Y%m%d_%H%M%S')"
     artifact_dir_override="${artifact_root%/}/${base_name}_stitched_${ts}"
@@ -2719,11 +2739,36 @@ if [[ "$mode" == "batch" ]]; then
     exit 0
   fi
 
+  batch_output_override=""
+  batch_base_prefix=""
+
+  if [[ -n "$output_base" ]]; then
+    batch_output_override="${batch_output_root%/}/${output_base}"
+    if mkdir -p "$batch_output_override" 2>/dev/null; then
+      debug_log "[batch] Writing outputs under: $batch_output_override"
+    else
+      warn "[batch] Unable to create output_base folder: $batch_output_override; prefixing outputs instead"
+      batch_output_override=""
+      batch_base_prefix="$output_base"
+    fi
+  fi
+
   for abs in "${batch_files[@]}"; do
     debug_log "Batch candidate path: '$abs'"
     echo "Processing $abs"
 
-    if ! process_file_controller "$abs"; then
+    file_base_override=""
+    file_output_dir_override=""
+
+    if [[ -n "$batch_output_override" ]]; then
+      file_output_dir_override="$batch_output_override"
+    fi
+
+    if [[ -n "$batch_base_prefix" ]]; then
+      file_base_override="${batch_base_prefix}_${abs:t:r}"
+    fi
+
+    if ! process_file_controller "$abs" "$file_base_override" "$file_output_dir_override"; then
       echo "[ERROR] Failed while processing: $abs" >&2
       # continue to next file instead of bailing
       continue
