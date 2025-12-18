@@ -64,6 +64,13 @@ debug() {
   return 0
 }
 
+# Lightweight helper for conditional debug output
+debug_log() {
+  if (( debug_mode == 1 )); then
+    echo "[DEBUG] $*" >&2
+  fi
+}
+
 json_escape() {
   local raw="$1"
   # Escape backslashes first, then double quotes
@@ -397,6 +404,11 @@ case "$stitch_batch" in
     ;;
 esac
 
+if [[ "$mode" == "batch" && $stitch_enabled -eq 1 && $stitch_batch -eq 0 ]]; then
+  stitch_batch=1
+  debug_log "[stitch] mode=batch and stitch enabled -> forcing stitch_batch=1"
+fi
+
 burn_mode="${burn_mode//[[:space:]]/}"
 burn_mode="${burn_mode//_/-}"
 burn_mode="${burn_mode:l}"
@@ -635,13 +647,6 @@ log_artifact_path_and_size() {
     echo "[INFO] ${label}: ${path} (size: $(stat_size_bytes "$path") bytes)" >&2
   else
     echo "[INFO] ${label}: ${path} (missing)" >&2
-  fi
-}
-
-# Lightweight helper for conditional debug output
-debug_log() {
-  if (( debug_mode == 1 )); then
-    echo "[DEBUG] $*" >&2
   fi
 }
 
