@@ -1429,11 +1429,11 @@ stitch_batch_folder() {
   local target_ext stitched_suffix part_suffix
   if [[ "$output_mode" == "audio" ]]; then
     target_ext="$(audio_extension_for_format "$format")"
-    stitched_suffix="_audio.${target_ext}"
+    stitched_suffix="_stitched_audio.${target_ext}"
     part_suffix="_audio.${target_ext}"
   else
     target_ext="$format"
-    stitched_suffix="_dateburn.${format}"
+    stitched_suffix="_stitched_dateburn.${target_ext}"
     part_suffix="_dateburn.${format}"
   fi
 
@@ -2549,11 +2549,11 @@ if [[ "$mode" == "batch" ]]; then
       part_suffix="_dvsub.mkv"
     elif [[ "$output_mode" == "audio" ]]; then
       target_ext="$(audio_extension_for_format "$format")"
-      stitched_suffix="_audio.${target_ext}"
+      stitched_suffix="_stitched_audio.${target_ext}"
       part_suffix="_audio.${target_ext}"
     else
       target_ext="$format"
-      stitched_suffix="_dateburn.${format}"
+      stitched_suffix="_stitched_dateburn.${target_ext}"
       part_suffix="_dateburn.${format}"
     fi
 
