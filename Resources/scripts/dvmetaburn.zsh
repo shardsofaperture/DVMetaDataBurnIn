@@ -2554,7 +2554,7 @@ if [[ "$mode" == "batch" ]]; then
       base_name="${folder_abs:t}"
     fi
 
-    local target_ext stitched_suffix part_suffix
+    local target_ext stitched_suffix part_suffix conv_suffix
     if [[ "$burn_mode" == "subtitleTrack" ]]; then
       target_ext="mkv"
       stitched_suffix="_dvsub_stitched.mkv"
@@ -2567,6 +2567,7 @@ if [[ "$mode" == "batch" ]]; then
       target_ext="$format"
       stitched_suffix="_stitched_dateburn.${target_ext}"
       part_suffix="_dateburn.${format}"
+      conv_suffix="_conv.${format}"
     fi
 
     output_dir_override="$batch_output_root"
@@ -2581,7 +2582,8 @@ if [[ "$mode" == "batch" ]]; then
     fi
 
     suppress_finish_run=1
-    typeset -a burned_files=()
+    typeset -a stitch_inputs=()
+    typeset -a part_ids=()
     local idx=1
     local abs part_base part_artifact_dir
     local had_part_failure=0
@@ -2602,18 +2604,7 @@ if [[ "$mode" == "batch" ]]; then
         break
       fi
 
-      if [[ -n "$last_burn_output_path" && -f "$last_burn_output_path" ]]; then
-        burned_files+=("$last_burn_output_path")
-      else
-        local expected_output
-        expected_output="${burned_parts_dir%/}/${part_base}${part_suffix}"
-        if [[ -f "$expected_output" ]]; then
-          burned_files+=("$expected_output")
-        else
-          warn "[stitch/batch] Burned output missing for part $part_base"
-        fi
-      fi
-
+      part_ids+=("$part_base")
       (( ++idx ))
     done
     suppress_finish_run=0
@@ -2624,42 +2615,51 @@ if [[ "$mode" == "batch" ]]; then
     fi
 
     if [[ ! -d "$burned_parts_dir" ]]; then
-      echo "[ERROR] No burned parts were produced; aborting stitch." >&2
-      exit 1
-    fi
-
-    setopt localoptions null_glob
-    local -a burned_part_outputs=("${burned_parts_dir%/}"/*"${part_suffix}")
-    if (( ${#burned_part_outputs[@]} == 0 )); then
-      echo "[ERROR] No burned parts were produced; aborting stitch." >&2
-      exit 1
-    fi
-
-    if (( ${#burned_files[@]} == 0 )); then
-      echo "[ERROR] No burned parts were produced; aborting stitch." >&2
+      echo "[ERROR] No stitchable parts were produced; aborting stitch." >&2
       exit 1
     fi
 
     list_file="${burned_parts_dir%/}/list.txt"
     : > "$list_file"
     local stitched_inputs=0
-    for abs in "${burned_files[@]}"; do
-      if [[ -f "$abs" ]]; then
-        printf "file '%s'\n" "$(escape_for_single_quotes "$abs")" >> "$list_file"
-        (( ++stitched_inputs ))
-      else
-        warn "[stitch/batch] Skipping missing burned part: $abs"
+    local burned_count=0
+    local conv_count=0
+    local missing_count=0
+
+    local part_id burned_path conv_path
+    for part_id in "$part_ids[@]"; do
+      burned_path="${burned_parts_dir%/}/${part_id}${part_suffix}"
+      conv_path=""
+      if [[ -n "$conv_suffix" ]]; then
+        conv_path="${burned_parts_dir%/}/${part_id}${conv_suffix}"
       fi
+
+      if [[ -f "$burned_path" ]]; then
+        info "[stitch] part ${part_id} -> dateburn"
+        stitch_inputs+=("$burned_path")
+        (( ++burned_count ))
+      elif [[ -n "$conv_suffix" && -f "$conv_path" ]]; then
+        info "[stitch] part ${part_id} -> conv (fallback)"
+        stitch_inputs+=("$conv_path")
+        (( ++conv_count ))
+      else
+        warn "[stitch] part ${part_id} missing (no dateburn/conv output)"
+        (( ++missing_count ))
+        continue
+      fi
+
+      printf "file '%s'\n" "$(escape_for_single_quotes "${stitch_inputs[-1]}")" >> "$list_file"
+      (( ++stitched_inputs ))
     done
 
     if (( stitched_inputs == 0 )); then
-      echo "[ERROR] All burned parts were missing; aborting stitch." >&2
+      echo "[ERROR] No stitchable parts were produced; aborting stitch. (burned=${burned_count} conv=${conv_count} missing=${missing_count})" >&2
       exit 1
     fi
 
     if [[ "$output_mode" == "audio" ]]; then
       local part_duration
-      for abs in "${burned_files[@]}"; do
+      for abs in "${stitch_inputs[@]}"; do
         if part_duration=$(probe_media_duration "$abs"); then
           info "[stitch/batch] part ${abs:t}: $part_duration"
           append_run_note "Stitch part ${abs:t} duration: $part_duration"
@@ -2673,7 +2673,7 @@ if [[ "$mode" == "batch" ]]; then
     local -a stitch_container_args
     stitch_container_args=("${reply[@]}")
 
-    info "[stitch/batch] Concatenating ${stitched_inputs} burned parts into $stitched_output (stream copy)"
+    info "[stitch/batch] Concatenating ${stitched_inputs} stitchable parts into $stitched_output (stream copy)"
     log_export "$list_file" "$stitched_output"
     prepare_subprocess_env
     local -a stitch_copy_cmd=(
