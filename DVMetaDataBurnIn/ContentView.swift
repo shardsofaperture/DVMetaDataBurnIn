@@ -36,6 +36,34 @@ enum MissingMetaMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+enum InputMode: String, CaseIterable, Identifiable {
+    case singleFile = "single"
+    case batchFolder = "batch"
+    case folderQueue = "folderQueue"
+
+    var id: String { rawValue }
+
+    var scriptValue: String {
+        switch self {
+        case .singleFile:
+            return "single"
+        case .batchFolder, .folderQueue:
+            return "batch"
+        }
+    }
+
+    var displayName: String {
+        switch self {
+        case .singleFile:
+            return "Single file"
+        case .batchFolder:
+            return "Batch folder"
+        case .folderQueue:
+            return "Folder queue"
+        }
+    }
+}
+
 enum OutputFormat: String, CaseIterable, Identifiable {
     case mov
     case mp4
@@ -74,6 +102,54 @@ struct ResolvedQuality {
 
     var isPassthrough: Bool {
         qscale == nil
+    }
+}
+
+struct QueueSettingsSnapshot: Hashable {
+    let burnMode: BurnMode
+    let missingMetaMode: MissingMetaMode
+    let subtitleMode: SubtitleMode?
+    let layout: String
+    let format: OutputFormat
+    let quality: Quality
+    let outputMode: OutputMode
+    let stitchBatch: Bool
+    let destinationOverride: String?
+
+    var summaryDescription: String {
+        var parts: [String] = []
+        parts.append("Burn: \(burnMode.rawValue)")
+        parts.append("Missing: \(missingMetaMode.rawValue)")
+        if let subtitleMode {
+            parts.append("Subs: \(subtitleMode.rawValue)")
+        }
+        parts.append("Layout: \(layout)")
+        parts.append("Format: \(format.rawValue)")
+        parts.append("Quality: \(quality.rawValue)")
+        parts.append("Output: \(outputMode.rawValue)")
+        if stitchBatch {
+            parts.append("Stitch on")
+        }
+        if let destinationOverride, !destinationOverride.isEmpty {
+            parts.append("Dest: \(destinationOverride)")
+        }
+        return parts.joined(separator: " · ")
+    }
+}
+
+struct QueueEntry: Identifiable, Hashable {
+    let id = UUID()
+    let path: String
+    let settingsSnapshot: QueueSettingsSnapshot
+
+    var url: URL { URL(fileURLWithPath: path) }
+
+    var displayName: String {
+        url.lastPathComponent
+    }
+
+    var outputBaseName: String {
+        url.deletingPathExtension().lastPathComponent
     }
 }
 
@@ -151,7 +227,7 @@ func outputExtension(for format: OutputFormat, outputMode: OutputMode) -> String
 struct ContentView: View {
     // UI state
     @State private var inputPath: String = ""
-    @State private var mode: String = "single"      // "single" or "batch"
+    @State private var inputMode: InputMode = .singleFile
     @State private var layout: String = "stacked"   // "stacked" or "single"
     @State private var format: OutputFormat = .mov
     @State private var quality: Quality = .high
@@ -174,6 +250,8 @@ struct ContentView: View {
     @State private var hoveredLayoutPreviewName: String?
     @State private var hoveredQuality: Quality?
     @State private var outputToLocationFolder: Bool = false
+    @State private var folderQueue: [QueueEntry] = []
+    @State private var isFolderDropTarget: Bool = false
     @State private var scratchDirectory: String =
         UserDefaults.standard.string(forKey: "DVMetaScratchDirectory") ?? ""
     @AppStorage("DVMetaAdvancedFFmpegOptions")
@@ -211,6 +289,30 @@ struct ContentView: View {
 
     private var shouldBlockStart: Bool {
         startBlockReason != nil
+    }
+
+    private var isBatchMode: Bool {
+        inputMode != .singleFile
+    }
+
+    private var activeInputPath: String {
+        switch inputMode {
+        case .folderQueue:
+            if let first = folderQueue.first { return first.path }
+            return ""
+        case .singleFile, .batchFolder:
+            return inputPath
+        }
+    }
+
+    private var hasInputPath: Bool {
+        !activeInputPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var resolvedInputURL: URL? {
+        let trimmed = activeInputPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        return URL(fileURLWithPath: trimmed)
     }
 
     private func sanitizedDestinationOverride() -> String? {
@@ -331,38 +433,67 @@ struct ContentView: View {
                 Text("DV Metadata Date/Time Burn-In")
                     .font(.title2)
                     .bold()
-            
-            // Input picker
-            HStack {
-                Text("Input:")
-                TextField("File or folder path", text: $inputPath)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .help("Enter a single DV file or a folder of DV files to process.")
 
-                Button("Choose…") {
-                    chooseInput()
+            // Input picker
+            if inputMode != .folderQueue {
+                HStack {
+                    Text("Input:")
+                    TextField("File or folder path", text: $inputPath)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .help("Enter a single DV file or a folder of DV files to process.")
+
+                    Button("Choose…") {
+                        chooseInput()
+                    }
+                    .help("Browse for a DV file or folder.")
                 }
-                .help("Browse for a DV file or folder.")
             }
-            
+
             // Mode: single vs batch
-            HStack {
-                Text("Mode:")
-                Picker("", selection: $mode) {
-                    Text("Single file").tag("single")
-                    Text("Batch folder").tag("batch")
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Mode:")
+                    Picker("", selection: $inputMode) {
+                        ForEach(InputMode.allCases) { mode in
+                            Text(mode.displayName).tag(mode)
+                        }
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                    .frame(width: 360)
+                    .help("Choose whether to process one file, a batch folder, or a queue of folders.")
+
+                    if inputMode == .folderQueue {
+                        Spacer()
+                        Button("Add Folders…") {
+                            chooseInput()
+                        }
+                        .help("Append folders to the queue using the file picker.")
+
+                        Button("Clear") {
+                            folderQueue.removeAll()
+                        }
+                        .disabled(folderQueue.isEmpty)
+                        .help("Remove all queued folders.")
+                    }
                 }
-                .pickerStyle(SegmentedPickerStyle())
-                .frame(width: 240)
-                .help("Choose whether to process one file or every DV file in a folder.")
+
+                if isBatchMode {
+                    Toggle(
+                        "Stitch batch files together into one file",
+                        isOn: $stitchBatch
+                    )
+                    .toggleStyle(.checkbox)
+                    .help("Produces one final stitched output instead of per-clip files.")
+                }
             }
-            if mode == "batch" {
-                Toggle(
-                    "Stitch batch files together into one file",
-                    isOn: $stitchBatch
-                )
-                .toggleStyle(.checkbox)
-                .help("Produces one final stitched output instead of per-clip files.")
+            .onChange(of: inputMode) { newMode in
+                if newMode == .singleFile {
+                    stitchBatch = false
+                }
+            }
+
+            if inputMode == .folderQueue {
+                folderQueueView
             }
             HStack {
                 Text("Output:")
@@ -378,11 +509,6 @@ struct ContentView: View {
                 if newMode == .audioOnly {
                     burnMode = .off
                     subtitleMode = nil
-                }
-            }
-            .onChange(of: mode) { newMode in
-                if newMode == "single" {
-                    stitchBatch = false
                 }
             }
             // Layout: stacked vs single bar
@@ -696,13 +822,13 @@ struct ContentView: View {
                                     .frame(width: 150, height: 22)   // FIXED HEIGHT
                                     .background(
                                         RoundedRectangle(cornerRadius: 6)
-                                            .fill((isRunning || inputPath.isEmpty || shouldBlockStart)
+                                            .fill((isRunning || !hasInputPath || shouldBlockStart)
                                                   ? coneOrange.opacity(0.45)
                                                   : coneOrange)
                                     )
                             }
                             .buttonStyle(.plain)
-                            .disabled(isRunning || inputPath.isEmpty || shouldBlockStart)
+                            .disabled(isRunning || !hasInputPath || shouldBlockStart)
 
                             // STOP button — match *same height + corner radius*
                             Button(action: { stopCurrentProcess() }) {
@@ -754,6 +880,89 @@ struct ContentView: View {
             AboutView()
         }
         .onAppear(perform: loadAvailableFonts)
+    }
+
+    private var folderQueueView: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Queued folders")
+                .font(.headline)
+
+            VStack(alignment: .leading, spacing: 8) {
+                if folderQueue.isEmpty {
+                    Text(isFolderDropTarget
+                         ? "Release to add folders to the queue"
+                         : "Drop folders here or click “Add Folders…”")
+                        .font(.callout)
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 8)
+                } else {
+                    List {
+                        ForEach(folderQueue) { entry in
+                            queueRow(for: entry)
+                        }
+                    }
+                    .frame(minHeight: 160, maxHeight: 260)
+                    .listStyle(.inset)
+                }
+            }
+            .padding(8)
+            .frame(maxWidth: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .strokeBorder(
+                        isFolderDropTarget ? Color.accentColor : Color.gray.opacity(0.3),
+                        lineWidth: isFolderDropTarget ? 2 : 1
+                    )
+            )
+            .onDrop(of: [UTType.folder, .fileURL], isTargeted: $isFolderDropTarget) { providers in
+                handleQueueDrop(providers)
+            }
+        }
+    }
+
+    private func queueRow(for entry: QueueEntry) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(entry.displayName)
+                    .font(.headline)
+                Text("Output base: \(entry.outputBaseName)")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                Text(entry.settingsSnapshot.summaryDescription)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            VStack(spacing: 6) {
+                Button {
+                    moveEntry(entry, offset: -1)
+                } label: {
+                    Image(systemName: "arrow.up")
+                }
+                .help("Move folder earlier in the queue.")
+                .disabled(folderQueue.first?.id == entry.id)
+
+                Button {
+                    moveEntry(entry, offset: 1)
+                } label: {
+                    Image(systemName: "arrow.down")
+                }
+                .help("Move folder later in the queue.")
+                .disabled(folderQueue.last?.id == entry.id)
+
+                Button {
+                    removeEntry(entry)
+                } label: {
+                    Image(systemName: "trash")
+                }
+                .help("Remove this folder from the queue.")
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.vertical, 4)
     }
 
     private var logPanel: some View {
@@ -905,20 +1114,114 @@ struct ContentView: View {
         NSWorkspace.shared.open(base)
     }
 
+    private func captureSettingsSnapshot() -> QueueSettingsSnapshot {
+        QueueSettingsSnapshot(
+            burnMode: burnMode,
+            missingMetaMode: missingMetaMode,
+            subtitleMode: subtitleMode,
+            layout: layout,
+            format: format,
+            quality: quality,
+            outputMode: outputMode,
+            stitchBatch: stitchBatch,
+            destinationOverride: sanitizedDestinationOverride()
+        )
+    }
+
+    private func appendQueueEntries(from urls: [URL]) {
+        let snapshot = captureSettingsSnapshot()
+        let existing = Set(folderQueue.map { $0.path })
+        var localSeen = Set<String>()
+        var additions: [QueueEntry] = []
+
+        for url in urls where url.hasDirectoryPath {
+            let path = url.path
+            guard !existing.contains(path), !localSeen.contains(path) else { continue }
+            localSeen.insert(path)
+            additions.append(QueueEntry(path: path, settingsSnapshot: snapshot))
+        }
+
+        guard !additions.isEmpty else { return }
+
+        folderQueue.append(contentsOf: additions)
+        inputMode = .folderQueue
+
+        if inputPath.isEmpty {
+            inputPath = additions.first?.path ?? inputPath
+        }
+    }
+
+    private func removeEntry(_ entry: QueueEntry) {
+        folderQueue.removeAll { $0.id == entry.id }
+    }
+
+    private func moveEntry(_ entry: QueueEntry, offset: Int) {
+        guard let currentIndex = folderQueue.firstIndex(of: entry) else { return }
+        let newIndex = currentIndex + offset
+        guard folderQueue.indices.contains(newIndex) else { return }
+
+        var updated = folderQueue
+        let item = updated.remove(at: currentIndex)
+        updated.insert(item, at: newIndex)
+        folderQueue = updated
+    }
+
+    private func handleQueueDrop(_ providers: [NSItemProvider]) -> Bool {
+        let identifiers = [UTType.folder.identifier, UTType.fileURL.identifier]
+        let dispatchGroup = DispatchGroup()
+        var urls: [URL] = []
+        var accepted = false
+
+        for provider in providers {
+            guard identifiers.contains(where: { provider.hasItemConformingToTypeIdentifier($0) }) else { continue }
+            accepted = true
+            for identifier in identifiers where provider.hasItemConformingToTypeIdentifier(identifier) {
+                dispatchGroup.enter()
+                provider.loadItem(forTypeIdentifier: identifier, options: nil) { item, _ in
+                    defer { dispatchGroup.leave() }
+
+                    if let data = item as? Data,
+                       let url = URL(dataRepresentation: data, relativeTo: nil, isAbsolute: true),
+                       url.hasDirectoryPath {
+                        urls.append(url)
+                    } else if let url = item as? URL, url.hasDirectoryPath {
+                        urls.append(url)
+                    }
+                }
+            }
+        }
+
+        dispatchGroup.notify(queue: .main) {
+            inputMode = .folderQueue
+            appendQueueEntries(from: urls)
+        }
+
+        return accepted
+    }
+
     // MARK: - File / folder picker
 
     private func chooseInput() {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
         panel.canChooseDirectories = true
-        panel.allowsMultipleSelection = false
+        panel.allowsMultipleSelection = true
 
-        if panel.runModal() == .OK, let url = panel.url {
-            inputPath = url.path
-            if url.hasDirectoryPath {
-                mode = "batch"
-            } else {
-                mode = "single"
+        if panel.runModal() == .OK {
+            let urls = panel.urls
+            let folders = urls.filter { $0.hasDirectoryPath }
+            let files = urls.filter { !$0.hasDirectoryPath }
+
+            if !folders.isEmpty {
+                appendQueueEntries(from: folders)
+                inputMode = .folderQueue
+            }
+
+            if folders.isEmpty, let file = files.first {
+                inputPath = file.path
+                inputMode = .singleFile
+            } else if folders.count == 1 && files.isEmpty {
+                inputPath = folders.first?.path ?? inputPath
             }
         }
     }
@@ -939,9 +1242,7 @@ struct ContentView: View {
         } else if let existing = selectedOutputFolder, !existing.isEmpty {
             panel.directoryURL = URL(fileURLWithPath: existing, isDirectory: true)
         } else {
-            let trimmedInput = inputPath.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmedInput.isEmpty {
-                let inputURL = URL(fileURLWithPath: trimmedInput)
+            if let inputURL = resolvedInputURL {
                 if inputURL.hasDirectoryPath {
                     panel.directoryURL = inputURL
                 } else {
@@ -990,12 +1291,10 @@ struct ContentView: View {
         let fm = FileManager.default
         var debugURL: URL?
 
-        if !inputPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-           fm.fileExists(atPath: inputPath) {
-            let url = URL(fileURLWithPath: inputPath)
-            if !url.hasDirectoryPath {
-                debugURL = url
-            }
+        if let existingInput = resolvedInputURL,
+           fm.fileExists(atPath: existingInput.path),
+           !existingInput.hasDirectoryPath {
+            debugURL = existingInput
         }
 
         if debugURL == nil {
@@ -1007,7 +1306,7 @@ struct ContentView: View {
             if panel.runModal() == .OK, let url = panel.url {
                 debugURL = url
                 inputPath = url.path
-                mode = "single"
+                inputMode = .singleFile
             }
         }
 
@@ -1124,7 +1423,9 @@ struct ContentView: View {
     // MARK: - Run script
 
     private func runBurn() {
-        guard !inputPath.isEmpty else {
+        let selectedInput = activeInputPath.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !selectedInput.isEmpty else {
             logText = "Please choose an input file or folder first."
             return
         }
@@ -1162,6 +1463,7 @@ struct ContentView: View {
         DispatchQueue.global(qos: .userInitiated).async {
             do {
                 let (process, pipe, argv) = try self.makeProcess(
+                    inputPath: selectedInput,
                     extraArgs: extraArgsForRun,
                     rawExtraArgs: rawExtraArgs
                 )
@@ -1202,7 +1504,7 @@ struct ContentView: View {
                 
                 let (finalStatus, stitchLog) = self.performBatchStitchConcatIfNeeded(
                     originalStatus: status,
-                    inputPath: self.inputPath,
+                    inputPath: selectedInput,
                     extraArgs: extraArgsForRun
                 )
 
@@ -1234,6 +1536,7 @@ struct ContentView: View {
     // MARK: - Process builder
 
     private func makeProcess(
+        inputPath: String,
         extraArgs: [String],
         rawExtraArgs: String?
     ) throws -> (Process, Pipe, [String]) {
@@ -1304,7 +1607,7 @@ struct ContentView: View {
 
         var args: [String] = [
             tempScriptURL.path,
-            "--mode=\(mode)",
+            "--mode=\(inputMode.scriptValue)",
             "--layout=\(layout)",
             "--format=\(format.rawValue)",
             "--output-mode=\(outputMode.rawValue)",
@@ -1318,14 +1621,14 @@ struct ContentView: View {
         if burnMode != .subtitleTrack, (format == .mp4 || format == .mkv) {
             args.append("--quality=\(quality.rawValue)")
         }
-        if mode == "batch"
+        if isBatchMode
             && stitchBatch
             && (burnMode != .off || outputMode == .audioOnly)
         {
             args.append("--stitch-mode=stitch")
         }
 
-        if mode == "batch" && stitchBatch {
+        if isBatchMode && stitchBatch {
             args.append("--stitch-batch=1")
         }
 
@@ -1386,7 +1689,7 @@ struct ContentView: View {
         // Stitch rules:
         // - Only applies when the batch toggle is enabled
         let wantsStitch =
-            mode == "batch" &&
+            isBatchMode &&
             stitchBatch &&
             (burnMode != .off || outputMode == .audioOnly)
 
@@ -2075,23 +2378,23 @@ struct ContentView: View {
     private func debugSnapshot() -> String {
         var lines: [String] = []
         let fm = FileManager.default
-        let inputExists = fm.fileExists(atPath: inputPath) ? "yes" : "no"
+        let inputExists = fm.fileExists(atPath: activeInputPath) ? "yes" : "no"
         let systemFontsEnabled = includeSystemFonts ? "yes" : "no"
         let debugFlag = debugMode ? "on" : "off"
         let resolvedQuality = resolveQuality(quality, format: format, outputMode: outputMode)
         let qscaleDisplay = resolvedQuality.qscale.map { String($0) } ?? "passthrough"
         let subtitleModeValue = subtitleMode?.rawValue ?? "(none selected)"
 
-        lines.append("[DEBUG] Input path: \(inputPath)")
+        lines.append("[DEBUG] Input path: \(activeInputPath)")
         lines.append("[DEBUG] Input exists: \(inputExists)")
-        lines.append("[DEBUG] Mode: \(mode) | Layout: \(layout) | Format: \(format) | Output: \(outputMode.rawValue)")
+        lines.append("[DEBUG] Mode: \(inputMode.rawValue) | Layout: \(layout) | Format: \(format) | Output: \(outputMode.rawValue)")
         lines.append("[DEBUG] Quality: \(quality.rawValue) | qscale=\(qscaleDisplay)")
         lines.append("[DEBUG] Burn mode: \(burnMode.rawValue) | Missing metadata handling: \(missingMetaMode.rawValue)")
         lines.append("[DEBUG] Subtitle timing mode: \(subtitleModeValue)")
         lines.append("[DEBUG] Font path: \(resolvedFontPath()) | Font name: \(resolvedFontName())")
         lines.append("[DEBUG] System fonts enabled: \(systemFontsEnabled)")
         let requestedDestination = sanitizedDestinationOverride() ?? "(default: input folder)"
-        let resolvedDestination = resolvedDestinationPath(for: inputPath) ?? "(unresolved)"
+        let resolvedDestination = resolvedDestinationPath(for: activeInputPath) ?? "(unresolved)"
         lines.append("[DEBUG] Requested destination: \(requestedDestination)")
         lines.append("[DEBUG] Resolved destination: \(resolvedDestination)")
         let scratchDisplay = scratchDirectory.trimmingCharacters(in: .whitespacesAndNewlines)
