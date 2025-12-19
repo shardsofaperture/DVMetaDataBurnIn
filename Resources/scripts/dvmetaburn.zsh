@@ -30,9 +30,16 @@ setopt NULL_GLOB
 # app bundle environment.
 PATH="/bin:/usr/bin:/usr/local/bin:${PATH:-}"
 export PATH
+export LC_ALL=C
 export LC_NUMERIC=C
 export LANG=C
-echo "[INFO] locale: LC_NUMERIC=${LC_NUMERIC:-unset} LANG=${LANG:-unset} LC_ALL=${LC_ALL:-unset}" >&2
+echo "[INFO] locale: LC_ALL=${LC_ALL:-unset} LC_NUMERIC=${LC_NUMERIC:-unset} LANG=${LANG:-unset}" >&2
+if command -v locale >/dev/null 2>&1; then
+  echo "[INFO] locale output (head -n 20):" >&2
+  locale 2>/dev/null | head -n 20 | while IFS= read -r line; do
+    echo "[INFO] locale: $line" >&2
+  done
+fi
 
 # Ensure zsh temp files go somewhere writable
 : "${TMPDIR:=/tmp}"
@@ -895,22 +902,61 @@ validate_sendcmd_file() {
     return 1
   fi
 
-  if ! grep -qE '^[0-9]+,[0-9]+' "$cmdfile"; then
-    return 0
-  fi
+  log_sendcmd_debug_snapshot "timestamp.cmd pre-sanitize" "$cmdfile"
 
-  warn "sendcmd timestamp decimals use commas; rewriting to dots (check locale settings)."
+  local comma_lines_before
+  comma_lines_before=$(LC_ALL=C awk '{if ($1 ~ /,/) c++} END{print c+0}' "$cmdfile")
+  if (( comma_lines_before > 0 )); then
+    warn "sendcmd timestamp decimals use commas; rewriting to dots (check locale settings)."
+  fi
 
   local tmp
   tmp=$(make_temp_file "sendcmd-rewrite" ".tmp") || return 1
 
-  if ! sed -E 's/^([0-9]+),([0-9]+)/\1.\2/' "$cmdfile" > "$tmp"; then
+  if ! LC_ALL=C awk '
+    {
+      field1 = $1
+      n = split(field1, parts, "-")
+      for (i = 1; i <= n; i++) {
+        gsub(/,/, ".", parts[i])
+      }
+      new1 = parts[1]
+      if (n > 1) {
+        for (i = 2; i <= n; i++) {
+          new1 = new1 "-" parts[i]
+        }
+      }
+      $1 = new1
+      print
+    }
+  ' "$cmdfile" > "$tmp"; then
     rm -f "$tmp"
     return 1
   fi
 
-  mv "$tmp" "$cmdfile"
-  info "sendcmd decimal rewrite applied to $cmdfile"
+  local comma_lines_after
+  comma_lines_after=$(LC_ALL=C awk '{if ($1 ~ /,/) c++} END{print c+0}' "$tmp")
+
+  local changed=0
+  if ! cmp -s "$cmdfile" "$tmp"; then
+    changed=1
+  fi
+
+  if (( changed == 1 )); then
+    mv "$tmp" "$cmdfile"
+    info "sendcmd sanitization updated $cmdfile (comma lines before: $comma_lines_before, after: $comma_lines_after)"
+  else
+    rm -f "$tmp"
+  fi
+
+  local bad_line
+  bad_line=$(LC_ALL=C awk '{if ($1 ~ /,/) {print; exit}}' "$cmdfile")
+  if [[ -n "$bad_line" ]]; then
+    echo "[ERROR] sendcmd timestamp field still contains commas: $bad_line" >&2
+    return 1
+  fi
+
+  log_sendcmd_debug_snapshot "timestamp.cmd post-sanitize" "$cmdfile"
   return 0
 }
 
@@ -991,6 +1037,30 @@ log_file_excerpt() {
   else
     debug_log "$label missing or empty (path: $path)"
   fi
+}
+
+log_sendcmd_debug_snapshot() {
+  (( debug_mode == 1 )) || return 0
+
+  local label="$1"
+  local path="$2"
+
+  if [[ ! -s "$path" ]]; then
+    debug_log "$label missing or empty (path: $path)"
+    return 0
+  fi
+
+  local line_count
+  line_count=$(wc -l < "$path" | tr -d '[:space:]')
+  debug_log "$label line count: $line_count"
+  debug_log "$label head -n 5 (numbered):"
+  head -n 5 "$path" | cat -n | while IFS= read -r line; do
+    debug_log "$label $line"
+  done
+  debug_log "$label first-field preview:"
+  awk '{print $1}' "$path" | head -n 5 | while IFS= read -r field; do
+    debug_log "$label $field"
+  done
 }
 
 prepare_subprocess_env() {
@@ -1787,9 +1857,11 @@ make_timestamp_cmd() {
     timeline_fail=1
   elif ! build_sendcmd_from_timeline "$timeline_debug" "$cmdfile"; then
     timeline_fail=1
-  elif ! validate_sendcmd_file "$cmdfile"; then
-    timeline_fail=1
   else
+    log_sendcmd_debug_snapshot "timestamp.cmd generated" "$cmdfile"
+    if ! validate_sendcmd_file "$cmdfile"; then
+      timeline_fail=1
+    fi
     if [[ ! -s "$cmdfile" ]]; then
       echo "[ERROR] sendcmd output is empty for $in" >&2
       timeline_fail=1
@@ -2514,6 +2586,12 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
 
   ensure_cleanup_stage
 
+  if ! validate_sendcmd_file "$cmdfile"; then
+    echo "[ERROR] sendcmd validation failed before ffmpeg run" >&2
+    finish_run 1 "error" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
+    die "sendcmd validation failed for: $source_video"
+  fi
+
   local vf
   if ! vf=$(build_burnin_filtergraph "$layout" "$cmdfile" "$font"); then
     echo "Unknown layout: $layout" >&2
@@ -2534,6 +2612,23 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
   local burn_vf="$vf"
   if [[ -n "$deinterlace_vf" ]]; then
     burn_vf="${deinterlace_vf},${vf}"
+  fi
+
+  if (( debug_mode == 1 )); then
+    local -a sendcmd_smoke_cmd=(
+      "$ffmpeg_bin" -v error
+      -f lavfi -i "color=c=black:s=16x16:d=1"
+      -vf "$vf"
+      -frames:v 1
+      -f null -
+    )
+    log_ffmpeg_command "sendcmd-smoke" "${sendcmd_smoke_cmd[@]}"
+    if ! run_stage "sendcmd-smoke" "${sendcmd_smoke_cmd[@]}"; then
+      exit_status=$?
+      manifest_status="error"
+      finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
+      die "sendcmd smoke test failed for: $source_video"
+    fi
   fi
 
   echo "[INFO] Burning DV metadata into: $out"

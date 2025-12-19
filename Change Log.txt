@@ -10,6 +10,7 @@
 * Added (untested) custom FFMPEG options - option
 * broke "save to" so you have to manually select output folder otherwise ???
 * Subtitles can be per clip or do from start of file
+* Force C locale + robust sendcmd timestamp sanitization with debug visibility to prevent ffmpeg sendcmd parse errors.
 
 
 ## Change Log 1.0.3B
