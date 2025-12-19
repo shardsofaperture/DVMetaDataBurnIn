@@ -887,6 +887,33 @@ build_sendcmd_from_timeline() {
   return 0
 }
 
+validate_sendcmd_file() {
+  local cmdfile="$1"
+
+  if [[ -z "$cmdfile" || ! -f "$cmdfile" ]]; then
+    warn "validate_sendcmd_file: missing sendcmd file: $cmdfile"
+    return 1
+  fi
+
+  if ! grep -qE '^[0-9]+,[0-9]+' "$cmdfile"; then
+    return 0
+  fi
+
+  warn "sendcmd timestamp decimals use commas; rewriting to dots (check locale settings)."
+
+  local tmp
+  tmp=$(make_temp_file "sendcmd-rewrite" ".tmp") || return 1
+
+  if ! sed -E 's/^([0-9]+),([0-9]+)/\1.\2/' "$cmdfile" > "$tmp"; then
+    rm -f "$tmp"
+    return 1
+  fi
+
+  mv "$tmp" "$cmdfile"
+  info "sendcmd decimal rewrite applied to $cmdfile"
+  return 0
+}
+
 
 
 # Allocate a temporary file in TMPDIR
@@ -1759,6 +1786,8 @@ make_timestamp_cmd() {
   if (( build_status != 0 )); then
     timeline_fail=1
   elif ! build_sendcmd_from_timeline "$timeline_debug" "$cmdfile"; then
+    timeline_fail=1
+  elif ! validate_sendcmd_file "$cmdfile"; then
     timeline_fail=1
   else
     if [[ ! -s "$cmdfile" ]]; then
