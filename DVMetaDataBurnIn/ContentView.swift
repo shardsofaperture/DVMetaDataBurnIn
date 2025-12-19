@@ -72,6 +72,25 @@ enum OutputFormat: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+enum DeinterlaceMode: String, CaseIterable, Identifiable {
+    case off = "off"
+    case p30 = "30p"
+    case p60 = "60p"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .off:
+            return "Off"
+        case .p30:
+            return "30p"
+        case .p60:
+            return "60p"
+        }
+    }
+}
+
 enum Quality: String, CaseIterable, Identifiable {
     case low
     case medium
@@ -249,6 +268,7 @@ struct ContentView: View {
     @State private var layout: String = "stacked"   // "stacked" or "single"
     @State private var format: OutputFormat = .mov
     @State private var quality: Quality = .high
+    @State private var deinterlaceMode: DeinterlaceMode = .off
     @State private var outputMode: OutputMode = .video
     @State private var logText: String = ""
     @State private var isRunning: Bool = false
@@ -622,6 +642,13 @@ struct ContentView: View {
                     .pickerStyle(SegmentedPickerStyle())
                     .frame(width: 420)
                     .help("Pick the container format for the output file.")
+                    .onChange(of: format) { newValue in
+                        guard newValue == .mov else { return }
+                        if deinterlaceMode != .off {
+                            deinterlaceMode = .off
+                            appendToLog("[INFO] Deinterlace disabled for MOV passthrough.\n")
+                        }
+                    }
                 }
 
                 Text("MOV = DV passthrough only · MP4 / MKV = transcode")
@@ -647,6 +674,21 @@ struct ContentView: View {
                     .help("Choose the transcode quality for MP4 or MKV outputs.")
                     .disabled(qualityPickerDisabled)
                     .opacity(qualityPickerDisabled ? 0.5 : 1.0)
+
+                    Text("Deinterlace:")
+                        .frame(width: 110, alignment: .leading)
+
+                    Picker("", selection: $deinterlaceMode) {
+                        ForEach(DeinterlaceMode.allCases) { option in
+                            Text(option.displayName)
+                                .tag(option)
+                        }
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                    .frame(width: 220)
+                    .help("Apply deinterlacing when transcoding.")
+                    .disabled(format == .mov)
+                    .opacity(format == .mov ? 0.5 : 1.0)
                 }
 
                 if let hoveredQuality, !qualityPickerDisabled, outputMode == .video {
