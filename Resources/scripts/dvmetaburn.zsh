@@ -30,6 +30,8 @@ setopt NULL_GLOB
 # app bundle environment.
 PATH="/bin:/usr/bin:/usr/local/bin:${PATH:-}"
 export PATH
+export LC_NUMERIC=C
+export LANG=C
 
 # Ensure zsh temp files go somewhere writable
 : "${TMPDIR:=/tmp}"
@@ -769,7 +771,7 @@ build_timeline_from_log() {
     granularity="per_second"
   fi
 
-  tr '\r' '\n' < "$log_path" | awk -v fps="$fps" -v granularity="$granularity" '
+  tr '\r' '\n' < "$log_path" | LC_NUMERIC=C awk -v fps="$fps" -v granularity="$granularity" '
     BEGIN {
       raw_rows = 0;
       valid_rows = 0;
@@ -839,7 +841,7 @@ build_sendcmd_from_timeline() {
 
   : > "$sendcmd_path"   # truncate
 
-  awk -F '\t' '
+  LC_NUMERIC=C awk -F '\t' '
     function escape_single_quotes(text, repl) {
       repl = sprintf("%c\\%c%c", 39, 39, 39)
       gsub(/\047/, repl, text)
