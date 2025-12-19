@@ -265,6 +265,53 @@ quality_to_video_args() {
   esac
 }
 
+normalize_deinterlace_mode() {
+  local raw="${1:-}"
+  raw="${raw//[[:space:]]/}"
+  raw="${raw//_/-}"
+  raw="${raw:l}"
+
+  case "$raw" in
+    ""|off|none|false|0)
+      echo "off"
+      ;;
+    30|30p|p30)
+      echo "30p"
+      ;;
+    60|60p|p60)
+      echo "60p"
+      ;;
+    *)
+      fatal "Invalid deinterlace mode '$raw'; expected off, 30p, or 60p."
+      ;;
+  esac
+}
+
+deinterlace_vf_for_mode() {
+  local mode="$1"
+  case "$mode" in
+    30p)
+      echo "yadif=mode=0"
+      ;;
+    60p)
+      echo "yadif=mode=1"
+      ;;
+    *)
+      echo ""
+      ;;
+  esac
+}
+
+deinterlace_output_fps_args_for_mode() {
+  local mode="$1"
+  reply=()
+  case "$mode" in
+    60p)
+      reply=(-r 60000/1001)
+      ;;
+  esac
+}
+
 ########################################################
 # Defaults / configuration
 ########################################################
@@ -276,6 +323,7 @@ encode_quality="medium" # low, medium, high (passthrough for mov)
 output_mode="video"   # "video" or "audio"
 burn_mode="burnin"   # "burnin" or "off" or "subtitleTrack"
 subtitle_mode="per-clip" # "per-clip" or "continuous"
+deinterlace_mode="off" # "off" or "30p" or "60p"
 missing_meta="skip_burnin_convert"  # behavior when metadata is missing
 fontfile=""
 fontname="UAV-OSD-Mono"
@@ -322,6 +370,7 @@ while [[ $# -gt 0 ]]; do
     --output-mode=*) output_mode="${1#*=}"; shift ;;
     --burn-mode=*) burn_mode="${1#*=}"; shift ;;
     --subtitle-mode=*) subtitle_mode="${1#*=}"; subtitle_mode_arg_set=1; shift ;;
+    --deinterlace=*) deinterlace_mode="${1#*=}"; shift ;;
     --missing-meta=*) missing_meta="${1#*=}"; shift ;;
     --fontfile=*) fontfile="${1#*=}"; shift ;;
     --fontname=*) fontname="${1#*=}"; shift ;;
@@ -434,7 +483,10 @@ esac
 if [[ "$output_mode" == "audio" ]]; then
   burn_mode="off"
   subtitle_mode=""
+  deinterlace_mode="off"
 fi
+
+deinterlace_mode="$(normalize_deinterlace_mode "$deinterlace_mode")"
 
 if [[ -n "$extra_args_raw" ]]; then
   info "[extra-args] raw: ${(q)extra_args_raw}"
@@ -545,13 +597,19 @@ if (( encode_quality_arg_set == 0 )); then
   quality_log_suffix=" (default)"
 fi
 
+if [[ "$effective_format" == "mov" && "$deinterlace_mode" != "off" ]]; then
+  info "[INFO] Deinterlace ignored for MOV (DV passthrough)"
+  append_run_note "Deinterlace ignored for MOV (DV passthrough)"
+  deinterlace_mode="off"
+fi
+
 append_run_note "Output mode: $output_mode"
 if [[ "$effective_format" == "mov" ]]; then
-  append_run_note "Effective burn mode: $burn_mode (subtitle mode: $subtitle_mode), container: $effective_format"
-  info "[config] output_mode=$output_mode, burn_mode=$burn_mode, subtitle_mode=$subtitle_mode, container=$effective_format (requested: $requested_format)"
+  append_run_note "Effective burn mode: $burn_mode (subtitle mode: $subtitle_mode), container: $effective_format, deinterlace: $deinterlace_mode"
+  info "[config] output_mode=$output_mode, burn_mode=$burn_mode, subtitle_mode=$subtitle_mode, deinterlace=$deinterlace_mode, container=$effective_format (requested: $requested_format)"
 else
-  append_run_note "Effective burn mode: $burn_mode (subtitle mode: $subtitle_mode), container: $effective_format, quality: $effective_encode_quality"
-  info "[config] output_mode=$output_mode, burn_mode=$burn_mode, subtitle_mode=$subtitle_mode, container=$effective_format (requested: $requested_format), quality=$effective_encode_quality${quality_log_suffix} (requested: $requested_encode_quality)"
+  append_run_note "Effective burn mode: $burn_mode (subtitle mode: $subtitle_mode), container: $effective_format, quality: $effective_encode_quality, deinterlace: $deinterlace_mode"
+  info "[config] output_mode=$output_mode, burn_mode=$burn_mode, subtitle_mode=$subtitle_mode, deinterlace=$deinterlace_mode, container=$effective_format (requested: $requested_format), quality=$effective_encode_quality${quality_log_suffix} (requested: $requested_encode_quality)"
 fi
 initial_run_notes=("${run_notes[@]}")
 
@@ -2138,6 +2196,16 @@ g" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_outp
   log_artifact_path_and_size "dvrescue XML" "$dvrescue_xml"
   log_artifact_path_and_size "dvrescue log" "$dvrescue_log"
 
+  local deinterlace_vf=""
+  local -a deinterlace_fps_args=()
+  if [[ "$out_ext" == "mp4" || "$out_ext" == "mkv" ]]; then
+    if [[ "$deinterlace_mode" != "off" ]]; then
+      deinterlace_vf="$(deinterlace_vf_for_mode "$deinterlace_mode")"
+      deinterlace_output_fps_args_for_mode "$deinterlace_mode"
+      deinterlace_fps_args=("${reply[@]}")
+    fi
+  fi
+
   if [[ "$burn_mode" != "off" ]]; then
     normalize_dvrescue_timestamps "$dvrescue_log" "${artifact_dir}/dvrescue.normalized.log" || \
       warn "Proceeding with unnormalized timestamps due to prior error"
@@ -2149,9 +2217,13 @@ g" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_outp
     echo "[INFO] Transcode-only conversion (no burn-in) to: $out_passthrough"
     debug_log "Running transcode-only encode with args: ${codec_args[*]}"
     ensure_cleanup_stage
-    local -a transcode_cmd=(
-      "$ffmpeg_bin" -y -i "$source_video"
+    local -a transcode_cmd=("$ffmpeg_bin" -y -i "$source_video")
+    if [[ -n "$deinterlace_vf" ]]; then
+      transcode_cmd+=(-vf "$deinterlace_vf")
+    fi
+    transcode_cmd+=(
       "${codec_args[@]}"
+      "${deinterlace_fps_args[@]}"
       "${container_args[@]}"
       "${sanitized_extra_args[@]}"
       "$out_passthrough"
@@ -2245,9 +2317,13 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
           local out_passthrough="${base}_conv.${out_ext}"
           echo "[INFO] Missing metadata fallback: writing transcode-only output to $out_passthrough (stitch-batch will use *_conv.* parts)." >&2
           ensure_cleanup_stage
-          local -a subtitle_fallback_cmd=(
-            "$ffmpeg_bin" -y -i "$source_video"
+          local -a subtitle_fallback_cmd=("$ffmpeg_bin" -y -i "$source_video")
+          if [[ -n "$deinterlace_vf" ]]; then
+            subtitle_fallback_cmd+=(-vf "$deinterlace_vf")
+          fi
+          subtitle_fallback_cmd+=(
             "${codec_args[@]}"
+            "${deinterlace_fps_args[@]}"
             "${container_args[@]}"
             "${sanitized_extra_args[@]}"
             "$out_passthrough"
@@ -2313,13 +2389,19 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
   -metadata:s:t:0 filename="$font_filename"
 
   -map 0:v:0 -map "0:a?" -map 1:0
-  "${sub_video_args[@]}"
-  -c:s "$subtitle_codec"
-  -disposition:s:0 default
-  "${container_args[@]}"
-  "${sanitized_extra_args[@]}"
-  "$out_subbed"
 )
+    if [[ -n "$deinterlace_vf" ]]; then
+      mux_cmd+=(-vf "$deinterlace_vf")
+    fi
+    mux_cmd+=(
+      "${sub_video_args[@]}"
+      "${deinterlace_fps_args[@]}"
+      -c:s "$subtitle_codec"
+      -disposition:s:0 default
+      "${container_args[@]}"
+      "${sanitized_extra_args[@]}"
+      "$out_subbed"
+    )
 
     log_export "$source_video" "$out_subbed"
     prepare_subprocess_env
@@ -2360,9 +2442,13 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
         local out_passthrough="${base}_conv.${out_ext}"
         echo "[INFO] Missing metadata fallback: writing transcode-only output to $out_passthrough (stitch-batch will use *_conv.* parts)." >&2
         ensure_cleanup_stage
-        local -a timeline_fallback_cmd=(
-          "$ffmpeg_bin" -y -i "$source_video"
+        local -a timeline_fallback_cmd=("$ffmpeg_bin" -y -i "$source_video")
+        if [[ -n "$deinterlace_vf" ]]; then
+          timeline_fallback_cmd+=(-vf "$deinterlace_vf")
+        fi
+        timeline_fallback_cmd+=(
           "${codec_args[@]}"
+          "${deinterlace_fps_args[@]}"
           "${container_args[@]}"
           "${sanitized_extra_args[@]}"
           "$out_passthrough"
@@ -2413,14 +2499,19 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
 
 
   local out="${base}_dateburn.${out_ext}"
+  local burn_vf="$vf"
+  if [[ -n "$deinterlace_vf" ]]; then
+    burn_vf="${deinterlace_vf},${vf}"
+  fi
 
   echo "[INFO] Burning DV metadata into: $out"
-  debug_log "ffmpeg burn-in filtergraph: $vf"
+  debug_log "ffmpeg burn-in filtergraph: $burn_vf"
   debug_log "ffmpeg burn-in args: ${codec_args[*]}"
   local -a burn_cmd=(
     "$ffmpeg_bin" -y -i "$source_video"
-    -vf "$vf"
+    -vf "$burn_vf"
     "${codec_args[@]}"
+    "${deinterlace_fps_args[@]}"
     "${container_args[@]}"
     "${sanitized_extra_args[@]}"
     "$out"
@@ -2518,7 +2609,7 @@ fi
 if [[ "$mode" == "single" ]]; then
   stitch_batch=0
   if [[ $# -ne 1 ]]; then
-    echo "Usage: $0 [--mode=single] [--layout=stacked|single] [--format=mov|mp4|mkv] [--quality=low|medium|high] [--burn-mode=burnin|off|subtitleTrack] [--subtitle-mode=per-clip|continuous] [--scratch-dir=/path (or DVMETA_SCRATCH_DIR)] [--output-base=name] [--stitch [--stitch-inputs=/path/to/list.txt]] /path/to/clip.avi" >&2
+    echo "Usage: $0 [--mode=single] [--layout=stacked|single] [--format=mov|mp4|mkv] [--quality=low|medium|high] [--burn-mode=burnin|off|subtitleTrack] [--subtitle-mode=per-clip|continuous] [--deinterlace=off|30p|60p] [--scratch-dir=/path (or DVMETA_SCRATCH_DIR)] [--output-base=name] [--stitch [--stitch-inputs=/path/to/list.txt]] /path/to/clip.avi" >&2
     exit 1
   fi
   debug_log "Running in single-file mode with target: $1"
@@ -2533,7 +2624,7 @@ fi
 
 if [[ "$mode" == "batch" ]]; then
   if [[ $# -ne 1 ]]; then
-    echo "Usage: $0 --mode=batch [--layout=stacked|single] [--format=mov|mp4|mkv] [--quality=low|medium|high] [--burn-mode=burnin|off|subtitleTrack] [--subtitle-mode=per-clip|continuous] [--scratch-dir=/path (or DVMETA_SCRATCH_DIR)] [--output-base=name] [--stitch [--stitch-inputs=/path/to/list.txt]] /path/to/folder" >&2
+    echo "Usage: $0 --mode=batch [--layout=stacked|single] [--format=mov|mp4|mkv] [--quality=low|medium|high] [--burn-mode=burnin|off|subtitleTrack] [--subtitle-mode=per-clip|continuous] [--deinterlace=off|30p|60p] [--scratch-dir=/path (or DVMETA_SCRATCH_DIR)] [--output-base=name] [--stitch [--stitch-inputs=/path/to/list.txt]] /path/to/folder" >&2
     exit 1
   fi
 
