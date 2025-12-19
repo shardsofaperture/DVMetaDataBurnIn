@@ -147,13 +147,18 @@ struct BurnSettingsSnapshot: Hashable {
         return parts.joined(separator: " · ")
     }
 
+    var queueSummaryDescription: String {
+        let stitchLabel = stitchBatch ? "on" : "off"
+        return "Burn: \(burnMode.rawValue) · Stitch: \(stitchLabel) · Quality: \(quality.rawValue)"
+    }
+
     var isBatchMode: Bool { inputMode != .singleFile }
 }
 
 struct QueueEntry: Identifiable, Hashable {
     let id = UUID()
     let path: String
-    let settingsSnapshot: BurnSettingsSnapshot
+    var settingsSnapshot: BurnSettingsSnapshot
 
     var url: URL { URL(fileURLWithPath: path) }
 
@@ -503,6 +508,12 @@ struct ContentView: View {
                         }
                         .disabled(folderQueue.isEmpty)
                         .help("Remove all queued folders.")
+
+                        Button("Apply current settings to all queued folders") {
+                            applyCurrentSettingsToQueue()
+                        }
+                        .disabled(folderQueue.isEmpty || isRunning)
+                        .help("Overwrite queued folder settings with the current UI selections.")
                     }
                 }
 
@@ -958,6 +969,9 @@ struct ContentView: View {
                 Text("Output base: \(entry.outputBaseName)")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
+                Text(entry.settingsSnapshot.queueSummaryDescription)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
                 Text(entry.settingsSnapshot.summaryDescription)
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -1170,6 +1184,15 @@ struct ContentView: View {
             extraArgWarnings: extraWarnings,
             rawExtraArgs: rawExtraArgs
         )
+    }
+
+    private func applyCurrentSettingsToQueue() {
+        let snapshot = captureSettingsSnapshot(for: .folderQueue)
+        folderQueue = folderQueue.map { entry in
+            var updated = entry
+            updated.settingsSnapshot = snapshot
+            return updated
+        }
     }
 
     private func appendQueueEntries(from urls: [URL]) {

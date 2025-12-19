@@ -730,7 +730,9 @@ build_timeline_from_log() {
       date = $3;
       time = $4;
 
-      if (idx ~ /^[0-9]+$/) {
+      if (idx ~ /^[0-9]+$/ &&
+          date ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/ &&
+          time ~ /^[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?$/) {
         frame_index = idx - 1;
         t_sec = frame_index / fps;
 
@@ -780,6 +782,11 @@ build_sendcmd_from_timeline() {
   : > "$sendcmd_path"   # truncate
 
   awk -F '\t' '
+    function escape_single_quotes(text, repl) {
+      repl = sprintf("%c\\%c%c", 39, 39, 39)
+      gsub(/\047/, repl, text)
+      return text
+    }
     # Expect: frame_index \t t_sec \t date \t time \t dt_key
     NF >= 4 {
       frame_idx = $1
@@ -795,6 +802,10 @@ build_sendcmd_from_timeline() {
       gsub(/\\/, "\\\\", date)
       gsub(/\\/, "\\\\", time)
 
+      # Escape single quotes for drawtext
+      date = escape_single_quotes(date)
+      time = escape_single_quotes(time)
+
       # Time has colons → escape for drawtext
       gsub(/:/, "\\\\:", time)
 
@@ -803,8 +814,8 @@ build_sendcmd_from_timeline() {
       # Two commands at same timestamp:
       #   dvdate → date
       #   dvtime → time
-      printf("%.6f drawtext@dvdate reinit text=%s;\n", t_sec, date)
-      printf("%.6f drawtext@dvtime reinit text=%s;\n", t_sec, time)
+      printf("%.6f drawtext@dvdate reinit text='\''%s'\''\n", t_sec, date)
+      printf("%.6f drawtext@dvtime reinit text='\''%s'\''\n", t_sec, time)
     }
   ' "$tsv_path" >> "$sendcmd_path"
 
@@ -1688,6 +1699,20 @@ make_timestamp_cmd() {
     timeline_fail=1
   elif ! build_sendcmd_from_timeline "$timeline_debug" "$cmdfile"; then
     timeline_fail=1
+  else
+    if [[ ! -s "$cmdfile" ]]; then
+      echo "[ERROR] sendcmd output is empty for $in" >&2
+      timeline_fail=1
+    elif ! grep -q "drawtext@dvdate" "$cmdfile"; then
+      echo "[ERROR] sendcmd output missing dvdate commands for $in" >&2
+      timeline_fail=1
+    elif ! grep -q "drawtext@dvtime" "$cmdfile"; then
+      echo "[ERROR] sendcmd output missing dvtime commands for $in" >&2
+      timeline_fail=1
+    elif grep -q ';[[:space:]]*$' "$cmdfile"; then
+      echo "[ERROR] sendcmd output contains trailing semicolons for $in" >&2
+      timeline_fail=1
+    fi
   fi
 
   if (( timeline_fail != 0 )); then
@@ -2218,6 +2243,7 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
         skip_burnin_convert)
           echo "[WARN] Missing timestamp metadata for $source_video; converting without subtitle track." >&2
           local out_passthrough="${base}_conv.${out_ext}"
+          echo "[INFO] Missing metadata fallback: writing transcode-only output to $out_passthrough (stitch-batch will use *_conv.* parts)." >&2
           ensure_cleanup_stage
           local -a subtitle_fallback_cmd=(
             "$ffmpeg_bin" -y -i "$source_video"
@@ -2332,6 +2358,7 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
       skip_burnin_convert)
         echo "[WARN] Converting without burn-in due to missing timestamp metadata." >&2
         local out_passthrough="${base}_conv.${out_ext}"
+        echo "[INFO] Missing metadata fallback: writing transcode-only output to $out_passthrough (stitch-batch will use *_conv.* parts)." >&2
         ensure_cleanup_stage
         local -a timeline_fallback_cmd=(
           "$ffmpeg_bin" -y -i "$source_video"
