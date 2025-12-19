@@ -509,11 +509,6 @@ struct ContentView: View {
                         .disabled(folderQueue.isEmpty)
                         .help("Remove all queued folders.")
 
-                        Button("Apply current settings to all queued folders") {
-                            applyCurrentSettingsToQueue()
-                        }
-                        .disabled(folderQueue.isEmpty || isRunning)
-                        .help("Overwrite queued folder settings with the current UI selections.")
                     }
                 }
 
@@ -1184,15 +1179,6 @@ struct ContentView: View {
             extraArgWarnings: extraWarnings,
             rawExtraArgs: rawExtraArgs
         )
-    }
-
-    private func applyCurrentSettingsToQueue() {
-        let snapshot = captureSettingsSnapshot(for: .folderQueue)
-        folderQueue = folderQueue.map { entry in
-            var updated = entry
-            updated.settingsSnapshot = snapshot
-            return updated
-        }
     }
 
     private func appendQueueEntries(from urls: [URL]) {
