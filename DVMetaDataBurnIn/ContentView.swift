@@ -132,6 +132,7 @@ struct BurnSettingsSnapshot: Hashable {
     let layout: String
     let format: OutputFormat
     let quality: Quality
+    let deinterlace: DeinterlaceMode
     let outputMode: OutputMode
     let stitchBatch: Bool
     let destinationOverride: String?
@@ -156,6 +157,9 @@ struct BurnSettingsSnapshot: Hashable {
         parts.append("Layout: \(layout)")
         parts.append("Format: \(format.rawValue)")
         parts.append("Quality: \(quality.rawValue)")
+        if outputMode == .video {
+            parts.append("Deinterlace: \(deinterlace.rawValue)")
+        }
         parts.append("Output: \(outputMode.rawValue)")
         if stitchBatch {
             parts.append("Stitch on")
@@ -168,7 +172,8 @@ struct BurnSettingsSnapshot: Hashable {
 
     var queueSummaryDescription: String {
         let stitchLabel = stitchBatch ? "on" : "off"
-        return "Burn: \(burnMode.rawValue) · Stitch: \(stitchLabel) · Quality: \(quality.rawValue)"
+        let deinterlacePart = outputMode == .video ? " · Deinterlace: \(deinterlace.rawValue)" : ""
+        return "Burn: \(burnMode.rawValue) · Stitch: \(stitchLabel) · Quality: \(quality.rawValue)\(deinterlacePart)"
     }
 
     var isBatchMode: Bool { inputMode != .singleFile }
@@ -1198,6 +1203,7 @@ struct ContentView: View {
     private func captureSettingsSnapshot(for mode: InputMode? = nil) -> BurnSettingsSnapshot {
         let (extraArgsForRun, extraWarnings, rawExtraArgs) = resolveExtraFFmpegArgs()
         let trimmedScratch = scratchDirectory.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedDeinterlace: DeinterlaceMode = (format == .mov) ? .off : deinterlaceMode
 
         return BurnSettingsSnapshot(
             inputMode: mode ?? inputMode,
@@ -1207,6 +1213,7 @@ struct ContentView: View {
             layout: layout,
             format: format,
             quality: quality,
+            deinterlace: resolvedDeinterlace,
             outputMode: outputMode,
             stitchBatch: stitchBatch,
             destinationOverride: sanitizedDestinationOverride(),
@@ -1737,6 +1744,7 @@ struct ContentView: View {
             "--mode=\(snapshot.inputMode.scriptValue)",
             "--layout=\(snapshot.layout)",
             "--format=\(snapshot.format.rawValue)",
+            "--deinterlace=\(snapshot.deinterlace.rawValue)",
             "--output-mode=\(snapshot.outputMode.rawValue)",
             "--missing-meta=\(missingMetaArg)",
             "--fontfile=\(snapshot.resolvedFontPath)",
