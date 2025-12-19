@@ -32,6 +32,7 @@ PATH="/bin:/usr/bin:/usr/local/bin:${PATH:-}"
 export PATH
 export LC_NUMERIC=C
 export LANG=C
+echo "[INFO] locale: LC_NUMERIC=${LC_NUMERIC:-unset} LANG=${LANG:-unset} LC_ALL=${LC_ALL:-unset}" >&2
 
 # Ensure zsh temp files go somewhere writable
 : "${TMPDIR:=/tmp}"
