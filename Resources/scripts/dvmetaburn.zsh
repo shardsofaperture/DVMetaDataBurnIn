@@ -892,18 +892,18 @@ build_sendcmd_from_timeline() {
 
       # Escape single quotes for drawtext
       date = escape_single_quotes(date)
-      time = escape_single_quotes(time)
 
       # Strip DV-style frame suffix (e.g. HH:MM:SS;FF -> HH:MM:SS)
       time_clean = time
       sub(/;[0-9][0-9]$/, "", time_clean)
+      gsub(/:/, "\\\\:", time_clean)
 
       # Dates are YYYY-MM-DD, no spaces/colons, so they’re fine now.
 
       # Single command line per timestamp:
       #   dvdate → date
       #   dvtime → time
-      printf("%.6f drawtext@dvdate reinit text='\''%s'\''; drawtext@dvtime reinit text='\''%s'\'';\n", t_sec, date, time_clean)
+      printf("%.6f drawtext@dvdate reinit text='\''%s'\''; drawtext@dvtime reinit text=%s;\n", t_sec, date, time_clean)
     }
   ' "$tsv_path" >> "$sendcmd_path"
 
@@ -959,6 +959,14 @@ validate_sendcmd_file() {
   if ! grep -q "drawtext@dvtime" "$cmdfile"; then
     echo "[ERROR] sendcmd output missing dvtime commands: $cmdfile" >&2
     LC_ALL=C awk 'NR<=5 {print "  " $0} NR==5 {exit}' "$cmdfile" >&2
+    return 1
+  fi
+  if grep -q "drawtext@dvtime.*text='" "$cmdfile"; then
+    echo "[ERROR] dvtime must not be single-quoted in sendcmd: $cmdfile" >&2
+    return 1
+  fi
+  if grep -q "drawtext@dvtime.*[0-9]:[0-9]" "$cmdfile"; then
+    echo "[ERROR] dvtime colons must be escaped as \\\\:: $cmdfile" >&2
     return 1
   fi
 
