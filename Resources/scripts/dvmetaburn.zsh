@@ -920,7 +920,7 @@ validate_sendcmd_file() {
   if ! LC_ALL=C awk '
     {
       line = $0
-      sub(/\r$/, "", line)
+      gsub(/\r/, "", line)
       sub(/[[:space:]]+$/, "", line)
       $0 = line
 
