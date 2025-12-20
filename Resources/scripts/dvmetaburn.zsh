@@ -879,33 +879,25 @@ build_sendcmd_from_timeline() {
     # Expect: frame_index \t t_sec \t date \t time \t dt_key
     NF >= 4 {
       frame_idx = $1
-      t_sec     = $2 + 0
-      date      = $3
-      time      = $4
+      t = $2 + 0
+      date = $3
+      time = $4
 
       # Strip CRs
       gsub(/\r/, "", date)
       gsub(/\r/, "", time)
 
-      # Escape backslashes (paranoia)
-      gsub(/\\/, "\\\\", date)
-      gsub(/\\/, "\\\\", time)
-
-      # Escape single quotes for drawtext
-      date = escape_single_quotes(date)
-
       # Strip DV-style frame suffix (e.g. HH:MM:SS;FF -> HH:MM:SS)
-      time_clean = time
-      sub(/;[0-9][0-9]$/, "", time_clean)
-      gsub(/:/, "\\\\\\\\:", time_clean)
+      sub(/;[0-9][0-9]$/, "", time)
 
-      # Dates are YYYY-MM-DD, no spaces/colons, so they’re fine now.
+      date = escape_single_quotes(date)
+      time = escape_single_quotes(time)
 
-      # Two command lines per timestamp:
+      # Two command lines per timestamp (interval syntax):
       #   dvdate → date
       #   dvtime → time
-      printf("%.6f drawtext@dvdate reinit text='\''%s'\''\n", t_sec, date)
-      printf("%.6f drawtext@dvtime reinit text=%s\n", t_sec, time_clean)
+      printf("%.6f-%.6f drawtext@dvdate reinit text='\''%s'\''\n", t, t, date)
+      printf("%.6f-%.6f drawtext@dvtime reinit text='\''%s'\''\n", t, t, time)
     }
   ' "$tsv_path" >> "$sendcmd_path"
 
@@ -942,12 +934,22 @@ validate_sendcmd_file() {
     LC_ALL=C awk 'NR<=5 {print "  " $0} NR==5 {exit}' "$cmdfile" >&2
     return 1
   fi
-  if grep -q "drawtext@dvtime.*text='" "$cmdfile"; then
-    echo "[ERROR] dvtime must not be single-quoted in sendcmd: $cmdfile" >&2
-    return 1
-  fi
-  if grep -q "drawtext@dvtime.*[0-9]:[0-9]" "$cmdfile"; then
-    echo "[ERROR] dvtime colons must be escaped as \\\\:: $cmdfile" >&2
+  local invalid_interval_line
+  invalid_interval_line=$(LC_ALL=C awk '
+    {
+      line = $0
+      sub(/[[:space:]]+$/, "", line)
+      if (line == "") {
+        next
+      }
+      if (line !~ /^[0-9]+(\.[0-9]+)?-[0-9]+(\.[0-9]+)?[[:space:]]+/) {
+        print line
+        exit 1
+      }
+    }
+  ' "$cmdfile")
+  if [[ -n "$invalid_interval_line" ]]; then
+    echo "[ERROR] sendcmd line missing interval prefix: $invalid_interval_line" >&2
     return 1
   fi
 
@@ -974,8 +976,8 @@ validate_sendcmd_file() {
       gsub(/,/, ".", field1_norm)
 
       # sendcmd treats non-numeric first fields as interval headers and explodes,
-      # so drop any line without a numeric timestamp before normalizing commas.
-      if (field1_norm !~ /^[0-9]+(\.[0-9]+)?$/) {
+      # so drop any line without a numeric interval before normalizing commas.
+      if (field1_norm !~ /^[0-9]+(\.[0-9]+)?-[0-9]+(\.[0-9]+)?$/) {
         return
       }
 
@@ -994,7 +996,7 @@ validate_sendcmd_file() {
       }
 
       base_timestamp = ""
-      if (match(line, /^[[:space:]]*[0-9]+(\.[0-9]+)?/)) {
+      if (match(line, /^[[:space:]]*[0-9]+(\.[0-9]+)?-[0-9]+(\.[0-9]+)?/)) {
         base_timestamp = substr(line, RSTART, RLENGTH)
       }
 
@@ -1005,7 +1007,7 @@ validate_sendcmd_file() {
           if (segment == "") {
             continue
           }
-          if (segment ~ /^[0-9]+(\.[0-9]+)?[[:space:]]/) {
+          if (segment ~ /^[0-9]+(\.[0-9]+)?-[0-9]+(\.[0-9]+)?[[:space:]]/) {
             normalize_and_print(segment)
           } else if (base_timestamp != "") {
             normalize_and_print(base_timestamp " " segment)
