@@ -765,12 +765,16 @@ build_sendcmd_from_timeline() {
   : > "$sendcmd_path"   # truncate
 
   awk -F '\t' '
+    function escape_single_quotes(s) {
+      gsub(/\047/, "\\\\\047", s)
+      return s
+    }
+
     # Expect: frame_index \t t_sec \t date \t time \t dt_key
     NF >= 4 {
-      frame_idx = $1
-      t_sec     = $2 + 0
-      date      = $3
-      time      = $4
+      t = $2
+      date = $3
+      time = $4
 
       # Strip CRs
       gsub(/\r/, "", date)
@@ -780,16 +784,14 @@ build_sendcmd_from_timeline() {
       gsub(/\\/, "\\\\", date)
       gsub(/\\/, "\\\\", time)
 
-      # Time has colons → escape for drawtext
-      gsub(/:/, "\\\\:", time)
-
-      # Dates are YYYY-MM-DD, no spaces/colons, so they’re fine now.
+      date = escape_single_quotes(date)
+      time = escape_single_quotes(time)
 
       # Two commands at same timestamp:
       #   dvdate → date
       #   dvtime → time
-      printf("%.6f drawtext@dvdate reinit text=%s;\n", t_sec, date)
-      printf("%.6f drawtext@dvtime reinit text=%s;\n", t_sec, time)
+      printf("%.6f-%.6f drawtext@dvdate reinit text=\047%s\047\n", t, t, date)
+      printf("%.6f-%.6f drawtext@dvtime reinit text=\047%s\047\n", t, t, time)
     }
   ' "$tsv_path" >> "$sendcmd_path"
 
@@ -797,6 +799,43 @@ build_sendcmd_from_timeline() {
   lines=$(wc -l < "$sendcmd_path" | tr -d "[:space:]")
   echo "[INFO] sendcmd lines: $lines (from timeline: $tsv_path)" >&2
 
+  return 0
+}
+
+validate_sendcmd_file() {
+  local sendcmd_path="$1"
+
+  if [[ ! -s "$sendcmd_path" ]]; then
+    echo "[ERROR] validate_sendcmd_file: empty sendcmd file: $sendcmd_path" >&2
+    return 1
+  fi
+
+  local tmp
+  if ! tmp="$(make_temp_file "sendcmd-validated" ".cmd")"; then
+    echo "[ERROR] validate_sendcmd_file: unable to allocate temp file" >&2
+    return 1
+  fi
+
+  if ! awk '
+    BEGIN { invalid = 0 }
+    NF == 0 { print; next }
+    {
+      if ($0 !~ /^[0-9]+(\.[0-9]+)?-[0-9]+(\.[0-9]+)?[[:space:]]+/) {
+        printf("[ERROR] Invalid sendcmd line (missing interval prefix): %s\n", $0) > "/dev/stderr"
+        invalid = 1
+      }
+      if (NF > 0) {
+        gsub(/,/, ".", $1)
+      }
+      print
+    }
+    END { exit invalid }
+  ' "$sendcmd_path" > "$tmp"; then
+    rm -f "$tmp"
+    return 1
+  fi
+
+  mv "$tmp" "$sendcmd_path"
   return 0
 }
 
@@ -1672,6 +1711,8 @@ make_timestamp_cmd() {
   if (( build_status != 0 )); then
     timeline_fail=1
   elif ! build_sendcmd_from_timeline "$timeline_debug" "$cmdfile"; then
+    timeline_fail=1
+  elif ! validate_sendcmd_file "$cmdfile"; then
     timeline_fail=1
   fi
 
