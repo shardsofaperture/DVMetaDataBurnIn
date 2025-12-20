@@ -417,6 +417,10 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if (( debug_mode == 1 )); then
+  debug_log "Effective PATH: $PATH"
+fi
+
 # Normalize missing metadata handling
 missing_meta="${missing_meta//[[:space:]]/}"
 missing_meta="${missing_meta//-/_}"
@@ -1050,17 +1054,66 @@ log_sendcmd_debug_snapshot() {
     return 0
   fi
 
-  local line_count
-  line_count=$(wc -l < "$path" | tr -d '[:space:]')
-  debug_log "$label line count: $line_count"
-  debug_log "$label head -n 5 (numbered):"
-  head -n 5 "$path" | cat -n | while IFS= read -r line; do
-    debug_log "$label $line"
-  done
-  debug_log "$label first-field preview:"
-  awk '{print $1}' "$path" | head -n 5 | while IFS= read -r field; do
-    debug_log "$label $field"
-  done
+  local wc_cmd head_cmd awk_cmd tr_cmd cat_cmd
+  wc_cmd=$(command -v wc 2>/dev/null)
+  [[ -n "$wc_cmd" && -x "$wc_cmd" ]] || wc_cmd=""
+  [[ -z "$wc_cmd" && -x /bin/wc ]] && wc_cmd="/bin/wc"
+  [[ -z "$wc_cmd" && -x /usr/bin/wc ]] && wc_cmd="/usr/bin/wc"
+
+  head_cmd=$(command -v head 2>/dev/null)
+  [[ -n "$head_cmd" && -x "$head_cmd" ]] || head_cmd=""
+  [[ -z "$head_cmd" && -x /bin/head ]] && head_cmd="/bin/head"
+  [[ -z "$head_cmd" && -x /usr/bin/head ]] && head_cmd="/usr/bin/head"
+
+  awk_cmd=$(command -v awk 2>/dev/null)
+  [[ -n "$awk_cmd" && -x "$awk_cmd" ]] || awk_cmd=""
+  [[ -z "$awk_cmd" && -x /bin/awk ]] && awk_cmd="/bin/awk"
+  [[ -z "$awk_cmd" && -x /usr/bin/awk ]] && awk_cmd="/usr/bin/awk"
+
+  tr_cmd=$(command -v tr 2>/dev/null)
+  [[ -n "$tr_cmd" && -x "$tr_cmd" ]] || tr_cmd=""
+  [[ -z "$tr_cmd" && -x /bin/tr ]] && tr_cmd="/bin/tr"
+  [[ -z "$tr_cmd" && -x /usr/bin/tr ]] && tr_cmd="/usr/bin/tr"
+
+  cat_cmd=$(command -v cat 2>/dev/null)
+  [[ -n "$cat_cmd" && -x "$cat_cmd" ]] || cat_cmd=""
+  [[ -z "$cat_cmd" && -x /bin/cat ]] && cat_cmd="/bin/cat"
+  [[ -z "$cat_cmd" && -x /usr/bin/cat ]] && cat_cmd="/usr/bin/cat"
+
+  local -a missing_tools=()
+  [[ -z "$wc_cmd" ]] && missing_tools+=("wc")
+  [[ -z "$tr_cmd" ]] && missing_tools+=("tr")
+  if (( ${#missing_tools[@]} > 0 )); then
+    debug_log "$label skipping line count (missing: ${missing_tools[*]})"
+  else
+    local line_count
+    line_count=$("$wc_cmd" -l < "$path" | "$tr_cmd" -d '[:space:]')
+    debug_log "$label line count: $line_count"
+  fi
+
+  missing_tools=()
+  [[ -z "$head_cmd" ]] && missing_tools+=("head")
+  [[ -z "$cat_cmd" ]] && missing_tools+=("cat")
+  if (( ${#missing_tools[@]} > 0 )); then
+    debug_log "$label skipping head preview (missing: ${missing_tools[*]})"
+  else
+    debug_log "$label head -n 5 (numbered):"
+    "$head_cmd" -n 5 "$path" | "$cat_cmd" -n | while IFS= read -r line; do
+      debug_log "$label $line"
+    done
+  fi
+
+  missing_tools=()
+  [[ -z "$awk_cmd" ]] && missing_tools+=("awk")
+  [[ -z "$head_cmd" ]] && missing_tools+=("head")
+  if (( ${#missing_tools[@]} > 0 )); then
+    debug_log "$label skipping first-field preview (missing: ${missing_tools[*]})"
+  else
+    debug_log "$label first-field preview:"
+    "$awk_cmd" '{print $1}' "$path" | "$head_cmd" -n 5 | while IFS= read -r field; do
+      debug_log "$label $field"
+    done
+  fi
 }
 
 prepare_subprocess_env() {
