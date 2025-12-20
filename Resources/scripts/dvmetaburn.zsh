@@ -919,6 +919,11 @@ validate_sendcmd_file() {
 
   if ! LC_ALL=C awk '
     {
+      line = $0
+      gsub(/\r/, "", line)
+      sub(/[[:space:]]+$/, "", line)
+      $0 = line
+
       field1 = $1
       n = split(field1, parts, "-")
       for (i = 1; i <= n; i++) {
@@ -935,6 +940,25 @@ validate_sendcmd_file() {
     }
   ' "$cmdfile" > "$tmp"; then
     rm -f "$tmp"
+    return 1
+  fi
+
+  local non_numeric_line
+  non_numeric_line=$(LC_ALL=C awk '
+    {
+      field1 = $1
+      n = split(field1, parts, "-")
+      for (i = 1; i <= n; i++) {
+        if (parts[i] !~ /^[0-9]+(\.[0-9]+)?$/) {
+          print
+          exit 1
+        }
+      }
+    }
+  ' "$tmp")
+  if [[ -n "$non_numeric_line" ]]; then
+    rm -f "$tmp"
+    echo "[ERROR] sendcmd timestamp field is not numeric: $non_numeric_line" >&2
     return 1
   fi
 
