@@ -686,6 +686,7 @@ typeset -g last_parse_frame_source="unknown"
 typeset -g last_dvrescue_status=0
 typeset -g last_detected_fps=""
 typeset -g timestamps_normalized=0
+typeset -g sendcmd_exec_path=""
 typeset -g primary_input_path=""
 typeset -g requested_format
 typeset -g requested_encode_quality
@@ -896,20 +897,23 @@ build_sendcmd_from_timeline() {
       # Strip DV-style frame suffix (e.g. HH:MM:SS;FF -> HH:MM:SS)
       time_clean = time
       sub(/;[0-9][0-9]$/, "", time_clean)
-      gsub(/:/, "\\\\:", time_clean)
+      gsub(/:/, "\\\\\\\\:", time_clean)
 
       # Dates are YYYY-MM-DD, no spaces/colons, so they’re fine now.
 
-      # Single command line per timestamp:
+      # Two command lines per timestamp:
       #   dvdate → date
       #   dvtime → time
-      printf("%.6f drawtext@dvdate reinit text='\''%s'\''; drawtext@dvtime reinit text=%s;\n", t_sec, date, time_clean)
+      printf("%.6f drawtext@dvdate reinit text='\''%s'\''\n", t_sec, date)
+      printf("%.6f drawtext@dvtime reinit text=%s\n", t_sec, time_clean)
     }
   ' "$tsv_path" >> "$sendcmd_path"
 
-  local lines
+  local lines timeline_entries expected_lines
   lines=$(wc -l < "$sendcmd_path" | tr -d "[:space:]")
-  echo "[INFO] sendcmd lines: $lines (from timeline: $tsv_path)" >&2
+  timeline_entries=$(wc -l < "$tsv_path" | tr -d "[:space:]")
+  expected_lines=$(( timeline_entries * 2 ))
+  echo "[INFO] sendcmd lines: $lines (expected: ${expected_lines} from timeline entries: ${timeline_entries})" >&2
 
   return 0
 }
@@ -924,29 +928,6 @@ validate_sendcmd_file() {
 
   if [[ ! -s "$cmdfile" ]]; then
     echo "[ERROR] sendcmd output is empty: $cmdfile" >&2
-    return 1
-  fi
-
-  local missing_semicolons
-  missing_semicolons=$(LC_ALL=C awk '
-    NF {
-      line = $0
-      sub(/[[:space:]]+$/, "", line)
-      if (line !~ /;$/) {
-        print line
-        count++
-        if (count >= 5) {
-          exit
-        }
-      }
-    }
-    END { if (count > 0) exit 2 }
-  ' "$cmdfile")
-  if [[ -n "$missing_semicolons" ]]; then
-    echo "[ERROR] sendcmd output contains lines missing terminating ';':" >&2
-    while IFS= read -r line; do
-      echo "  $line" >&2
-    done <<< "$missing_semicolons"
     return 1
   fi
 
@@ -984,12 +965,10 @@ validate_sendcmd_file() {
   [[ -n "$tmp" ]] || { warn "validate_sendcmd_file: empty tmp path"; return 1; }
 
   if ! LC_ALL=C awk '
-    {
-      line = $0
-      gsub(/\r/, "", line)
-      sub(/[[:space:]]+$/, "", line)
-      $0 = line
-
+    function ltrim(s) { sub(/^[[:space:]]+/, "", s); return s }
+    function rtrim(s) { sub(/[[:space:]]+$/, "", s); return s }
+    function normalize_and_print(raw_line, field1, field1_norm) {
+      $0 = raw_line
       field1 = $1
       field1_norm = field1
       gsub(/,/, ".", field1_norm)
@@ -997,11 +976,47 @@ validate_sendcmd_file() {
       # sendcmd treats non-numeric first fields as interval headers and explodes,
       # so drop any line without a numeric timestamp before normalizing commas.
       if (field1_norm !~ /^[0-9]+(\.[0-9]+)?$/) {
-        next
+        return
       }
 
       $1 = field1_norm
       print
+    }
+    {
+      line = $0
+      gsub(/\r/, "", line)
+      line = rtrim(line)
+      while (line ~ /;[[:space:]]*$/) {
+        sub(/;[[:space:]]*$/, "", line)
+      }
+      if (line == "") {
+        next
+      }
+
+      base_timestamp = ""
+      if (match(line, /^[[:space:]]*[0-9]+(\.[0-9]+)?/)) {
+        base_timestamp = substr(line, RSTART, RLENGTH)
+      }
+
+      split_count = split(line, parts, ";")
+      if (split_count > 1) {
+        for (i = 1; i <= split_count; i++) {
+          segment = rtrim(ltrim(parts[i]))
+          if (segment == "") {
+            continue
+          }
+          if (segment ~ /^[0-9]+(\.[0-9]+)?[[:space:]]/) {
+            normalize_and_print(segment)
+          } else if (base_timestamp != "") {
+            normalize_and_print(base_timestamp " " segment)
+          } else {
+            normalize_and_print(segment)
+          }
+        }
+        next
+      }
+
+      normalize_and_print(line)
     }
   ' "$cmdfile" > "$tmp"; then
     rm -f "$tmp"
@@ -1051,6 +1066,35 @@ validate_sendcmd_file() {
   fi
 
   log_sendcmd_debug_snapshot "timestamp.cmd post-sanitize" "$cmdfile"
+
+  local exec_cmdfile
+  exec_cmdfile="${cmdfile}.exec"
+  if ! LC_ALL=C awk '
+    {
+      line = $0
+      sub(/[[:space:]]+$/, "", line)
+      if (line == "") {
+        next
+      }
+      if (count == 0) {
+        printf "%s", line
+      } else {
+        printf "; %s", line
+      }
+      count++
+    }
+    END {
+      if (count > 0) {
+        printf "\n"
+      }
+    }
+  ' "$cmdfile" > "$exec_cmdfile"; then
+    echo "[ERROR] Failed to build sendcmd exec file: $exec_cmdfile" >&2
+    return 1
+  fi
+  sendcmd_exec_path="$exec_cmdfile"
+  log_write "$sendcmd_exec_path"
+
   return 0
 }
 
@@ -1956,8 +2000,13 @@ build_burnin_filtergraph() {
   local cmdfile="$2"
   local font="$3"
 
+  local cmdfile_effective="$cmdfile"
+  if [[ -n "${sendcmd_exec_path:-}" ]]; then
+    cmdfile_effective="$sendcmd_exec_path"
+  fi
+
   local cmd_escaped font_escaped
-  cmd_escaped=$(escape_for_single_quotes "$cmdfile")
+  cmd_escaped=$(escape_for_single_quotes "$cmdfile_effective")
   font_escaped=$(escape_for_single_quotes "$font")
 
   case "$layout" in
@@ -2035,7 +2084,7 @@ make_timestamp_cmd() {
     return 2
   fi
 
-  debug_log "sendcmd lines for $in: $(wc -l < "$cmdfile" | tr -d '[:space:]')"
+  debug_log "sendcmd lines for $in: $(wc -l < "$cmdfile" | tr -d '[:space:]') (expected: $(( last_parse_timeline_entries * 2 )))"
   return 0
 }
 ########################################################
@@ -2354,6 +2403,7 @@ process_file_core() {
   last_parse_frame_source="unknown"
   last_dvrescue_status=0
   timestamps_normalized=0
+  sendcmd_exec_path=""
   cleanup_stage_done=0
   run_notes=("${initial_run_notes[@]}")
 
