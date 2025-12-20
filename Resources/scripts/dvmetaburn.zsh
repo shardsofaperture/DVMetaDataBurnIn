@@ -894,9 +894,6 @@ build_sendcmd_from_timeline() {
       date = escape_single_quotes(date)
       time = escape_single_quotes(time)
 
-      # Time has colons → escape for drawtext
-      gsub(/:/, "\\\\:", time)
-
       # Dates are YYYY-MM-DD, no spaces/colons, so they’re fine now.
 
       # Two commands at same timestamp:
