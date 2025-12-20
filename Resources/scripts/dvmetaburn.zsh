@@ -991,17 +991,16 @@ validate_sendcmd_file() {
       $0 = line
 
       field1 = $1
-      n = split(field1, parts, "-")
-      for (i = 1; i <= n; i++) {
-        gsub(/,/, ".", parts[i])
+      field1_norm = field1
+      gsub(/,/, ".", field1_norm)
+
+      # sendcmd treats non-numeric first fields as interval headers and explodes,
+      # so drop any line without a numeric timestamp before normalizing commas.
+      if (field1_norm !~ /^[0-9]+(\.[0-9]+)?$/) {
+        next
       }
-      new1 = parts[1]
-      if (n > 1) {
-        for (i = 2; i <= n; i++) {
-          new1 = new1 "-" parts[i]
-        }
-      }
-      $1 = new1
+
+      $1 = field1_norm
       print
     }
   ' "$cmdfile" > "$tmp"; then
