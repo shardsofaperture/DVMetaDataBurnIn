@@ -5,6 +5,9 @@ setopt ERR_EXIT
 # ERR_FAIL is NOT a real zsh option -> remove it
 # setopt ERR_FAIL
 
+RUN_ID="${DVMETA_RUN_ID:-${RUN_ID:-}}"
+echo "[RUN] id=${RUN_ID:-} argv=$*"
+
 TRAPZERR() {
   local rc=$?
 
@@ -106,6 +109,17 @@ log_export() {
   local src="$1"
   local dst="$2"
   echo "[EXPORT] src='${src}' -> dst='${dst}'" >&2
+}
+
+log_write() {
+  local path="$1"
+  echo "[WRITE] -> $path"
+}
+
+log_move() {
+  local src="$1"
+  local dst="$2"
+  echo "[MOVE] $src -> $dst"
 }
 
 probe_media_duration() {
@@ -783,6 +797,7 @@ build_timeline_from_log() {
     granularity="per_second"
   fi
 
+  log_write "$timeline_out"
   tr '\r' '\n' < "$log_path" | LC_NUMERIC=C awk -v fps="$fps" -v granularity="$granularity" '
     BEGIN {
       raw_rows = 0;
@@ -851,6 +866,7 @@ build_sendcmd_from_timeline() {
     return 1
   fi
 
+  log_write "$sendcmd_path"
   : > "$sendcmd_path"   # truncate
 
   LC_NUMERIC=C awk -F '\t' '
@@ -971,6 +987,7 @@ validate_sendcmd_file() {
   fi
 
   if (( changed == 1 )); then
+    log_move "$tmp" "$cmdfile"
     mv "$tmp" "$cmdfile"
     info "sendcmd sanitization updated $cmdfile (comma lines before: $comma_lines_before, after: $comma_lines_after)"
   else
@@ -1010,11 +1027,13 @@ make_temp_file() {
   if [[ -n "$mktemp_cmd" ]]; then
     debug_log "make_temp_file using mktemp: $mktemp_cmd"
     path=$("$mktemp_cmd" "${tmpdir}/${prefix}.XXXXXX") || return 127
+    log_write "$path"
   else
     debug_log "make_temp_file using manual fallback in ${tmpdir}"
     local i candidate
     for i in {1..10}; do
       candidate="${tmpdir}/${prefix}.$(date +%s).${RANDOM}${RANDOM}"
+      log_write "$candidate"
       if (set -o noclobber; : >"$candidate") 2>/dev/null; then
         path="$candidate"
         break
@@ -1026,6 +1045,7 @@ make_temp_file() {
 
   if [[ -n "$ext" ]]; then
     local new_path="${path}${ext}"
+    log_move "$path" "$new_path"
     /bin/mv "$path" "$new_path"
     path="$new_path"
   fi
@@ -1166,6 +1186,7 @@ emit_debug_snapshots() {
 write_versions_file() {
   local path="$1"
 
+  log_write "$path"
   {
     if command -v "$ffmpeg_bin" >/dev/null 2>&1; then
       "$ffmpeg_bin" -version 2>/dev/null | head -n 1
@@ -1217,6 +1238,7 @@ write_run_manifest() {
 
   notes_json="${notes_json%$'\n'}"
 
+  log_write "$manifest_path"
   cat > "$manifest_path" <<EOF
 {
   "status": "$status_label",
@@ -1345,6 +1367,7 @@ normalize_dvrescue_timestamps() {
     }
   fi
 
+  log_write "$tmp_output"
   if ! awk '
     NF < 4 { print; next }
 
@@ -1379,6 +1402,7 @@ normalize_dvrescue_timestamps() {
     return 1
   fi
 
+  log_move "$tmp_output" "$source_log"
   /bin/mv "$tmp_output" "$source_log"
 
   timestamps_normalized=1
@@ -1399,6 +1423,7 @@ normalize_log_value_only() {
     dest=$(make_temp_file dvmeta_norm .log) || return 1
   fi
 
+  log_write "$dest"
   if ! awk '
     NF < 4 { print; next }
 
@@ -1432,7 +1457,10 @@ normalize_log_value_only() {
     return 1
   fi
 
-  [[ -z "$target_log" ]] && /bin/mv "$dest" "$source_log"
+  if [[ -z "$target_log" ]]; then
+    log_move "$dest" "$source_log"
+    /bin/mv "$dest" "$source_log"
+  fi
   return 0
 }
 
@@ -1612,6 +1640,8 @@ stitch_sources() {
     tmp_xml=$(make_temp_file dvmeta_stitch .xml) || return 1
 
     prepare_subprocess_env
+    log_write "$tmp_xml"
+    log_write "$tmp_log"
     "$dvrescue_bin" "$clip" --xml-output "$tmp_xml" >"$tmp_log" 2>&1 || true
 
     norm_log=$(make_temp_file dvmeta_stitch_norm .log) || return 1
@@ -1637,6 +1667,7 @@ stitch_sources() {
 
   local concat_manifest
   concat_manifest="${artifact_dir%/}/stitch_inputs.txt"
+  log_write "$concat_manifest"
   : > "$concat_manifest"
 
   local sorted
@@ -1703,6 +1734,7 @@ stitch_batch_folder() {
   local list_file
   list_file="${artifact_dir%/}/list.txt"
 
+  log_write "$list_file"
   : > "$list_file"
 
   local clip
@@ -1846,11 +1878,17 @@ create_artifact_scaffold() {
 
   rm -f "$dvrescue_xml"
   debug_log "Cleared prior dvrescue XML target: $dvrescue_xml"
+  log_write "$dvrescue_log"
   : > "$dvrescue_log"
+  log_write "$cmdfile"
   : > "$cmdfile"
+  log_write "$timeline_debug"
   : > "$timeline_debug"
+  log_write "$ass_artifact"
   : > "$ass_artifact"
+  log_write "$run_manifest"
   printf '{"status":"pending","input":"%s"}\n' "$in" > "$run_manifest"
+  log_write "$versions_file"
   : > "$versions_file"
 
   log_artifact_path_and_size "dvrescue XML" "$dvrescue_xml"
@@ -1900,6 +1938,7 @@ make_timestamp_cmd() {
   local timeline_debug="$5"
   local fps="$6"
 
+  log_write "$cmdfile"
   : > "$cmdfile"
 
   if [[ -z "$fps" ]]; then
@@ -1980,6 +2019,7 @@ make_ass_subs() {
     return 1
   fi
 
+  log_write "$ass_out"
   : > "$ass_out"
 
   local build_output build_status
@@ -2328,6 +2368,7 @@ process_file_core() {
     audio_ext="$(audio_extension_for_format "$format")"
     out_audio="${base}_audio.${audio_ext}"
 
+    log_write "$out_audio"
     local -a audio_cmd=(
       "$ffmpeg_bin" -y -i "$source_video"
       "${codec_args[@]}"
@@ -2371,6 +2412,8 @@ g" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_outp
   local dv_status=0
   debug_log "Extracting dvrescue XML -> $dvrescue_xml (log: $dvrescue_log)"
   prepare_subprocess_env
+  log_write "$dvrescue_xml"
+  log_write "$dvrescue_log"
   "$dvrescue_bin" "$source_video" --xml-output "$dvrescue_xml" >"$dvrescue_log" 2>&1
   dv_status=$?
   last_dvrescue_status=$dv_status
@@ -2399,6 +2442,8 @@ g" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_outp
     if [[ -n "$deinterlace_vf" ]]; then
       work_out="${run_scratch_root%/}/artifacts/$(basename "$final_out").work.${out_ext}"
     fi
+    echo "[PATH] FINAL_OUT=$final_out"
+    echo "[PATH] WORK_OUT=$work_out"
     echo "[INFO] Transcode-only conversion (no burn-in) to: $final_out"
     debug_log "Running transcode-only encode with args: ${codec_args[*]}"
     ensure_cleanup_stage
@@ -2434,6 +2479,7 @@ g" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_outp
     fi
 
     if [[ -n "$work_out" ]]; then
+      log_move "$work_out" "$final_out"
       if ! mv -f "$work_out" "$final_out"; then
         exit_status=$?
         manifest_status="error"
@@ -2523,6 +2569,8 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
           if [[ -n "$deinterlace_vf" ]]; then
             work_out="${run_scratch_root%/}/artifacts/$(basename "$final_out").work.${out_ext}"
           fi
+          echo "[PATH] FINAL_OUT=$final_out"
+          echo "[PATH] WORK_OUT=$work_out"
           echo "[INFO] Missing metadata fallback: writing transcode-only output to $final_out (stitch-batch will use *_conv.* parts)." >&2
           ensure_cleanup_stage
           echo "[WRITE] -> $final_out"
@@ -2557,6 +2605,7 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
           fi
 
           if [[ -n "$work_out" ]]; then
+            log_move "$work_out" "$final_out"
             if ! mv -f "$work_out" "$final_out"; then
               exit_status=$?
               manifest_status="error"
@@ -2603,6 +2652,8 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
     if [[ -n "$deinterlace_vf" ]]; then
       work_out="${run_scratch_root%/}/artifacts/$(basename "$final_out").work.${out_ext}"
     fi
+    echo "[PATH] FINAL_OUT=$final_out"
+    echo "[PATH] WORK_OUT=$work_out"
     local mux_target="$final_out"
     if [[ -n "$work_out" ]]; then
       mux_target="$work_out"
@@ -2655,6 +2706,7 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
     fi
 
     if [[ -n "$work_out" ]]; then
+      log_move "$work_out" "$final_out"
       if ! mv -f "$work_out" "$final_out"; then
         exit_status=$?
         manifest_status="error"
@@ -2694,6 +2746,8 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
         if [[ -n "$deinterlace_vf" ]]; then
           work_out="${run_scratch_root%/}/artifacts/$(basename "$final_out").work.${out_ext}"
         fi
+        echo "[PATH] FINAL_OUT=$final_out"
+        echo "[PATH] WORK_OUT=$work_out"
         echo "[INFO] Missing metadata fallback: writing transcode-only output to $final_out (stitch-batch will use *_conv.* parts)." >&2
         ensure_cleanup_stage
         echo "[WRITE] -> $final_out"
@@ -2727,6 +2781,7 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
           die "ffmpeg encode failed for: $source_video"
         fi
         if [[ -n "$work_out" ]]; then
+          log_move "$work_out" "$final_out"
           if ! mv -f "$work_out" "$final_out"; then
             exit_status=$?
             manifest_status="error"
@@ -2781,6 +2836,8 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
   if [[ -n "$deinterlace_vf" ]]; then
     work_out="${run_scratch_root%/}/artifacts/$(basename "$final_out").work.${out_ext}"
   fi
+  echo "[PATH] FINAL_OUT=$final_out"
+  echo "[PATH] WORK_OUT=$work_out"
   local burn_vf="$vf"
   if [[ -n "$deinterlace_vf" ]]; then
     burn_vf="${deinterlace_vf},${vf}"
@@ -2836,6 +2893,7 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
   fi
 
   if [[ -n "$work_out" ]]; then
+    log_move "$work_out" "$final_out"
     if ! mv -f "$work_out" "$final_out"; then
       exit_status=$?
       manifest_status="error"
@@ -3074,6 +3132,7 @@ if [[ "$mode" == "batch" ]]; then
     fi
 
     list_file="${burned_parts_dir%/}/list.txt"
+    log_write "$list_file"
     : > "$list_file"
     local stitched_inputs=0
     local burned_count=0
@@ -3195,6 +3254,7 @@ if [[ "$mode" == "batch" ]]; then
       exit 1
     fi
 
+    log_move "$stitched_output" "$final_stitch_out"
     if ! mv -f "$stitched_output" "$final_stitch_out"; then
       echo "[ERROR] Failed to move stitched output into place: $stitched_output -> $final_stitch_out" >&2
       exit 1
