@@ -2394,10 +2394,22 @@ g" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_outp
 
   # Transcode-only mode: no metadata
   if [[ "$burn_mode" == "off" ]]; then
-    local out_passthrough="${base}_conv.${out_ext}"
-    echo "[INFO] Transcode-only conversion (no burn-in) to: $out_passthrough"
+    local final_out="${base}_conv.${out_ext}"
+    local work_out=""
+    if [[ -n "$deinterlace_vf" ]]; then
+      work_out="${run_scratch_root%/}/artifacts/$(basename "$final_out").work.${out_ext}"
+    fi
+    echo "[INFO] Transcode-only conversion (no burn-in) to: $final_out"
     debug_log "Running transcode-only encode with args: ${codec_args[*]}"
     ensure_cleanup_stage
+    echo "[WRITE] -> $final_out"
+    if [[ -n "$work_out" ]]; then
+      echo "[WRITE] -> $work_out"
+    fi
+    local transcode_target="$final_out"
+    if [[ -n "$work_out" ]]; then
+      transcode_target="$work_out"
+    fi
     local -a transcode_cmd=("$ffmpeg_bin" -y -i "$source_video")
     if [[ -n "$deinterlace_vf" ]]; then
       transcode_cmd+=(-vf "$deinterlace_vf")
@@ -2407,23 +2419,34 @@ g" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_outp
       "${deinterlace_fps_args[@]}"
       "${container_args[@]}"
       "${sanitized_extra_args[@]}"
-      "$out_passthrough"
+      "$transcode_target"
     )
-    log_export "$source_video" "$out_passthrough"
+    log_export "$source_video" "$transcode_target"
     prepare_subprocess_env
     log_ffmpeg_command "transcode-only" "${transcode_cmd[@]}"
     if ! run_stage "encode" "${transcode_cmd[@]}"; then
       exit_status=$?
       manifest_status="error"
-      passthrough_output="$out_passthrough"
+      passthrough_output="$final_out"
       last_passthrough_output_path="$passthrough_output"
       finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
       die "ffmpeg encode failed for: $source_video"
     fi
 
+    if [[ -n "$work_out" ]]; then
+      if ! mv -f "$work_out" "$final_out"; then
+        exit_status=$?
+        manifest_status="error"
+        passthrough_output="$final_out"
+        last_passthrough_output_path="$passthrough_output"
+        finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
+        die "Failed to move scratch output into place: $work_out -> $final_out"
+      fi
+    fi
+
     exit_status=$?
     manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
-    passthrough_output="$out_passthrough"
+    passthrough_output="$final_out"
     last_passthrough_output_path="$passthrough_output"
     finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
     return $exit_status
@@ -2495,9 +2518,21 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
       case "$missing_meta" in
         skip_burnin_convert)
           echo "[WARN] Missing timestamp metadata for $source_video; converting without subtitle track." >&2
-          local out_passthrough="${base}_conv.${out_ext}"
-          echo "[INFO] Missing metadata fallback: writing transcode-only output to $out_passthrough (stitch-batch will use *_conv.* parts)." >&2
+          local final_out="${base}_conv.${out_ext}"
+          local work_out=""
+          if [[ -n "$deinterlace_vf" ]]; then
+            work_out="${run_scratch_root%/}/artifacts/$(basename "$final_out").work.${out_ext}"
+          fi
+          echo "[INFO] Missing metadata fallback: writing transcode-only output to $final_out (stitch-batch will use *_conv.* parts)." >&2
           ensure_cleanup_stage
+          echo "[WRITE] -> $final_out"
+          if [[ -n "$work_out" ]]; then
+            echo "[WRITE] -> $work_out"
+          fi
+          local subtitle_fallback_target="$final_out"
+          if [[ -n "$work_out" ]]; then
+            subtitle_fallback_target="$work_out"
+          fi
           local -a subtitle_fallback_cmd=("$ffmpeg_bin" -y -i "$source_video")
           if [[ -n "$deinterlace_vf" ]]; then
             subtitle_fallback_cmd+=(-vf "$deinterlace_vf")
@@ -2507,23 +2542,34 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
             "${deinterlace_fps_args[@]}"
             "${container_args[@]}"
             "${sanitized_extra_args[@]}"
-            "$out_passthrough"
+            "$subtitle_fallback_target"
           )
-          log_export "$source_video" "$out_passthrough"
+          log_export "$source_video" "$subtitle_fallback_target"
           prepare_subprocess_env
           log_ffmpeg_command "subtitle-fallback" "${subtitle_fallback_cmd[@]}"
           if ! run_stage "encode" "${subtitle_fallback_cmd[@]}"; then
             exit_status=$?
             manifest_status="error"
-            passthrough_output="$out_passthrough"
+            passthrough_output="$final_out"
             last_passthrough_output_path="$passthrough_output"
             finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
             die "ffmpeg encode failed for: $source_video"
           fi
 
+          if [[ -n "$work_out" ]]; then
+            if ! mv -f "$work_out" "$final_out"; then
+              exit_status=$?
+              manifest_status="error"
+              passthrough_output="$final_out"
+              last_passthrough_output_path="$passthrough_output"
+              finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
+              die "Failed to move scratch output into place: $work_out -> $final_out"
+            fi
+          fi
+
           exit_status=$?
           manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
-          passthrough_output="$out_passthrough"
+          passthrough_output="$final_out"
           last_passthrough_output_path="$passthrough_output"
           finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" \
             "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" \
@@ -2552,11 +2598,23 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
     ensure_cleanup_stage
 
     # We have a valid ASS file – mux it as MKV with true ASS subtitles
-    local out_subbed="${base}_dvsub.mkv"
+    local final_out="${base}_dvsub.mkv"
+    local work_out=""
+    if [[ -n "$deinterlace_vf" ]]; then
+      work_out="${run_scratch_root%/}/artifacts/$(basename "$final_out").work.${out_ext}"
+    fi
+    local mux_target="$final_out"
+    if [[ -n "$work_out" ]]; then
+      mux_target="$work_out"
+    fi
     local -a sub_video_args=("${codec_args[@]}")
     local subtitle_codec="ass"
 
-    echo "[INFO] Muxing subtitle track into: $out_subbed" >&2
+    echo "[INFO] Muxing subtitle track into: $final_out" >&2
+    echo "[WRITE] -> $final_out"
+    if [[ -n "$work_out" ]]; then
+      echo "[WRITE] -> $work_out"
+    fi
     local font_attach="$font"
     local font_filename="${font_attach:t}"
 
@@ -2581,10 +2639,10 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
       -disposition:s:0 default
       "${container_args[@]}"
       "${sanitized_extra_args[@]}"
-      "$out_subbed"
+      "$mux_target"
     )
 
-    log_export "$source_video" "$out_subbed"
+    log_export "$source_video" "$mux_target"
     prepare_subprocess_env
     log_ffmpeg_command "subtitle-mux" "${mux_cmd[@]}"
     if ! run_stage "encode" "${mux_cmd[@]}"; then
@@ -2592,13 +2650,24 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
       manifest_status="error"
       finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" \
         "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" \
-        "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
+      "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
       die "ffmpeg encode failed for: $source_video"
+    fi
+
+    if [[ -n "$work_out" ]]; then
+      if ! mv -f "$work_out" "$final_out"; then
+        exit_status=$?
+        manifest_status="error"
+        finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" \
+          "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" \
+          "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
+        die "Failed to move scratch output into place: $work_out -> $final_out"
+      fi
     fi
 
     exit_status=$?
     manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
-    subtitle_output="$out_subbed"
+    subtitle_output="$final_out"
     last_subtitle_output_path="$subtitle_output"
     finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" \
       "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" \
@@ -2620,9 +2689,21 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
         ;;
       skip_burnin_convert)
         echo "[WARN] Converting without burn-in due to missing timestamp metadata." >&2
-        local out_passthrough="${base}_conv.${out_ext}"
-        echo "[INFO] Missing metadata fallback: writing transcode-only output to $out_passthrough (stitch-batch will use *_conv.* parts)." >&2
+        local final_out="${base}_conv.${out_ext}"
+        local work_out=""
+        if [[ -n "$deinterlace_vf" ]]; then
+          work_out="${run_scratch_root%/}/artifacts/$(basename "$final_out").work.${out_ext}"
+        fi
+        echo "[INFO] Missing metadata fallback: writing transcode-only output to $final_out (stitch-batch will use *_conv.* parts)." >&2
         ensure_cleanup_stage
+        echo "[WRITE] -> $final_out"
+        if [[ -n "$work_out" ]]; then
+          echo "[WRITE] -> $work_out"
+        fi
+        local timeline_fallback_target="$final_out"
+        if [[ -n "$work_out" ]]; then
+          timeline_fallback_target="$work_out"
+        fi
         local -a timeline_fallback_cmd=("$ffmpeg_bin" -y -i "$source_video")
         if [[ -n "$deinterlace_vf" ]]; then
           timeline_fallback_cmd+=(-vf "$deinterlace_vf")
@@ -2632,22 +2713,32 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
           "${deinterlace_fps_args[@]}"
           "${container_args[@]}"
           "${sanitized_extra_args[@]}"
-          "$out_passthrough"
+          "$timeline_fallback_target"
         )
-        log_export "$source_video" "$out_passthrough"
+        log_export "$source_video" "$timeline_fallback_target"
         prepare_subprocess_env
         log_ffmpeg_command "timeline-fallback" "${timeline_fallback_cmd[@]}"
         if ! run_stage "encode" "${timeline_fallback_cmd[@]}"; then
           exit_status=$?
           manifest_status="error"
-          passthrough_output="$out_passthrough"
+          passthrough_output="$final_out"
           last_passthrough_output_path="$passthrough_output"
           finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
           die "ffmpeg encode failed for: $source_video"
         fi
+        if [[ -n "$work_out" ]]; then
+          if ! mv -f "$work_out" "$final_out"; then
+            exit_status=$?
+            manifest_status="error"
+            passthrough_output="$final_out"
+            last_passthrough_output_path="$passthrough_output"
+            finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
+            die "Failed to move scratch output into place: $work_out -> $final_out"
+          fi
+        fi
         exit_status=$?
         manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
-        passthrough_output="$out_passthrough"
+        passthrough_output="$final_out"
         last_passthrough_output_path="$passthrough_output"
         finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
         return $exit_status
@@ -2685,7 +2776,11 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
   fi
 
 
-  local out="${base}_dateburn.${out_ext}"
+  local final_out="${base}_dateburn.${out_ext}"
+  local work_out=""
+  if [[ -n "$deinterlace_vf" ]]; then
+    work_out="${run_scratch_root%/}/artifacts/$(basename "$final_out").work.${out_ext}"
+  fi
   local burn_vf="$vf"
   if [[ -n "$deinterlace_vf" ]]; then
     burn_vf="${deinterlace_vf},${vf}"
@@ -2708,9 +2803,17 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
     fi
   fi
 
-  echo "[INFO] Burning DV metadata into: $out"
+  echo "[INFO] Burning DV metadata into: $final_out"
+  echo "[WRITE] -> $final_out"
+  if [[ -n "$work_out" ]]; then
+    echo "[WRITE] -> $work_out"
+  fi
   debug_log "ffmpeg burn-in filtergraph: $burn_vf"
   debug_log "ffmpeg burn-in args: ${codec_args[*]}"
+  local burn_target="$final_out"
+  if [[ -n "$work_out" ]]; then
+    burn_target="$work_out"
+  fi
   local -a burn_cmd=(
     "$ffmpeg_bin" -y -i "$source_video"
     -vf "$burn_vf"
@@ -2718,23 +2821,34 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
     "${deinterlace_fps_args[@]}"
     "${container_args[@]}"
     "${sanitized_extra_args[@]}"
-    "$out"
+    "$burn_target"
   )
-  log_export "$source_video" "$out"
+  log_export "$source_video" "$burn_target"
   prepare_subprocess_env
   log_ffmpeg_command "burn-in" "${burn_cmd[@]}"
   if ! run_stage "encode" "${burn_cmd[@]}"; then
     exit_status=$?
     manifest_status="error"
-    burn_output="$out"
+    burn_output="$final_out"
     last_burn_output_path="$burn_output"
     finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
     die "ffmpeg encode failed for: $source_video"
   fi
 
+  if [[ -n "$work_out" ]]; then
+    if ! mv -f "$work_out" "$final_out"; then
+      exit_status=$?
+      manifest_status="error"
+      burn_output="$final_out"
+      last_burn_output_path="$burn_output"
+      finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
+      die "Failed to move scratch output into place: $work_out -> $final_out"
+    fi
+  fi
+
   exit_status=$?
   manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
-  burn_output="$out"
+  burn_output="$final_out"
   last_burn_output_path="$burn_output"
   echo "ffmpeg exit code: $exit_status"
   finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
