@@ -3013,9 +3013,22 @@ if [[ "$mode" == "batch" ]]; then
 
     output_dir_override="$batch_output_root"
 
+    if [[ -z "$run_scratch_root" ]]; then
+      run_scratch_root="${TMPDIR%/}/DVMetaDataBurnIn/$(date '+%Y%m%d_%H%M%S')_${RANDOM}${RANDOM}"
+      scratch_tmp="${run_scratch_root%/}/tmp"
+      if ! mkdir -p "$scratch_tmp"; then
+        fatal "Unable to create scratch temp directory: $scratch_tmp"
+      fi
+      artifact_root="${run_scratch_root%/}/artifacts"
+      if ! mkdir -p "$artifact_root"; then
+        fatal "Unable to create artifact root: $artifact_root"
+      fi
+      info "[scratch] Using scratch root for stitch: $run_scratch_root"
+    fi
+
     ts="$(date '+%Y%m%d_%H%M%S')"
     artifact_dir_override="${artifact_root%/}/${base_name}_stitched_${ts}"
-    burned_parts_dir="${artifact_dir_override%/}/burned_parts"
+    burned_parts_dir="${run_scratch_root%/}/artifacts/${base_name}_stitched_${ts}/burned_parts"
 
     if ! mkdir -p "$burned_parts_dir"; then
       echo "[ERROR] Unable to create artifact directory for stitching: $artifact_dir_override" >&2
@@ -3108,7 +3121,8 @@ if [[ "$mode" == "batch" ]]; then
       done
     fi
 
-    stitched_output="${output_dir_override%/}/${base_name}${stitched_suffix}"
+    local final_stitch_out="${output_dir_override%/}/${base_name}${stitched_suffix}"
+    stitched_output="${artifact_dir_override%/}/stitched.final.${target_ext}"
 
     container_flag_for_format "$format"
     local -a stitch_container_args
@@ -3181,7 +3195,12 @@ if [[ "$mode" == "batch" ]]; then
       exit 1
     fi
 
-    if final_duration=$(probe_media_duration "$stitched_output"); then
+    if ! mv -f "$stitched_output" "$final_stitch_out"; then
+      echo "[ERROR] Failed to move stitched output into place: $stitched_output -> $final_stitch_out" >&2
+      exit 1
+    fi
+
+    if final_duration=$(probe_media_duration "$final_stitch_out"); then
       info "[stitch/batch] stitched duration: $final_duration"
       append_run_note "Stitched duration: $final_duration"
     fi
@@ -3190,9 +3209,26 @@ if [[ "$mode" == "batch" ]]; then
     cleanup_stage_done=1
     run_notes=("${initial_run_notes[@]}")
     write_versions_file "${artifact_dir_override%/}/versions.txt"
-    write_run_manifest "${artifact_dir_override%/}/run_manifest.json" "success" "$folder_abs" "$artifact_dir_override" "" "" "$list_file" "" "" "$stitched_output" "" "" "${artifact_dir_override%/}/versions.txt"
+    write_run_manifest "${artifact_dir_override%/}/run_manifest.json" "success" "$folder_abs" "$artifact_dir_override" "" "" "$list_file" "" "" "$final_stitch_out" "" "" "${artifact_dir_override%/}/versions.txt"
 
-    echo "[INFO] Final stitched output: $stitched_output"
+    echo "[INFO] Final stitched output: $final_stitch_out"
+
+    local -a dest_matches
+    dest_matches=("${output_dir_override%/}/${base_name}"*.${target_ext}(N))
+    if (( ${#dest_matches[@]} > 1 )); then
+      info "[DUPLICATE] Found ${#dest_matches[@]} outputs in ${output_dir_override%/} for base ${base_name}: ${(j:, :)dest_matches}"
+      local duplicate_path
+      for duplicate_path in "${dest_matches[@]}"; do
+        if [[ "$duplicate_path" == "$final_stitch_out" ]]; then
+          continue
+        fi
+        if rm -f "$duplicate_path"; then
+          info "[DUPLICATE] removed $duplicate_path"
+        else
+          warn "[DUPLICATE] failed to remove $duplicate_path"
+        fi
+      done
+    fi
     exit 0
   fi
 
