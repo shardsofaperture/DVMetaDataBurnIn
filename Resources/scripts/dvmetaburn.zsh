@@ -113,13 +113,13 @@ log_export() {
 
 log_write() {
   local path="$1"
-  echo "[WRITE] -> $path"
+  echo "[WRITE] -> $path" >&2
 }
 
 log_move() {
   local src="$1"
   local dst="$2"
-  echo "[MOVE] $src -> $dst"
+  echo "[MOVE] $src -> $dst" >&2
 }
 
 probe_media_duration() {
@@ -932,6 +932,8 @@ validate_sendcmd_file() {
 
   local tmp
   tmp=$(make_temp_file "sendcmd-rewrite" ".tmp") || return 1
+  tmp=${tmp##*$'\n'}
+  [[ -n "$tmp" ]] || { warn "validate_sendcmd_file: empty tmp path"; return 1; }
 
   if ! LC_ALL=C awk '
     {
@@ -1099,27 +1101,27 @@ log_sendcmd_debug_snapshot() {
   fi
 
   local wc_cmd head_cmd awk_cmd tr_cmd cat_cmd
-  wc_cmd=$(command -v wc 2>/dev/null)
+  wc_cmd=$(command -v wc 2>/dev/null || true)
   [[ -n "$wc_cmd" && -x "$wc_cmd" ]] || wc_cmd=""
   [[ -z "$wc_cmd" && -x /bin/wc ]] && wc_cmd="/bin/wc"
   [[ -z "$wc_cmd" && -x /usr/bin/wc ]] && wc_cmd="/usr/bin/wc"
 
-  head_cmd=$(command -v head 2>/dev/null)
+  head_cmd=$(command -v head 2>/dev/null || true)
   [[ -n "$head_cmd" && -x "$head_cmd" ]] || head_cmd=""
   [[ -z "$head_cmd" && -x /bin/head ]] && head_cmd="/bin/head"
   [[ -z "$head_cmd" && -x /usr/bin/head ]] && head_cmd="/usr/bin/head"
 
-  awk_cmd=$(command -v awk 2>/dev/null)
+  awk_cmd=$(command -v awk 2>/dev/null || true)
   [[ -n "$awk_cmd" && -x "$awk_cmd" ]] || awk_cmd=""
   [[ -z "$awk_cmd" && -x /bin/awk ]] && awk_cmd="/bin/awk"
   [[ -z "$awk_cmd" && -x /usr/bin/awk ]] && awk_cmd="/usr/bin/awk"
 
-  tr_cmd=$(command -v tr 2>/dev/null)
+  tr_cmd=$(command -v tr 2>/dev/null || true)
   [[ -n "$tr_cmd" && -x "$tr_cmd" ]] || tr_cmd=""
   [[ -z "$tr_cmd" && -x /bin/tr ]] && tr_cmd="/bin/tr"
   [[ -z "$tr_cmd" && -x /usr/bin/tr ]] && tr_cmd="/usr/bin/tr"
 
-  cat_cmd=$(command -v cat 2>/dev/null)
+  cat_cmd=$(command -v cat 2>/dev/null || true)
   [[ -n "$cat_cmd" && -x "$cat_cmd" ]] || cat_cmd=""
   [[ -z "$cat_cmd" && -x /bin/cat ]] && cat_cmd="/bin/cat"
   [[ -z "$cat_cmd" && -x /usr/bin/cat ]] && cat_cmd="/usr/bin/cat"
