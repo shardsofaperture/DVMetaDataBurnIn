@@ -635,6 +635,14 @@ debug_log() {
   fi
 }
 
+log_write() {
+  echo "[WRITE] -> $1" >&2
+}
+
+log_move() {
+  echo "[MOVE]  -> $1" >&2
+}
+
 ########################################################
 # Helper: detect FPS using ffmpeg probe output
 ########################################################
@@ -853,7 +861,7 @@ log_file_excerpt() {
   local -i max_lines=${3:-20}
 
   local wc_cmd
-  wc_cmd=$(command -v wc 2>/dev/null)
+  wc_cmd=$(command -v wc 2>/dev/null || true)
   [[ -n "$wc_cmd" && -x "$wc_cmd" ]] || wc_cmd=""
   [[ -z "$wc_cmd" && -x /bin/wc ]] && wc_cmd="/bin/wc"
   [[ -z "$wc_cmd" && -x /usr/bin/wc ]] && wc_cmd="/usr/bin/wc"
@@ -873,6 +881,62 @@ log_file_excerpt() {
 
     if (( $("$wc_cmd" -l <"$path") > max_lines )); then
       debug_log "  ... (truncated after $max_lines lines)"
+    fi
+  else
+    debug_log "$label missing or empty (path: $path)"
+  fi
+}
+
+log_sendcmd_debug_snapshot() {
+  (( debug_mode == 1 )) || return 0
+
+  local label="$1"
+  local path="$2"
+  local -i max_lines=${3:-20}
+
+  local wc_cmd sed_cmd head_cmd tail_cmd cat_cmd
+  wc_cmd=$(command -v wc 2>/dev/null || true)
+  sed_cmd=$(command -v sed 2>/dev/null || true)
+  head_cmd=$(command -v head 2>/dev/null || true)
+  tail_cmd=$(command -v tail 2>/dev/null || true)
+  cat_cmd=$(command -v cat 2>/dev/null || true)
+
+  [[ -n "$wc_cmd" && -x "$wc_cmd" ]] || wc_cmd=""
+  [[ -z "$wc_cmd" && -x /bin/wc ]] && wc_cmd="/bin/wc"
+  [[ -z "$wc_cmd" && -x /usr/bin/wc ]] && wc_cmd="/usr/bin/wc"
+
+  [[ -n "$sed_cmd" && -x "$sed_cmd" ]] || sed_cmd=""
+  [[ -z "$sed_cmd" && -x /bin/sed ]] && sed_cmd="/bin/sed"
+  [[ -z "$sed_cmd" && -x /usr/bin/sed ]] && sed_cmd="/usr/bin/sed"
+
+  [[ -n "$head_cmd" && -x "$head_cmd" ]] || head_cmd=""
+  [[ -z "$head_cmd" && -x /bin/head ]] && head_cmd="/bin/head"
+  [[ -z "$head_cmd" && -x /usr/bin/head ]] && head_cmd="/usr/bin/head"
+
+  [[ -n "$tail_cmd" && -x "$tail_cmd" ]] || tail_cmd=""
+  [[ -z "$tail_cmd" && -x /bin/tail ]] && tail_cmd="/bin/tail"
+  [[ -z "$tail_cmd" && -x /usr/bin/tail ]] && tail_cmd="/usr/bin/tail"
+
+  [[ -n "$cat_cmd" && -x "$cat_cmd" ]] || cat_cmd=""
+  [[ -z "$cat_cmd" && -x /bin/cat ]] && cat_cmd="/bin/cat"
+  [[ -z "$cat_cmd" && -x /usr/bin/cat ]] && cat_cmd="/usr/bin/cat"
+
+  if [[ -z "$wc_cmd" || -z "$sed_cmd" || -z "$head_cmd" || -z "$tail_cmd" || -z "$cat_cmd" ]]; then
+    debug_log "$label missing or empty (path: $path)"
+    return 0
+  fi
+
+  if [[ -s "$path" ]]; then
+    debug_log "$label (path: $path, size: $("$wc_cmd" -c <"$path") bytes):"
+    "$head_cmd" -n "$max_lines" "$path" | "$sed_cmd" 's/\r$//' | while IFS= read -r line; do
+      debug_log "  $line"
+    done
+
+    if (( $("$wc_cmd" -l <"$path") > max_lines )); then
+      debug_log "  ... (truncated after $max_lines lines)"
+      "$tail_cmd" -n "$max_lines" "$path" | "$sed_cmd" 's/\r$//' | while IFS= read -r line; do
+        debug_log "  $line"
+      done
     fi
   else
     debug_log "$label missing or empty (path: $path)"
@@ -899,7 +963,7 @@ emit_debug_snapshots() {
   local cmd_path="$2"
 
   log_file_excerpt "timeline debug preview" "$timeline_path" 10
-  log_file_excerpt "timestamp.cmd preview" "$cmd_path" 10
+  log_sendcmd_debug_snapshot "timestamp.cmd preview" "$cmd_path" 10
 }
 
 write_versions_file() {
@@ -1631,6 +1695,32 @@ build_burnin_filtergraph() {
 # Build sendcmd file from dvrescue log timeline
 ########################################################
 
+validate_sendcmd_file() {
+  local sendcmd_path="$1"
+
+  if [[ -z "$sendcmd_path" || ! -s "$sendcmd_path" ]]; then
+    warn "validate_sendcmd_file: missing or empty sendcmd file (${sendcmd_path:-unset})"
+    return 1
+  fi
+
+  local tmp
+  tmp=$(make_temp_file "sendcmd-rewrite" ".tmp") || {
+    warn "validate_sendcmd_file: failed to allocate temp file for sendcmd rewrite"
+    return 1
+  }
+  tmp=${tmp##*$'\n'}
+  [[ -n "$tmp" ]] || { warn "validate_sendcmd_file: empty tmp path"; return 1; }
+
+  if ! cat "$sendcmd_path" > "$tmp"; then
+    warn "validate_sendcmd_file: failed to rewrite sendcmd file"
+    rm -f "$tmp"
+    return 1
+  fi
+
+  /bin/mv "$tmp" "$sendcmd_path"
+  return 0
+}
+
 make_timestamp_cmd() {
   local in="$1"
   local cmdfile="$2"
@@ -1672,6 +1762,8 @@ make_timestamp_cmd() {
   if (( build_status != 0 )); then
     timeline_fail=1
   elif ! build_sendcmd_from_timeline "$timeline_debug" "$cmdfile"; then
+    timeline_fail=1
+  elif ! validate_sendcmd_file "$cmdfile"; then
     timeline_fail=1
   fi
 
