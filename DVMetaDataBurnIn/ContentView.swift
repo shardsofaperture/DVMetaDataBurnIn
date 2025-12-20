@@ -277,6 +277,8 @@ struct ContentView: View {
     @State private var outputMode: OutputMode = .video
     @State private var logText: String = ""
     @State private var isRunning: Bool = false
+    @State private var isProcessing: Bool = false
+    @State private var runID: String = ""
     @State private var showingAbout: Bool = false
     @State private var currentProcess: Process?
     @State private var fullLogText: String = ""
@@ -897,7 +899,16 @@ struct ContentView: View {
                             let coneOrange = Color(red: 1.0, green: 0.4, blue: 0.0)
 
                             // START button — cone orange
-                            Button(action: { runBurn() }) {
+                            Button(action: {
+                                if isProcessing {
+                                    let idValue = runID.isEmpty ? "unknown" : runID
+                                    appendToLog("[RUN] duplicate launch ignored id=\(idValue)")
+                                    return
+                                }
+                                runID = UUID().uuidString
+                                isProcessing = true
+                                runBurn()
+                            }) {
                                 Text(isRunning ? "Running…" : "Start Burn/Encode")
                                     .font(.system(size: 13, weight: .semibold))
                                     .foregroundColor(.black)
@@ -1520,6 +1531,7 @@ struct ContentView: View {
             currentProcess = nil
         }
         isRunning = false
+        isProcessing = false
     }
 
     // MARK: - Run script
@@ -1539,6 +1551,7 @@ struct ContentView: View {
     private func startFolderQueueRun() {
         guard !folderQueue.isEmpty else {
             logText = "Queue is empty."
+            isProcessing = false
             return
         }
 
@@ -1565,11 +1578,13 @@ struct ContentView: View {
 
         guard !selectedInput.isEmpty else {
             logText = "Please choose an input file or folder first."
+            isProcessing = false
             return
         }
 
         if let reason = startBlockReason(for: snapshot) {
             logText = reason
+            isProcessing = false
             return
         }
 
@@ -1584,6 +1599,12 @@ struct ContentView: View {
         if snapshot.debugMode {
             appendToLog(debugSnapshot(for: selectedInput, snapshot: snapshot), capped: false)
         }
+
+        let resolvedDestination = resolvedDestinationPath(
+            for: selectedInput,
+            destinationOverride: snapshot.destinationOverride
+        ) ?? "unknown"
+        print("[RUN] id=\(runID) mode=\(snapshot.inputMode) stitch=\(snapshot.stitchBatch) output=\(resolvedDestination)")
 
         DispatchQueue.global(qos: .userInitiated).async {
             do {
@@ -1640,6 +1661,7 @@ struct ContentView: View {
 
                 DispatchQueue.main.async {
                     self.isRunning = false
+                    self.isProcessing = false
                     if !stitchLog.isEmpty { self.appendToLog(stitchLog, capped: false) }
                     self.appendToLog("\n\n[process exit status: \(finalStatus)]")
                     handle.readabilityHandler = nil
@@ -1651,6 +1673,7 @@ struct ContentView: View {
                 DispatchQueue.main.async {
                     self.logText = "Error: \(error.localizedDescription)"
                     self.isRunning = false
+                    self.isProcessing = false
                     self.currentProcess = nil
                 }
             }
@@ -1808,6 +1831,7 @@ struct ContentView: View {
         if let outputBaseName {
             env["DVMETA_OUTPUT_BASENAME"] = outputBaseName
         }
+        env["DVMETA_RUN_ID"] = runID
         process.environment = env
         process.currentDirectoryURL = tempDir
 
