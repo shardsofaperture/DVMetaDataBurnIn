@@ -902,8 +902,8 @@ build_sendcmd_from_timeline() {
       # Two commands at same timestamp:
       #   dvdate → date
       #   dvtime → time
-      printf("%.6f drawtext@dvdate reinit text='\''%s'\''\n", t_sec, date)
-      printf("%.6f drawtext@dvtime reinit text='\''%s'\''\n", t_sec, time)
+      printf("%.6f drawtext@dvdate reinit text='\''%s'\'';\n", t_sec, date)
+      printf("%.6f drawtext@dvtime reinit text='\''%s'\'';\n", t_sec, time)
     }
   ' "$tsv_path" >> "$sendcmd_path"
 
@@ -919,6 +919,46 @@ validate_sendcmd_file() {
 
   if [[ -z "$cmdfile" || ! -f "$cmdfile" ]]; then
     warn "validate_sendcmd_file: missing sendcmd file: $cmdfile"
+    return 1
+  fi
+
+  if [[ ! -s "$cmdfile" ]]; then
+    echo "[ERROR] sendcmd output is empty: $cmdfile" >&2
+    return 1
+  fi
+
+  local missing_semicolons
+  missing_semicolons=$(LC_ALL=C awk '
+    NF {
+      line = $0
+      sub(/[[:space:]]+$/, "", line)
+      if (line !~ /;$/) {
+        print line
+        count++
+        if (count >= 5) {
+          exit
+        }
+      }
+    }
+    END { if (count > 0) exit 2 }
+  ' "$cmdfile")
+  if [[ -n "$missing_semicolons" ]]; then
+    echo "[ERROR] sendcmd output contains lines missing terminating ';':" >&2
+    while IFS= read -r line; do
+      echo "  $line" >&2
+    done <<< "$missing_semicolons"
+    return 1
+  fi
+
+  if ! grep -q "drawtext@dvdate" "$cmdfile"; then
+    echo "[ERROR] sendcmd output missing dvdate commands: $cmdfile" >&2
+    LC_ALL=C awk 'NR<=5 {print "  " $0} NR==5 {exit}' "$cmdfile" >&2
+    return 1
+  fi
+
+  if ! grep -q "drawtext@dvtime" "$cmdfile"; then
+    echo "[ERROR] sendcmd output missing dvtime commands: $cmdfile" >&2
+    LC_ALL=C awk 'NR<=5 {print "  " $0} NR==5 {exit}' "$cmdfile" >&2
     return 1
   fi
 
@@ -1980,19 +2020,7 @@ make_timestamp_cmd() {
     if ! validate_sendcmd_file "$cmdfile"; then
       timeline_fail=1
     fi
-    if [[ ! -s "$cmdfile" ]]; then
-      echo "[ERROR] sendcmd output is empty for $in" >&2
-      timeline_fail=1
-    elif ! grep -q "drawtext@dvdate" "$cmdfile"; then
-      echo "[ERROR] sendcmd output missing dvdate commands for $in" >&2
-      timeline_fail=1
-    elif ! grep -q "drawtext@dvtime" "$cmdfile"; then
-      echo "[ERROR] sendcmd output missing dvtime commands for $in" >&2
-      timeline_fail=1
-    elif grep -q ';[[:space:]]*$' "$cmdfile"; then
-      echo "[ERROR] sendcmd output contains trailing semicolons for $in" >&2
-      timeline_fail=1
-    fi
+    :
   fi
 
   if (( timeline_fail != 0 )); then
