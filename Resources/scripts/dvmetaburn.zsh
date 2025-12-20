@@ -894,13 +894,16 @@ build_sendcmd_from_timeline() {
       date = escape_single_quotes(date)
       time = escape_single_quotes(time)
 
+      # Strip DV-style frame suffix (e.g. HH:MM:SS;FF -> HH:MM:SS)
+      time_clean = time
+      sub(/;[0-9][0-9]$/, "", time_clean)
+
       # Dates are YYYY-MM-DD, no spaces/colons, so they’re fine now.
 
-      # Two commands at same timestamp:
+      # Single command line per timestamp:
       #   dvdate → date
       #   dvtime → time
-      printf("%.6f drawtext@dvdate reinit text='\''%s'\'';\n", t_sec, date)
-      printf("%.6f drawtext@dvtime reinit text='\''%s'\'';\n", t_sec, time)
+      printf("%.6f drawtext@dvdate reinit text='\''%s'\''; drawtext@dvtime reinit text='\''%s'\'';\n", t_sec, date, time_clean)
     }
   ' "$tsv_path" >> "$sendcmd_path"
 
