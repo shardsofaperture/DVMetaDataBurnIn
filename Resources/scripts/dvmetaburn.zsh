@@ -3382,22 +3382,6 @@ if [[ "$mode" == "batch" ]]; then
 
     echo "[INFO] Final stitched output: $final_stitch_out"
 
-    local -a dest_matches
-    dest_matches=("${output_dir_override%/}/${base_name}"*.${target_ext}(N))
-    if (( ${#dest_matches[@]} > 1 )); then
-      info "[DUPLICATE] Found ${#dest_matches[@]} outputs in ${output_dir_override%/} for base ${base_name}: ${(j:, :)dest_matches}"
-      local duplicate_path
-      for duplicate_path in "${dest_matches[@]}"; do
-        if [[ "$duplicate_path" == "$final_stitch_out" ]]; then
-          continue
-        fi
-        if rm -f "$duplicate_path"; then
-          info "[DUPLICATE] removed $duplicate_path"
-        else
-          warn "[DUPLICATE] failed to remove $duplicate_path"
-        fi
-      done
-    fi
     exit 0
   fi
 
