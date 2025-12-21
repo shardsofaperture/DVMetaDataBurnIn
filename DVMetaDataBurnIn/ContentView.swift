@@ -1742,6 +1742,28 @@ struct ContentView: View {
         let bundledLibDirURL = bundledScriptURL.deletingLastPathComponent().appendingPathComponent("lib", isDirectory: true)
         if fm.fileExists(atPath: bundledLibDirURL.path) {
             try fm.copyItem(at: bundledLibDirURL, to: tempLibDirURL)
+        } else {
+            try fm.createDirectory(at: tempLibDirURL, withIntermediateDirectories: true)
+            let libScripts = [
+                "logging.zsh",
+                "pathing.zsh",
+                "artifacts.zsh",
+                "dvrescue.zsh",
+                "timeline.zsh",
+                "filtergraph.zsh",
+                "encode.zsh",
+                "stitch.zsh",
+                "cleanup.zsh",
+                "pipeline.zsh"
+            ]
+            for scriptName in libScripts {
+                guard let scriptURL = findBundledResource(named: scriptName) else {
+                    continue
+                }
+                let destinationURL = tempLibDirURL.appendingPathComponent(scriptName)
+                _ = try? fm.removeItem(at: destinationURL)
+                try fm.copyItem(at: scriptURL, to: destinationURL)
+            }
         }
 
         let attrs: [FileAttributeKey: Any] = [
