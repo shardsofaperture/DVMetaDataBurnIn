@@ -5,13 +5,46 @@ setopt ERR_EXIT
 # ERR_FAIL is NOT a real zsh option -> remove it
 # setopt ERR_FAIL
 
-script_root="${0:A:h}"
-lib_root="${script_root}/lib"
+script_root="$(cd -- "$(dirname -- "$0")" && pwd)"
+lib_dir="${script_root%/}/lib"
 
-if ! source "${lib_root}/env.zsh"; then
-  print -r -- "[FATAL] Failed to source ${lib_root}/env.zsh" >&2
+fatal() {
+  print -r -- "[FATAL] $*" >&2
   exit 1
+}
+
+export PATH="/usr/bin:/bin:/usr/sbin:/sbin${PATH:+:$PATH}"
+
+if [[ -f "${lib_dir}/env.zsh" ]]; then
+  /bin/zsh -n "${lib_dir}/env.zsh" || fatal "Parse check failed: ${lib_dir}/env.zsh"
+  if ! source "${lib_dir}/env.zsh"; then
+    fatal "Failed to source ${lib_dir}/env.zsh"
+  fi
+else
+  export LC_ALL=C LC_NUMERIC=C LANG=C
+  print -r -- "[WARN] Missing ${lib_dir}/env.zsh; using inline env defaults." >&2
 fi
+
+required_libs=(
+  logging.zsh
+  pathing.zsh
+  artifacts.zsh
+  dvrescue.zsh
+  timeline.zsh
+  filtergraph.zsh
+  encode.zsh
+  stitch.zsh
+  cleanup.zsh
+  pipeline.zsh
+)
+
+for lib_file in "${required_libs[@]}"; do
+  [[ -f "${lib_dir}/${lib_file}" ]] || fatal "Missing required lib: ${lib_dir}/${lib_file}"
+done
+
+for lib_file in "${required_libs[@]}"; do
+  /bin/zsh -n "${lib_dir}/${lib_file}" || fatal "Parse check failed: ${lib_dir}/${lib_file}"
+done
 
 RUN_ID="${DVMETA_RUN_ID:-${RUN_ID:-}}"
 echo "[RUN] id=${RUN_ID:-} argv=$*"
@@ -62,9 +95,8 @@ for arg in "$@"; do
 done
 
 for lib in logging pathing artifacts dvrescue timeline filtergraph encode stitch cleanup pipeline; do
-  if ! source "${lib_root}/${lib}.zsh"; then
-    print -r -- "[FATAL] Failed to source ${lib_root}/${lib}.zsh" >&2
-    exit 1
+  if ! source "${lib_dir}/${lib}.zsh"; then
+    fatal "Failed to source ${lib_dir}/${lib}.zsh"
   fi
 done
 
