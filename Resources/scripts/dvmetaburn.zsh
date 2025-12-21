@@ -11,11 +11,6 @@ echo "[RUN] id=${RUN_ID:-} argv=$*"
 TRAPZERR() {
   local rc=$?
 
-  # ZSH_COMMAND / ZSH_DEBUG_CMD can be unset; avoid blowing up under -u
-  local cmd="${ZSH_DEBUG_CMD-}"
-  [[ -z "$cmd" ]] && cmd="${ZSH_COMMAND-}"
-  [[ -z "$cmd" ]] && cmd="<unknown command>"
-
   # funcfiletrace may be unset; guard it
   local where
   if (( ${+funcfiletrace} )); then
@@ -24,7 +19,7 @@ TRAPZERR() {
     where="${(%):-%N}:${LINENO}"
   fi
 
-  print -r -- "[FATAL] (exit=$rc) $cmd | $where" >&2
+  print -r -- "[FATAL] (exit=$rc) stage=${last_stage_marker} cmd=${last_stage_cmd} | $where" >&2
 }
 
 setopt NULL_GLOB
@@ -188,6 +183,7 @@ typeset -ga run_notes=()
 typeset -ga initial_run_notes=()
 typeset -ga sanitized_extra_args=()
 typeset -g last_stage_marker=""
+typeset -g last_stage_cmd=""
 extra_args_raw=""
 
 append_run_note() {
@@ -210,6 +206,7 @@ run_stage() {
   local stage="$1"
   shift
 
+  last_stage_cmd="$*"
   log_stage_marker "$stage"
 
   set +e
