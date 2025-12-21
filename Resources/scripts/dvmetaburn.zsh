@@ -936,7 +936,7 @@ build_sendcmd_from_timeline() {
       gsub(/"/, "\\\"", text)
       gsub(/\047/, "\\\047", text)
       gsub(/%/, "\\%", text)
-      gsub(/:/, "\\:", text)
+      gsub(/:/, "\\\\:", text)
       return text
     }
 
