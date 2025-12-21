@@ -2,42 +2,40 @@
 
 apply_job_spec() {
   local spec_name="$1"
-  typeset -n spec="$spec_name"
+  eval 'mode="${'"$spec_name"'[mode]-}"'
+  eval 'layout="${'"$spec_name"'[layout]-}"'
+  eval 'format="${'"$spec_name"'[format]-}"'
+  eval 'encode_quality="${'"$spec_name"'[encode_quality]-}"'
+  eval 'output_mode="${'"$spec_name"'[output_mode]-}"'
+  eval 'burn_mode="${'"$spec_name"'[burn_mode]-}"'
+  eval 'subtitle_mode="${'"$spec_name"'[subtitle_mode]-}"'
+  eval 'deinterlace_mode="${'"$spec_name"'[deinterlace_mode]-}"'
+  eval 'missing_meta="${'"$spec_name"'[missing_meta]-}"'
+  eval 'fontfile="${'"$spec_name"'[fontfile]-}"'
+  eval 'fontname="${'"$spec_name"'[fontname]-}"'
+  eval 'ffmpeg_bin="${'"$spec_name"'[ffmpeg_bin]-}"'
+  eval 'dvrescue_bin="${'"$spec_name"'[dvrescue_bin]-}"'
+  eval 'dest_dir="${'"$spec_name"'[dest_dir]-}"'
+  eval 'output_base="${'"$spec_name"'[output_base]-}"'
+  eval 'scratch_dir="${'"$spec_name"'[scratch_dir]-}"'
+  eval 'scratch_cleanup_policy="${'"$spec_name"'[scratch_cleanup_policy]-}"'
+  eval 'keep_on_failure="${'"$spec_name"'[keep_on_failure]-}"'
+  eval 'stitch_enabled="${'"$spec_name"'[stitch_enabled]-}"'
+  eval 'stitch_batch="${'"$spec_name"'[stitch_batch]-}"'
+  eval 'stitch_input_list="${'"$spec_name"'[stitch_input_list]-}"'
+  eval 'debug_mode="${'"$spec_name"'[debug_mode]-}"'
+  eval 'burn_granularity="${'"$spec_name"'[burn_granularity]-}"'
 
-  mode="$spec[mode]"
-  layout="$spec[layout]"
-  format="$spec[format]"
-  encode_quality="$spec[encode_quality]"
-  output_mode="$spec[output_mode]"
-  burn_mode="$spec[burn_mode]"
-  subtitle_mode="$spec[subtitle_mode]"
-  deinterlace_mode="$spec[deinterlace_mode]"
-  missing_meta="$spec[missing_meta]"
-  fontfile="$spec[fontfile]"
-  fontname="$spec[fontname]"
-  ffmpeg_bin="$spec[ffmpeg_bin]"
-  dvrescue_bin="$spec[dvrescue_bin]"
-  dest_dir="$spec[dest_dir]"
-  output_base="$spec[output_base]"
-  scratch_dir="$spec[scratch_dir]"
-  scratch_cleanup_policy="$spec[scratch_cleanup_policy]"
-  keep_on_failure="$spec[keep_on_failure]"
-  stitch_enabled="$spec[stitch_enabled]"
-  stitch_batch="$spec[stitch_batch]"
-  stitch_input_list="$spec[stitch_input_list]"
-  debug_mode="$spec[debug_mode]"
-  burn_granularity="$spec[burn_granularity]"
+  eval 'requested_format="${'"$spec_name"'[requested_format]-}"'
+  eval 'requested_encode_quality="${'"$spec_name"'[requested_encode_quality]-}"'
+  eval 'effective_format="${'"$spec_name"'[effective_format]-}"'
+  eval 'effective_encode_quality="${'"$spec_name"'[effective_encode_quality]-}"'
+  eval 'effective_quality_kind="${'"$spec_name"'[effective_quality_kind]-}"'
+  eval 'format_coerced="${'"$spec_name"'[format_coerced]-}"'
+  eval 'format_coercion_reason="${'"$spec_name"'[format_coercion_reason]-}"'
 
-  requested_format="$spec[requested_format]"
-  requested_encode_quality="$spec[requested_encode_quality]"
-  effective_format="$spec[effective_format]"
-  effective_encode_quality="$spec[effective_encode_quality]"
-  effective_quality_kind="$spec[effective_quality_kind]"
-  format_coerced="$spec[format_coerced]"
-  format_coercion_reason="$spec[format_coercion_reason]"
-
-  run_scratch_root="$spec[run_scratch_root]"
-  artifact_root="$spec[artifact_root]"
+  eval 'run_scratch_root="${'"$spec_name"'[run_scratch_root]-}"'
+  eval 'artifact_root="${'"$spec_name"'[artifact_root]-}"'
 
   sanitized_extra_args=()
   if (( ${#job_spec_extra_args[@]} > 0 )); then
