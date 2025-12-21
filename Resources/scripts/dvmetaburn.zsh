@@ -911,6 +911,7 @@ build_sendcmd_from_timeline() {
   LC_NUMERIC=C awk -F '\t' -v fps="$fps_in" '
     function escape_drawtext_reinit_value(text) {
       gsub(/\\/, "\\\\", text)
+      gsub(/"/, "\\\"", text)
       gsub(/\047/, "\\\047", text)
       gsub(/%/, "\\%", text)
       gsub(/:/, "\\:", text)
@@ -947,8 +948,8 @@ build_sendcmd_from_timeline() {
         tm = escape_drawtext_reinit_value(time[i])
 
         # IMPORTANT: interval syntax + explicit enter flag
-        printf("%.6f-%.6f enter drawtext@dvdate reinit text=%s\n", start, end, d)
-        printf("%.6f-%.6f enter drawtext@dvtime reinit text=%s\n", start, end, tm)
+        printf("%.6f-%.6f [enter] drawtext@dvdate reinit \"text=%s\"\n", start, end, d)
+        printf("%.6f-%.6f [enter] drawtext@dvtime reinit \"text=%s\"\n", start, end, tm)
       }
     }
   ' "$tsv_path" >> "$sendcmd_path"
@@ -2218,6 +2219,28 @@ make_timestamp_cmd() {
   if (( timeline_fail != 0 )); then
     echo "[ERROR] Failed to build sendcmd timeline from dvrescue.log" >&2
     return 2
+  fi
+
+  local font cmd_escaped font_escaped
+  if ! font="$(find_font)"; then
+    echo "[ERROR] Unable to locate a usable font for sendcmd smoke test. Provide --fontfile, set DVMETABURN_FONTFILE, or place a supported font in Resources/fonts/." >&2
+    return 1
+  fi
+
+  cmd_escaped=$(escape_for_single_quotes "$cmdfile")
+  font_escaped=$(escape_for_single_quotes "$font")
+  local vf_smoke="sendcmd=f='${cmd_escaped}',drawtext@dvdate=fontfile='${font_escaped}':text='':fontsize=24:x=0:y=0,drawtext@dvtime=fontfile='${font_escaped}':text='':fontsize=24:x=0:y=30"
+  local -a sendcmd_smoke_cmd=(
+    "$ffmpeg_bin" -v error
+    -f lavfi -i "color=c=black:s=16x16:d=1"
+    -vf "$vf_smoke"
+    -frames:v 1
+    -f null -
+  )
+  log_ffmpeg_command "sendcmd-smoke" "${sendcmd_smoke_cmd[@]}"
+  if ! run_stage "sendcmd-smoke" "${sendcmd_smoke_cmd[@]}"; then
+    echo "[ERROR] sendcmd smoke test failed for: $cmdfile" >&2
+    return 1
   fi
 
   debug_log "sendcmd lines for $in: $(wc -l < "$cmdfile" | tr -d '[:space:]') (expected: $(( last_parse_timeline_entries * 2 )))"
