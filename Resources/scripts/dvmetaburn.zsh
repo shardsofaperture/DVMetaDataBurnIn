@@ -369,6 +369,8 @@ last_subtitle_output_path=""
 last_passthrough_output_path=""
 scratch_dir="${DVMETA_SCRATCH_DIR:-}"
 run_scratch_root=""
+scratch_cleanup_policy="${DVMETA_SCRATCH_CLEANUP:-never}"
+keep_on_failure="${DVMETA_KEEP_ON_FAILURE:-0}"
 
 # Optional environment overrides
 : "${DVMETABURN_FONTFILE:=}"   # override font path
@@ -400,6 +402,10 @@ while [[ $# -gt 0 ]]; do
     --dest-dir=*) dest_dir="${1#*=}"; shift ;;
     --output-base=*) output_base="${1#*=}"; shift ;;
     --scratch-dir=*) scratch_dir="${1#*=}"; shift ;;
+    --scratch-cleanup=*) scratch_cleanup_policy="${1#*=}"; shift ;;
+    --cleanup=*) scratch_cleanup_policy="${1#*=}"; shift ;;
+    --keep-on-failure=*) keep_on_failure="${1#*=}"; shift ;;
+    --keep-on-failure) keep_on_failure=1; shift ;;
     --stitch) stitch_enabled=1; shift ;;
         --stitch-mode=*)
       case "${1#*=}" in
@@ -448,6 +454,40 @@ encode_quality="${encode_quality:l}"
 if [[ -z "$encode_quality" ]]; then
   encode_quality="medium"
 fi
+
+scratch_cleanup_policy="${scratch_cleanup_policy//[[:space:]]/}"
+scratch_cleanup_policy="${scratch_cleanup_policy//_/-}"
+scratch_cleanup_policy="${scratch_cleanup_policy:l}"
+case "$scratch_cleanup_policy" in
+  success|on-success|clear-on-success)
+    scratch_cleanup_policy="success"
+    ;;
+  failure|on-failure|clear-on-failure)
+    scratch_cleanup_policy="failure"
+    ;;
+  never|off|none|"")
+    scratch_cleanup_policy="never"
+    ;;
+  *)
+    warn "Unknown scratch cleanup policy '$scratch_cleanup_policy'; defaulting to never."
+    scratch_cleanup_policy="never"
+    ;;
+esac
+
+keep_on_failure="${keep_on_failure//[[:space:]]/}"
+keep_on_failure="${keep_on_failure:l}"
+case "$keep_on_failure" in
+  1|true|yes|on)
+    keep_on_failure=1
+    ;;
+  0|false|no|off|"")
+    keep_on_failure=0
+    ;;
+  *)
+    warn "Unknown keep-on-failure value '$keep_on_failure'; defaulting to off."
+    keep_on_failure=0
+    ;;
+esac
 
 output_mode="${output_mode//[[:space:]]/}"
 output_mode="${output_mode:l}"
@@ -1267,6 +1307,61 @@ ensure_cleanup_stage() {
   fi
 }
 
+cleanup_run_scratch_root() {
+  local status_label="$1"
+
+  if [[ -z "$run_scratch_root" ]]; then
+    debug_log "[cleanup] No scratch root recorded; skipping cleanup."
+    return 0
+  fi
+
+  local scratch_root="${run_scratch_root%/}"
+  if [[ -z "$scratch_root" || "$scratch_root" == "/" ]]; then
+    warn "[cleanup] Refusing to remove unsafe scratch root: ${run_scratch_root:-<empty>}"
+    return 1
+  fi
+
+  if [[ ! -d "$scratch_root" ]]; then
+    debug_log "[cleanup] Scratch root already removed: $scratch_root"
+    return 0
+  fi
+
+  local should_cleanup=0
+  case "$scratch_cleanup_policy" in
+    success)
+      if [[ "$status_label" == "success" ]]; then
+        should_cleanup=1
+      fi
+      ;;
+    failure)
+      if [[ "$status_label" != "success" ]]; then
+        should_cleanup=1
+      fi
+      ;;
+    never)
+      should_cleanup=0
+      ;;
+  esac
+
+  if (( should_cleanup == 0 )); then
+    debug_log "[cleanup] Scratch cleanup policy '${scratch_cleanup_policy}' did not match status '${status_label}'."
+    return 0
+  fi
+
+  if (( keep_on_failure == 1 )) && [[ "$status_label" != "success" ]]; then
+    info "[cleanup] keep-on-failure enabled; preserving scratch root: $scratch_root"
+    return 0
+  fi
+
+  info "[cleanup] Clearing scratch root (${scratch_cleanup_policy}, status=${status_label}): $scratch_root"
+  if ! rm -rf -- "$scratch_root"; then
+    warn "[cleanup] Failed to remove scratch root: $scratch_root"
+    return 1
+  fi
+
+  return 0
+}
+
 emit_debug_snapshots() {
   (( debug_mode == 1 )) || return 0
 
@@ -1431,6 +1526,8 @@ finish_run() {
     info "[output] Final output path: $final_output"
     debug_log "Final output path: $final_output"
   fi
+
+  cleanup_run_scratch_root "$status_label"
 
   return "$exit_code"
 }
@@ -3071,7 +3168,7 @@ fi
 if [[ "$mode" == "single" ]]; then
   stitch_batch=0
   if [[ $# -ne 1 ]]; then
-    echo "Usage: $0 [--mode=single] [--layout=stacked|single] [--format=mov|mp4|mkv] [--quality=low|medium|high] [--burn-mode=burnin|off|subtitleTrack] [--subtitle-mode=per-clip|continuous] [--deinterlace=off|30p|60p (default: off)] [--scratch-dir=/path (or DVMETA_SCRATCH_DIR)] [--output-base=name] [--stitch [--stitch-inputs=/path/to/list.txt]] /path/to/clip.avi" >&2
+    echo "Usage: $0 [--mode=single] [--layout=stacked|single] [--format=mov|mp4|mkv] [--quality=low|medium|high] [--burn-mode=burnin|off|subtitleTrack] [--subtitle-mode=per-clip|continuous] [--deinterlace=off|30p|60p (default: off)] [--scratch-dir=/path (or DVMETA_SCRATCH_DIR)] [--scratch-cleanup=success|failure|never] [--keep-on-failure] [--output-base=name] [--stitch [--stitch-inputs=/path/to/list.txt]] /path/to/clip.avi" >&2
     exit 1
   fi
   debug_log "Running in single-file mode with target: $1"
@@ -3086,7 +3183,7 @@ fi
 
 if [[ "$mode" == "batch" ]]; then
   if [[ $# -ne 1 ]]; then
-    echo "Usage: $0 --mode=batch [--layout=stacked|single] [--format=mov|mp4|mkv] [--quality=low|medium|high] [--burn-mode=burnin|off|subtitleTrack] [--subtitle-mode=per-clip|continuous] [--deinterlace=off|30p|60p (default: off)] [--scratch-dir=/path (or DVMETA_SCRATCH_DIR)] [--output-base=name] [--stitch [--stitch-inputs=/path/to/list.txt]] /path/to/folder" >&2
+    echo "Usage: $0 --mode=batch [--layout=stacked|single] [--format=mov|mp4|mkv] [--quality=low|medium|high] [--burn-mode=burnin|off|subtitleTrack] [--subtitle-mode=per-clip|continuous] [--deinterlace=off|30p|60p (default: off)] [--scratch-dir=/path (or DVMETA_SCRATCH_DIR)] [--scratch-cleanup=success|failure|never] [--keep-on-failure] [--output-base=name] [--stitch [--stitch-inputs=/path/to/list.txt]] /path/to/folder" >&2
     exit 1
   fi
 
