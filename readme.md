@@ -94,6 +94,12 @@ Bundled tools:
 
 ---
 
+## Development Notes
+
+- Libraries in `Resources/scripts/lib` must be side-effect free; `env.zsh` must be sourced first in the entrypoint.
+
+---
+
 ## Credits
 
 - App & UI: Zach Zarzycki (powered by a suspicious amount of late-night vibe-coding)  
