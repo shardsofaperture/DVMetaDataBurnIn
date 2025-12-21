@@ -47,6 +47,15 @@ TMPPREFIX="${TMPDIR}/zsh-"
 mkdir -p "$TMPDIR"
 export TMPDIR TMPPREFIX
 
+script_root="${0:A:h}"
+lib_root="${script_root}/lib"
+
+for lib in logging pathing artifacts dvrescue timeline filtergraph encode stitch cleanup pipeline; do
+  source "${lib_root}/${lib}.zsh"
+done
+
+: <<'DVMETA_FUNCTIONS'
+
 fatal() {
   echo "[ERROR] $*" >&2
   exit 1
@@ -178,6 +187,8 @@ sanitize_extra_ffmpeg_args() {
   fi
 }
 
+DVMETA_FUNCTIONS
+
 
 typeset -ga run_notes=()
 typeset -ga initial_run_notes=()
@@ -185,6 +196,10 @@ typeset -ga sanitized_extra_args=()
 typeset -g last_stage_marker=""
 typeset -g last_stage_cmd=""
 extra_args_raw=""
+typeset -A job_spec=()
+typeset -ga job_spec_extra_args=()
+typeset -ga job_spec_initial_run_notes=()
+selftest_requested=0
 
 append_run_note() {
   local msg="$*"
@@ -450,6 +465,7 @@ while [[ $# -gt 0 ]]; do
     --debug) debug_mode=1; shift ;;
     --extra-ffmpeg-flags=*) extra_args_raw="${1#*=}"; shift ;;
     --extra-args=*) extra_args_raw="${1#*=}"; shift ;;
+    --selftest) selftest_requested=1; shift ;;
     --) shift; break ;;
     -*) fatal "Unknown option: $1" ;;
     *) break ;;
@@ -760,6 +776,73 @@ typeset -g resolved_audio_codec
 typeset -g format_coerced=0
 typeset -g format_coercion_reason=""
 typeset -g cleanup_stage_done=0
+
+job_spec=(
+  mode "$mode"
+  layout "$layout"
+  format "$format"
+  encode_quality "$encode_quality"
+  output_mode "$output_mode"
+  burn_mode "$burn_mode"
+  subtitle_mode "$subtitle_mode"
+  deinterlace_mode "$deinterlace_mode"
+  missing_meta "$missing_meta"
+  fontfile "$fontfile"
+  fontname "$fontname"
+  ffmpeg_bin "$ffmpeg_bin"
+  dvrescue_bin "$dvrescue_bin"
+  dest_dir "$dest_dir"
+  output_base "$output_base"
+  scratch_dir "$scratch_dir"
+  scratch_cleanup_policy "$scratch_cleanup_policy"
+  keep_on_failure "$keep_on_failure"
+  stitch_enabled "$stitch_enabled"
+  stitch_batch "$stitch_batch"
+  stitch_input_list "$stitch_input_list"
+  debug_mode "$debug_mode"
+  burn_granularity "$burn_granularity"
+  requested_format "$requested_format"
+  requested_encode_quality "$requested_encode_quality"
+  effective_format "$effective_format"
+  effective_encode_quality "$effective_encode_quality"
+  effective_quality_kind "$effective_quality_kind"
+  format_coerced "$format_coerced"
+  format_coercion_reason "$format_coercion_reason"
+  run_scratch_root "$run_scratch_root"
+  artifact_root "$artifact_root"
+)
+
+job_spec_extra_args=("${sanitized_extra_args[@]}")
+job_spec_initial_run_notes=("${initial_run_notes[@]}")
+
+subtitle_font_name="$fontname"
+
+debug_log "Mode: $mode"
+debug_log "Layout: $layout"
+debug_log "Format: $format"
+debug_log "Encode quality (requested/effective): $requested_encode_quality/$effective_encode_quality"
+debug_log "Burn mode: $burn_mode"
+if [[ "$burn_mode" == "subtitleTrack" ]]; then
+  debug_log "Subtitle mode: $subtitle_mode"
+fi
+debug_log "Stitch enabled: $stitch_enabled"
+debug_log "Stitch batch enabled: $stitch_batch"
+if [[ -n "$stitch_input_list" ]]; then
+  debug_log "Stitch input list: $stitch_input_list"
+fi
+debug_log "Missing meta handling: $missing_meta"
+debug_log "Requested font name: ${subtitle_font_name:-<auto>}"
+debug_log "ffmpeg path: $ffmpeg_bin"
+debug_log "dvrescue path: $dvrescue_bin"
+dest_dir="${dest_dir%/}"
+if [[ -n "$dest_dir" ]]; then
+  debug_log "Requested destination override: $dest_dir"
+else
+  debug_log "Requested destination override: (default: input folder)"
+fi
+job_spec[dest_dir]="$dest_dir"
+
+: <<'DVMETA_FUNCTIONS_2'
 
 prepare_artifact_dir() {
   local input_path="$1"
@@ -3246,6 +3329,8 @@ process_file_controller() {
   process_file_core "$in" "$base" "$out_ext" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$cmdfile" "$timeline_debug" "$ass_artifact" "$run_manifest" "$versions_file"
 }
 
+DVMETA_FUNCTIONS_2
+
 ########################################################
 # Mode routing
 ########################################################
@@ -3255,8 +3340,14 @@ if [[ "${RUN_OFFLINE_TEST:-0}" == "1" ]]; then
   exit $?
 fi
 
+if (( selftest_requested == 1 )); then
+  run_selftest
+  exit $?
+fi
+
 if [[ "$mode" == "single" ]]; then
   stitch_batch=0
+  job_spec[stitch_batch]=0
   if [[ $# -ne 1 ]]; then
     echo "Usage: $0 [--mode=single] [--layout=stacked|single] [--format=mov|mp4|mkv] [--quality=low|medium|high] [--burn-mode=burnin|off|subtitleTrack] [--subtitle-mode=per-clip|continuous] [--deinterlace=off|30p|60p (default: off)] [--scratch-dir=/path (or DVMETA_SCRATCH_DIR)] [--scratch-cleanup=success|failure|never] [--keep-on-failure] [--output-base=name] [--stitch [--stitch-inputs=/path/to/list.txt]] /path/to/clip.avi" >&2
     exit 1
@@ -3267,7 +3358,7 @@ if [[ "$mode" == "single" ]]; then
     single_base_override="$output_base"
   fi
 
-  process_file_controller "$1" "$single_base_override"
+  process_one_file "job_spec" "$1" "$single_base_override"
   exit $?
 fi
 
@@ -3381,7 +3472,7 @@ if [[ "$mode" == "batch" ]]; then
       debug_log "[stitch/batch] Burning part $part_base from $abs (artifacts -> $part_artifact_dir)"
 
       last_stage_marker=""
-      if ! process_file_controller "$abs" "$part_base" "$burned_parts_dir" "$part_artifact_dir"; then
+      if ! process_one_file "job_spec" "$abs" "$part_base" "$burned_parts_dir" "$part_artifact_dir"; then
         had_part_failure=1
         local stage_suffix=""
         if [[ -n "$last_stage_marker" ]]; then
@@ -3597,7 +3688,7 @@ if [[ "$mode" == "batch" ]]; then
       file_base_override="${batch_base_prefix}_${abs:t:r}"
     fi
 
-    if ! process_file_controller "$abs" "$file_base_override" "$file_output_dir_override"; then
+    if ! process_one_file "job_spec" "$abs" "$file_base_override" "$file_output_dir_override"; then
       echo "[ERROR] Failed while processing: $abs" >&2
       # continue to next file instead of bailing
       continue

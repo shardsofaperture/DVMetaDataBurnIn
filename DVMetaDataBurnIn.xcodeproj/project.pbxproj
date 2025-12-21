@@ -33,6 +33,16 @@
 		92908F912ED9603D00A9A38A /* NOTICE.txt in Resources */ = {isa = PBXBuildFile; fileRef = 92908F7F2ED9603D00A9A38A /* NOTICE.txt */; };
 		92908F922ED9603D00A9A38A /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 92908F802ED9603D00A9A38A /* README.md */; };
 		92908F992ED967E000A9A38A /* dvmetaburn.zsh in Resources */ = {isa = PBXBuildFile; fileRef = 92908F982ED967E000A9A38A /* dvmetaburn.zsh */; };
+		60CEC031856423DE28BB95F3 /* logging.zsh in Resources */ = {isa = PBXBuildFile; fileRef = 47E8B06DDCD08C67FE197914 /* logging.zsh */; };
+		F8BA9339B450C01FE6AA80D2 /* pathing.zsh in Resources */ = {isa = PBXBuildFile; fileRef = AE53EEC8DC22AD7CBCA410E9 /* pathing.zsh */; };
+		F0E58AF48D7D71C6DA5DC9FC /* artifacts.zsh in Resources */ = {isa = PBXBuildFile; fileRef = D1DED82785F951E5C449C616 /* artifacts.zsh */; };
+		FC54FCFC00D7AD1F031E517E /* dvrescue.zsh in Resources */ = {isa = PBXBuildFile; fileRef = A543993E7BDC95B2D707B015 /* dvrescue.zsh */; };
+		D2F41085A4E971E85AC0B28C /* timeline.zsh in Resources */ = {isa = PBXBuildFile; fileRef = F25744C20CAE148118460450 /* timeline.zsh */; };
+		E221B32B563FC44B5A013D70 /* filtergraph.zsh in Resources */ = {isa = PBXBuildFile; fileRef = A99486EA548C194E25780556 /* filtergraph.zsh */; };
+		EC91B02E4C3A2D01BF38AD04 /* encode.zsh in Resources */ = {isa = PBXBuildFile; fileRef = E59348A0EA7850E992AF90D0 /* encode.zsh */; };
+		1A99FEF5DD2EF92131B7EB20 /* stitch.zsh in Resources */ = {isa = PBXBuildFile; fileRef = F85EBB44BFE6FB0F64889FBE /* stitch.zsh */; };
+		CE2581D2AA994BD2D698BAD3 /* cleanup.zsh in Resources */ = {isa = PBXBuildFile; fileRef = 9E646E6449899D732CE5F8CF /* cleanup.zsh */; };
+		688F0C413CC9C9540ED2D540 /* pipeline.zsh in Resources */ = {isa = PBXBuildFile; fileRef = 73C9F905F39EB9C5D8796FF5 /* pipeline.zsh */; };
 		92908F9B2ED9743300A9A38A /* ffmpeg in Resources */ = {isa = PBXBuildFile; fileRef = 92908F9A2ED9743300A9A38A /* ffmpeg */; };
 		92908F9F2ED987C700A9A38A /* SplashContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92908F9E2ED987C700A9A38A /* SplashContentView.swift */; };
 		92908FA32EDA720800A9A38A /* readme.md in Resources */ = {isa = PBXBuildFile; fileRef = 92908FA22EDA720800A9A38A /* readme.md */; };
@@ -66,6 +76,16 @@
 		92908F7F2ED9603D00A9A38A /* NOTICE.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = NOTICE.txt; sourceTree = "<group>"; };
 		92908F802ED9603D00A9A38A /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		92908F982ED967E000A9A38A /* dvmetaburn.zsh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = dvmetaburn.zsh; sourceTree = "<group>"; usesTabs = 1; };
+		47E8B06DDCD08C67FE197914 /* logging.zsh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = logging.zsh; sourceTree = "<group>"; };
+		AE53EEC8DC22AD7CBCA410E9 /* pathing.zsh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = pathing.zsh; sourceTree = "<group>"; };
+		D1DED82785F951E5C449C616 /* artifacts.zsh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = artifacts.zsh; sourceTree = "<group>"; };
+		A543993E7BDC95B2D707B015 /* dvrescue.zsh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = dvrescue.zsh; sourceTree = "<group>"; };
+		F25744C20CAE148118460450 /* timeline.zsh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = timeline.zsh; sourceTree = "<group>"; };
+		A99486EA548C194E25780556 /* filtergraph.zsh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = filtergraph.zsh; sourceTree = "<group>"; };
+		E59348A0EA7850E992AF90D0 /* encode.zsh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = encode.zsh; sourceTree = "<group>"; };
+		F85EBB44BFE6FB0F64889FBE /* stitch.zsh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = stitch.zsh; sourceTree = "<group>"; };
+		9E646E6449899D732CE5F8CF /* cleanup.zsh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = cleanup.zsh; sourceTree = "<group>"; };
+		73C9F905F39EB9C5D8796FF5 /* pipeline.zsh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = pipeline.zsh; sourceTree = "<group>"; };
 		92908F9A2ED9743300A9A38A /* ffmpeg */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = ffmpeg; sourceTree = "<group>"; };
 		92908F9E2ED987C700A9A38A /* SplashContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashContentView.swift; sourceTree = "<group>"; };
 		92908FA22EDA720800A9A38A /* readme.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = readme.md; sourceTree = "<group>"; };
@@ -169,8 +189,26 @@
 			isa = PBXGroup;
 			children = (
 				92908F982ED967E000A9A38A /* dvmetaburn.zsh */,
+				D8161E0FFCCD5CA195EA2290 /* lib */,
 			);
 			path = scripts;
+			sourceTree = "<group>";
+		};
+		D8161E0FFCCD5CA195EA2290 /* lib */ = {
+			isa = PBXGroup;
+			children = (
+				47E8B06DDCD08C67FE197914 /* logging.zsh */,
+				AE53EEC8DC22AD7CBCA410E9 /* pathing.zsh */,
+				D1DED82785F951E5C449C616 /* artifacts.zsh */,
+				A543993E7BDC95B2D707B015 /* dvrescue.zsh */,
+				F25744C20CAE148118460450 /* timeline.zsh */,
+				A99486EA548C194E25780556 /* filtergraph.zsh */,
+				E59348A0EA7850E992AF90D0 /* encode.zsh */,
+				F85EBB44BFE6FB0F64889FBE /* stitch.zsh */,
+				9E646E6449899D732CE5F8CF /* cleanup.zsh */,
+				73C9F905F39EB9C5D8796FF5 /* pipeline.zsh */,
+			);
+			path = lib;
 			sourceTree = "<group>";
 		};
 		92908F842ED9603D00A9A38A /* Resources */ = {
@@ -257,6 +295,16 @@
 				92908F8B2ED9603D00A9A38A /* COPYING.GPLv2 in Resources */,
 				92908F902ED9603D00A9A38A /* LICENSE.md in Resources */,
 				92908F992ED967E000A9A38A /* dvmetaburn.zsh in Resources */,
+				60CEC031856423DE28BB95F3 /* logging.zsh in Resources */,
+				F8BA9339B450C01FE6AA80D2 /* pathing.zsh in Resources */,
+				F0E58AF48D7D71C6DA5DC9FC /* artifacts.zsh in Resources */,
+				FC54FCFC00D7AD1F031E517E /* dvrescue.zsh in Resources */,
+				D2F41085A4E971E85AC0B28C /* timeline.zsh in Resources */,
+				E221B32B563FC44B5A013D70 /* filtergraph.zsh in Resources */,
+				EC91B02E4C3A2D01BF38AD04 /* encode.zsh in Resources */,
+				1A99FEF5DD2EF92131B7EB20 /* stitch.zsh in Resources */,
+				CE2581D2AA994BD2D698BAD3 /* cleanup.zsh in Resources */,
+				688F0C413CC9C9540ED2D540 /* pipeline.zsh in Resources */,
 				92908F8E2ED9603D00A9A38A /* COPYING.LGPLv3 in Resources */,
 				92908F9B2ED9743300A9A38A /* ffmpeg in Resources */,
 				92908F8C2ED9603D00A9A38A /* COPYING.GPLv3 in Resources */,
