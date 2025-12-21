@@ -221,6 +221,28 @@ run_stage() {
   return $rc
 }
 
+run_sendcmd_smoke_check() {
+  local stage="$1"
+  shift
+
+  local output rc
+  set +e
+  output=$(run_stage "$stage" "$@" 2>&1)
+  rc=$?
+  set -e
+
+  if [[ -n "$output" ]]; then
+    printf "%s\n" "$output" >&2
+  fi
+
+  if [[ "$output" == *"Key '\"text' not found."* ]]; then
+    echo "[ERROR] sendcmd smoke test output indicates quoted drawtext text key; timestamp.cmd should use unquoted text= values." >&2
+    return 1
+  fi
+
+  return $rc
+}
+
 audio_extension_for_format() {
   local fmt="${1:l}"
   case "$fmt" in
@@ -914,7 +936,7 @@ build_sendcmd_from_timeline() {
       gsub(/"/, "\\\"", text)
       gsub(/\047/, "\\\047", text)
       gsub(/%/, "\\%", text)
-      gsub(/:/, "\\:", text)
+      gsub(/:/, "\\\\:", text)
       return text
     }
 
@@ -948,8 +970,8 @@ build_sendcmd_from_timeline() {
         tm = escape_drawtext_reinit_value(time[i])
 
         # IMPORTANT: interval syntax + explicit enter flag
-		printf("%.6f [enter] drawtext@dvdate reinit \"text=%s\"\n", start, d)
-		printf("%.6f [enter] drawtext@dvtime reinit \"text=%s\"\n", start, tm)
+		printf("%.6f [enter] drawtext@dvdate reinit text=%s\n", start, d)
+		printf("%.6f [enter] drawtext@dvtime reinit text=%s\n", start, tm)
       }
     }
   ' "$tsv_path" >> "$sendcmd_path"
@@ -2242,7 +2264,7 @@ cmd_escaped=$(escape_for_single_quotes "$cmdfile_effective")
     -f null -
   )
   log_ffmpeg_command "sendcmd-smoke" "${sendcmd_smoke_cmd[@]}"
-  if ! run_stage "sendcmd-smoke" "${sendcmd_smoke_cmd[@]}"; then
+  if ! run_sendcmd_smoke_check "sendcmd-smoke" "${sendcmd_smoke_cmd[@]}"; then
     echo "[ERROR] sendcmd smoke test failed for: $cmdfile" >&2
     return 1
   fi
@@ -2641,8 +2663,8 @@ g" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_outp
       die "ffmpeg encode failed for: $source_video"
     fi
 
-    exit_status=$?
-    manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
+    exit_status=0
+    manifest_status="success"
     passthrough_output="$out_audio"
     last_passthrough_output_path="$passthrough_output"
     last_burn_output_path="$out_audio"
@@ -2740,8 +2762,8 @@ g" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_outp
       fi
     fi
 
-    exit_status=$?
-    manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
+    exit_status=0
+    manifest_status="success"
     passthrough_output="$final_out"
     last_passthrough_output_path="$passthrough_output"
     finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
@@ -2866,8 +2888,8 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
             fi
           fi
 
-          exit_status=$?
-          manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
+          exit_status=0
+          manifest_status="success"
           passthrough_output="$final_out"
           last_passthrough_output_path="$passthrough_output"
           finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" \
@@ -2967,8 +2989,8 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
       fi
     fi
 
-    exit_status=$?
-    manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
+    exit_status=0
+    manifest_status="success"
     subtitle_output="$final_out"
     last_subtitle_output_path="$subtitle_output"
     finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" \
@@ -3041,8 +3063,8 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
             die "Failed to move scratch output into place: $work_out -> $final_out"
           fi
         fi
-        exit_status=$?
-        manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
+        exit_status=0
+        manifest_status="success"
         passthrough_output="$final_out"
         last_passthrough_output_path="$passthrough_output"
         finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
@@ -3088,7 +3110,7 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
     -f null -
   )
   log_ffmpeg_command "sendcmd-smoke" "${sendcmd_smoke_cmd[@]}"
-  if ! run_stage "sendcmd-smoke" "${sendcmd_smoke_cmd[@]}"; then
+  if ! run_sendcmd_smoke_check "sendcmd-smoke" "${sendcmd_smoke_cmd[@]}"; then
     exit_status=$?
     manifest_status="error"
     finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
@@ -3155,8 +3177,8 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
     fi
   fi
 
-  exit_status=$?
-  manifest_status=$([[ $exit_status -eq 0 ]] && echo "success" || echo "error")
+  exit_status=0
+  manifest_status="success"
   burn_output="$final_out"
   last_burn_output_path="$burn_output"
   echo "ffmpeg exit code: $exit_status"
