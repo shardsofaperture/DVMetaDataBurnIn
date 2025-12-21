@@ -46,7 +46,7 @@ build_burnin_filtergraph() {
 
   local shadow="shadowcolor=black:shadowx=1:shadowy=1"
 
-  drawtext_date="drawtext@dvdate=fontfile='${fontfile}':fontsize=24:fontcolor=white:x=20:y=h-th-20:${shadow}:text=''
+  drawtext_date="drawtext@dvdate=fontfile='${fontfile}':fontsize=24:fontcolor=white:x=20:y=h-th-20:${shadow}:text=''"
   drawtext_time="drawtext@dvtime=fontfile='${fontfile}':fontsize=24:fontcolor=white:x=w-tw-20:y=h-th-20:${shadow}:text=''"
   drawtext_time_stacked="drawtext@dvtime=fontfile='${fontfile}':fontsize=24:fontcolor=white:x=w-tw-20:y=h-th-60:${shadow}:text=''"
 

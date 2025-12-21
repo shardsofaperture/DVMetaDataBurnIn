@@ -5,8 +5,19 @@ setopt ERR_EXIT
 # ERR_FAIL is NOT a real zsh option -> remove it
 # setopt ERR_FAIL
 
+script_root="${0:A:h}"
+lib_root="${script_root}/lib"
+
+if ! source "${lib_root}/env.zsh"; then
+  print -r -- "[FATAL] Failed to source ${lib_root}/env.zsh" >&2
+  exit 1
+fi
+
 RUN_ID="${DVMETA_RUN_ID:-${RUN_ID:-}}"
 echo "[RUN] id=${RUN_ID:-} argv=$*"
+
+typeset -g last_stage_marker=""
+typeset -g last_stage_cmd=""
 
 TRAPZERR() {
   local rc=$?
@@ -26,17 +37,10 @@ TRAPZERR() {
 
 setopt NULL_GLOB
 
-# Ensure baseline coreutils are available even when PATH is sanitized by the
-# app bundle environment.
-PATH="/bin:/usr/bin:/usr/local/bin:${PATH:-}"
-export PATH
-export LC_ALL=C
-export LC_NUMERIC=C
-export LANG=C
 echo "[INFO] locale: LC_ALL=${LC_ALL:-unset} LC_NUMERIC=${LC_NUMERIC:-unset} LANG=${LANG:-unset}" >&2
 if command -v locale >/dev/null 2>&1; then
   echo "[INFO] locale output (head -n 20):" >&2
-  locale 2>/dev/null | head -n 20 | while IFS= read -r line; do
+  locale 2>/dev/null | /usr/bin/head -n 20 | while IFS= read -r line; do
     echo "[INFO] locale: $line" >&2
   done
 fi
@@ -48,9 +52,6 @@ TMPPREFIX="${TMPDIR}/zsh-"
 
 mkdir -p "$TMPDIR"
 export TMPDIR TMPPREFIX
-
-script_root="${0:A:h}"
-lib_root="${script_root}/lib"
 
 debug_requested=0
 for arg in "$@"; do

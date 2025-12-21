@@ -133,16 +133,15 @@ build_sendcmd_from_timeline() {
         d = escape_drawtext_reinit_value(date[i])
         tm = escape_drawtext_reinit_value(time[i])
 
-        # IMPORTANT: interval syntax + explicit enter flag
-		printf("%.6f [enter] drawtext@dvdate reinit text=%s\n", start, d)
-		printf("%.6f [enter] drawtext@dvtime reinit text=%s\n", start, tm)
+        printf("%.6f drawtext@dvdate reinit text=%s\n", start, d)
+        printf("%.6f drawtext@dvtime reinit text=%s\n", start, tm)
       }
     }
   ' "$tsv_path" >> "$sendcmd_path"
 
   local lines timeline_entries expected_lines
-  lines=$(wc -l < "$sendcmd_path" | tr -d "[:space:]")
-  timeline_entries=$(wc -l < "$tsv_path" | tr -d "[:space:]")
+  lines=$(/usr/bin/wc -l < "$sendcmd_path" | /usr/bin/tr -d "[:space:]")
+  timeline_entries=$(/usr/bin/wc -l < "$tsv_path" | /usr/bin/tr -d "[:space:]")
   expected_lines=$(( timeline_entries * 2 ))
 
   if [[ "$lines" -ne "$expected_lines" ]]; then
@@ -150,6 +149,26 @@ build_sendcmd_from_timeline() {
   fi
 
   debug_log "sendcmd lines for $sendcmd_path: $lines (expected: $expected_lines)"
+
+  return 0
+}
+
+sanitize_sendcmd_file() {
+  local path="$1"
+
+  if [[ ! -f "$path" ]]; then
+    echo "[ERROR] sanitize_sendcmd_file: missing file $path" >&2
+    return 1
+  fi
+
+  local tmp="${path}.tmp"
+  /usr/bin/tr -d '\r' < "$path" | /usr/bin/awk '{sub(/[ \t]+$/, ""); print}' > "$tmp"
+
+  if [[ -s "$tmp" ]]; then
+    mv -f "$tmp" "$path"
+  else
+    rm -f "$tmp"
+  fi
 
   return 0
 }
@@ -162,24 +181,31 @@ validate_sendcmd_file() {
   fi
 
   local lines
-  lines=$(wc -l < "$path" | tr -d "[:space:]")
+  lines=$(/usr/bin/wc -l < "$path" | /usr/bin/tr -d "[:space:]")
   if (( lines < 1 )); then
     echo "[ERROR] timestamp.cmd has no lines: $path" >&2
     return 1
   fi
 
-  if grep -q "text='" "$path"; then
-    echo "[ERROR] timestamp.cmd contains single-quoted drawtext text values; quoting is invalid." >&2
-    return 1
-  fi
+  local bad_lines_path="${path:h}/sendcmd.bad_lines.txt"
+  log_write "$bad_lines_path"
+  : > "$bad_lines_path"
 
-  if grep -q "text=\"" "$path"; then
-    echo "[ERROR] timestamp.cmd contains double-quoted drawtext text values; quoting is invalid." >&2
-    return 1
-  fi
+  local bad_count
+  bad_count=$(LC_ALL=C /usr/bin/awk -v bad_out="$bad_lines_path" '
+    {
+      if ($1 !~ /^[0-9]+([.][0-9]+)?$/ || NF < 3) {
+        bad++
+        if (bad <= 5) {
+          print $0 >> bad_out
+        }
+      }
+    }
+    END { print bad + 0 }
+  ' "$path")
 
-  if grep -q "text=\\" "$path"; then
-    echo "[ERROR] timestamp.cmd contains escaped quote sequence; quoting is invalid." >&2
+  if (( bad_count > 0 )); then
+    echo "[ERROR] timestamp.cmd contains ${bad_count} malformed lines (see $bad_lines_path)" >&2
     return 1
   fi
 
@@ -232,11 +258,16 @@ make_timestamp_cmd() {
     return 1
   fi
 
+  if ! sanitize_sendcmd_file "$cmdfile"; then
+    echo "[ERROR] Unable to sanitize sendcmd file: $cmdfile" >&2
+    return 1
+  fi
+
   log_sendcmd_debug_snapshot "$cmdfile"
 
   local cmd_lines timeline_lines
-  cmd_lines=$(wc -l < "$cmdfile" | tr -d '[:space:]')
-  timeline_lines=$(wc -l < "$timeline_debug" | tr -d '[:space:]')
+  cmd_lines=$(/usr/bin/wc -l < "$cmdfile" | /usr/bin/tr -d '[:space:]')
+  timeline_lines=$(/usr/bin/wc -l < "$timeline_debug" | /usr/bin/tr -d '[:space:]')
 
   if (( cmd_lines != (timeline_lines * 2) )); then
     warn "Unexpected sendcmd line count: expected $(( timeline_lines * 2 )), got $cmd_lines"

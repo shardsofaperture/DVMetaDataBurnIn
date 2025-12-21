@@ -131,18 +131,14 @@ log_file_excerpt() {
   fi
 
   debug_log "$label (first ${lines} lines):"
-  head -n "$lines" "$path" | while IFS= read -r line; do
+  local head_cmd="/usr/bin/head"
+  [[ -x "$head_cmd" ]] || head_cmd="/bin/head"
+  "$head_cmd" -n "$lines" "$path" | while IFS= read -r line; do
     debug_log "$line"
   done
 
-  local awk_cmd="awk"
-  local head_cmd="head"
-  if ! command -v awk >/dev/null 2>&1; then
-    awk_cmd="/usr/bin/awk"
-  fi
-  if ! command -v head >/dev/null 2>&1; then
-    head_cmd="/usr/bin/head"
-  fi
+  local awk_cmd="/usr/bin/awk"
+  [[ -x "$awk_cmd" ]] || awk_cmd="/bin/awk"
 
   if command -v "$awk_cmd" >/dev/null 2>&1 && command -v "$head_cmd" >/dev/null 2>&1; then
     debug_log "$label first-field preview:"
@@ -160,19 +156,24 @@ log_sendcmd_debug_snapshot() {
     return 0
   fi
 
+  local head_cmd="/usr/bin/head"
+  local tail_cmd="/usr/bin/tail"
+  [[ -x "$head_cmd" ]] || head_cmd="/bin/head"
+  [[ -x "$tail_cmd" ]] || tail_cmd="/bin/tail"
+
   debug_log "sendcmd snapshot: $cmd_path (first 10 lines)"
-  head -n 10 "$cmd_path" | while IFS= read -r line; do
+  "$head_cmd" -n 10 "$cmd_path" | while IFS= read -r line; do
     debug_log "sendcmd $line"
   done
 
   debug_log "sendcmd snapshot: $cmd_path (last 10 lines)"
-  tail -n 10 "$cmd_path" | while IFS= read -r line; do
+  "$tail_cmd" -n 10 "$cmd_path" | while IFS= read -r line; do
     debug_log "sendcmd $line"
   done
 
   if [[ -n "${sendcmd_exec_path:-}" && -s "$sendcmd_exec_path" ]]; then
     debug_log "sendcmd.exec snapshot: $sendcmd_exec_path (first 10 lines)"
-    head -n 10 "$sendcmd_exec_path" | while IFS= read -r line; do
+    "$head_cmd" -n 10 "$sendcmd_exec_path" | while IFS= read -r line; do
       debug_log "sendcmd.exec $line"
     done
   fi
