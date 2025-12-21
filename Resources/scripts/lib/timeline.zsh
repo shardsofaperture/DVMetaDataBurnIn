@@ -162,12 +162,53 @@ sanitize_sendcmd_file() {
   fi
 
   local tmp="${path}.tmp"
-  /usr/bin/tr -d '\r' < "$path" | /usr/bin/awk '{sub(/[ \t]+$/, ""); print}' > "$tmp"
+  LC_ALL=C /usr/bin/awk '
+    function rtrim(s) { sub(/[ \t]+$/, "", s); return s }
+    {
+      line = $0
+      gsub(/\r/, "", line)
+      line = rtrim(line)
+      if (line != "" && line !~ /;$/) {
+        line = line ";"
+      }
+      print line
+    }
+  ' "$path" > "$tmp"
+
+  if (( ${debug_mode:-0} == 1 )); then
+    local bad_lines_path="${path}.bad_semicolons"
+    : > "$bad_lines_path"
+
+    local bad_count
+    bad_count=$(LC_ALL=C /usr/bin/awk -v bad_out="$bad_lines_path" '
+      {
+        semicolons = gsub(/;/, "&")
+        if (semicolons > 1) {
+          bad++
+          if (bad <= 5) {
+            print $0 >> bad_out
+          }
+        }
+      }
+      END { print bad + 0 }
+    ' "$tmp")
+
+    if (( bad_count > 0 )); then
+      echo "[ERROR] sanitize_sendcmd_file: lines with multiple command terminators: $bad_count" >&2
+      while IFS= read -r line; do
+        echo "[ERROR] sanitize_sendcmd_file: $line" >&2
+      done < "$bad_lines_path"
+      /bin/rm -f "$bad_lines_path"
+      /bin/rm -f "$tmp"
+      return 1
+    fi
+    /bin/rm -f "$bad_lines_path"
+  fi
 
   if [[ -s "$tmp" ]]; then
-    mv -f "$tmp" "$path"
+    /bin/mv -f "$tmp" "$path"
   else
-    rm -f "$tmp"
+    /bin/rm -f "$tmp"
   fi
 
   return 0
