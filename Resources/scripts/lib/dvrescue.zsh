@@ -53,11 +53,11 @@ normalize_dvrescue_timestamps() {
   fi
 
   normalize_log_value_only "$source_log" "$tmp_output"
-  local status=$?
+  local rc=$?
 
-  if (( status != 0 )); then
-    warn "normalize_log_value_only failed with status $status"
-    return $status
+  if (( rc != 0 )); then
+    warn "normalize_log_value_only failed with status $rc"
+    return $rc
   fi
 
   if [[ -s "$tmp_output" ]]; then
