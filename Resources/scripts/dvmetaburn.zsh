@@ -948,8 +948,8 @@ build_sendcmd_from_timeline() {
         tm = escape_drawtext_reinit_value(time[i])
 
         # IMPORTANT: interval syntax + explicit enter flag
-        printf("%.6f-%.6f [enter] drawtext@dvdate reinit \"text=%s\"\n", start, end, d)
-        printf("%.6f-%.6f [enter] drawtext@dvtime reinit \"text=%s\"\n", start, end, tm)
+		printf("%.6f [enter] drawtext@dvdate reinit \"text=%s\"\n", start, d)
+		printf("%.6f [enter] drawtext@dvtime reinit \"text=%s\"\n", start, tm)
       }
     }
   ' "$tsv_path" >> "$sendcmd_path"
@@ -1037,9 +1037,9 @@ fi
 
       # sendcmd treats non-numeric first fields as interval headers and explodes,
       # so drop any line without a numeric interval before normalizing commas.
-      if (field1_norm !~ /^[0-9]+(\.[0-9]+)?-[0-9]+(\.[0-9]+)?$/) {
-        return
-      }
+     if (field1_norm !~ /^[0-9]+(\.[0-9]+)?(-[0-9]+(\.[0-9]+)?)?$/) {
+         return
+       }
 
       $1 = field1_norm
       print
@@ -1555,7 +1555,7 @@ finish_run() {
     debug_log "Final output path: $final_output"
   fi
 
-  cleanup_run_scratch_root "$status_label"
+  cleanup_run_scratch_root "$status_label" || warn "[cleanup] Scratch cleanup failed (non-fatal)"
 
   return "$exit_code"
 }
@@ -2227,7 +2227,11 @@ make_timestamp_cmd() {
     return 1
   fi
 
-  cmd_escaped=$(escape_for_single_quotes "$cmdfile")
+	local cmdfile_effective="$cmdfile"
+		if [[ -n "${sendcmd_exec_path:-}" ]]; then
+cmdfile_effective="$sendcmd_exec_path"
+  fi
+cmd_escaped=$(escape_for_single_quotes "$cmdfile_effective")
   font_escaped=$(escape_for_single_quotes "$font")
   local vf_smoke="sendcmd=f='${cmd_escaped}',drawtext@dvdate=fontfile='${font_escaped}':text='':fontsize=24:x=0:y=0,drawtext@dvtime=fontfile='${font_escaped}':text='':fontsize=24:x=0:y=30"
   local -a sendcmd_smoke_cmd=(
