@@ -2097,6 +2097,7 @@ build_burnin_filtergraph() {
   local layout="$1"
   local cmdfile="$2"
   local font="$3"
+  local deint_mode="${4:-off}"
 
   local cmdfile_effective="$cmdfile"
   if [[ -n "${sendcmd_exec_path:-}" ]]; then
@@ -2107,12 +2108,22 @@ build_burnin_filtergraph() {
   cmd_escaped=$(escape_for_single_quotes "$cmdfile_effective")
   font_escaped=$(escape_for_single_quotes "$font")
 
+  local deint_vf=""
+  if [[ "$deint_mode" != "off" ]]; then
+    deint_vf="$(deinterlace_vf_for_mode "$deint_mode")"
+  fi
+
+  local prefix="sendcmd=f='${cmd_escaped}'"
+  if [[ -n "$deint_vf" ]]; then
+    prefix="${prefix},${deint_vf}"
+  fi
+
   case "$layout" in
     stacked)
-      echo "sendcmd=f='${cmd_escaped}',drawtext@dvdate=fontfile='${font_escaped}':text='':fontcolor=white:fontsize=24:box=0:x=w-tw-20:y=h-60,drawtext@dvtime=fontfile='${font_escaped}':text='':fontcolor=white:fontsize=24:box=0:x=w-tw-20:y=h-30"
+      echo "${prefix},drawtext@dvdate=fontfile='${font_escaped}':text='':fontcolor=white:fontsize=24:box=0:x=w-tw-20:y=h-60,drawtext@dvtime=fontfile='${font_escaped}':text='':fontcolor=white:fontsize=24:box=0:x=w-tw-20:y=h-30"
       ;;
     single)
-      echo "sendcmd=f='${cmd_escaped}',drawtext@dvdate=fontfile='${font_escaped}':text='':fontcolor=white:fontsize=24:box=0:x=20:y=h-40,drawtext@dvtime=fontfile='${font_escaped}':text='':fontcolor=white:fontsize=24:box=0:x=w-tw-20:y=h-40"
+      echo "${prefix},drawtext@dvdate=fontfile='${font_escaped}':text='':fontcolor=white:fontsize=24:box=0:x=20:y=h-40,drawtext@dvtime=fontfile='${font_escaped}':text='':fontcolor=white:fontsize=24:box=0:x=w-tw-20:y=h-40"
       ;;
     *)
       return 1
@@ -3001,10 +3012,18 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
   fi
 
   local vf
-  if ! vf=$(build_burnin_filtergraph "$layout" "$cmdfile" "$font"); then
+  if ! vf=$(build_burnin_filtergraph "$layout" "$cmdfile" "$font" "$deinterlace_mode"); then
     echo "Unknown layout: $layout" >&2
     finish_run 1 "error" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
     return 1
+  fi
+
+  if [[ ! -s "$cmdfile" ]]; then
+    warn "[burn] timestamp.cmd is empty -> overlay will be blank"
+  fi
+  if [[ "$vf" != *"sendcmd="* || "$vf" != *"drawtext@dvdate"* || "$vf" != *"drawtext@dvtime"* ]]; then
+    warn "[burn] vf missing expected sendcmd/drawtext pieces"
+    warn "[burn] vf='$vf'"
   fi
 
   local -a sendcmd_smoke_cmd=(
@@ -3038,17 +3057,12 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
   fi
   echo "[PATH] FINAL_OUT=$final_out"
   echo "[PATH] WORK_OUT=$work_out"
-  local burn_vf="$vf"
-  if [[ -n "$deinterlace_vf" ]]; then
-    burn_vf="${deinterlace_vf},${vf}"
-  fi
-
   echo "[INFO] Burning DV metadata into: $final_out"
   echo "[WRITE] -> $final_out"
   if [[ -n "$work_out" ]]; then
     echo "[WRITE] -> $work_out"
   fi
-  debug_log "ffmpeg burn-in filtergraph: $burn_vf"
+  debug_log "ffmpeg burn-in filtergraph: $vf"
   debug_log "ffmpeg burn-in args: ${codec_args[*]}"
   local burn_target="$final_out"
   if [[ -n "$work_out" ]]; then
@@ -3056,7 +3070,7 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
   fi
   local -a burn_cmd=(
     "$ffmpeg_bin" -y -i "$source_video"
-    -vf "$burn_vf"
+    -vf "$vf"
     "${codec_args[@]}"
     "${deinterlace_fps_args[@]}"
     "${container_args[@]}"
