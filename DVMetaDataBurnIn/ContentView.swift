@@ -1779,17 +1779,6 @@ struct ContentView: View {
         if snapshot.burnMode != .subtitleTrack, (snapshot.format == .mp4 || snapshot.format == .mkv) {
             args.append("--quality=\(snapshot.quality.rawValue)")
         }
-        if snapshot.isBatchMode
-            && snapshot.stitchBatch
-            && (snapshot.burnMode != .off || snapshot.outputMode == .audioOnly)
-        {
-            args.append("--stitch-mode=stitch")
-        }
-
-        if snapshot.isBatchMode && snapshot.stitchBatch {
-            args.append("--stitch-batch=1")
-        }
-
         switch snapshot.burnMode {
         case .burnin:
             args.append("--burn-mode=\(BurnMode.burnin.rawValue)")
