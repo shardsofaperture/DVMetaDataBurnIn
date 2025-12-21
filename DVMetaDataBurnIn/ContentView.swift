@@ -1734,9 +1734,15 @@ struct ContentView: View {
 
         let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
         let tempScriptURL = tempDir.appendingPathComponent("dvmetaburn_run.zsh")
+        let tempLibDirURL = tempDir.appendingPathComponent("lib", isDirectory: true)
 
         _ = try? fm.removeItem(at: tempScriptURL)
+        _ = try? fm.removeItem(at: tempLibDirURL)
         try fm.copyItem(at: bundledScriptURL, to: tempScriptURL)
+        let bundledLibDirURL = bundledScriptURL.deletingLastPathComponent().appendingPathComponent("lib", isDirectory: true)
+        if fm.fileExists(atPath: bundledLibDirURL.path) {
+            try fm.copyItem(at: bundledLibDirURL, to: tempLibDirURL)
+        }
 
         let attrs: [FileAttributeKey: Any] = [
             .posixPermissions: NSNumber(value: Int16(0o755))
