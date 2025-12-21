@@ -898,6 +898,7 @@ build_timeline_from_log() {
 build_sendcmd_from_timeline() {
   local tsv_path="$1"
   local sendcmd_path="$2"
+  local fps_in="${3:-29.97}"
 
   if [[ ! -s "$tsv_path" ]]; then
     echo "[ERROR] build_sendcmd_from_timeline: empty timeline: $tsv_path" >&2
@@ -905,9 +906,9 @@ build_sendcmd_from_timeline() {
   fi
 
   log_write "$sendcmd_path"
-  : > "$sendcmd_path"   # truncate
+  : > "$sendcmd_path"
 
-  LC_NUMERIC=C awk -F '\t' '
+  LC_NUMERIC=C awk -F '\t' -v fps="$fps_in" '
     function escape_drawtext_reinit_value(text) {
       gsub(/\\/, "\\\\", text)
       gsub(/\047/, "\\\047", text)
@@ -915,28 +916,40 @@ build_sendcmd_from_timeline() {
       gsub(/:/, "\\:", text)
       return text
     }
-    # Expect: frame_index \t t_sec \t date \t time \t dt_key
+
+    # read all rows so we can lookahead to next timestamp
     NF >= 4 {
-      frame_idx = $1
-      t = $2 + 0
-      date = $3
-      time = $4
+      n++
+      t[n]    = ($2 + 0)
+      date[n] = $3
+      time[n] = $4
+      gsub(/\r/, "", date[n])
+      gsub(/\r/, "", time[n])
+      sub(/;[0-9][0-9]$/, "", time[n])
+    }
 
-      # Strip CRs
-      gsub(/\r/, "", date)
-      gsub(/\r/, "", time)
+    END {
+      if (n < 1) exit 2
 
-      # Strip DV-style frame suffix (e.g. HH:MM:SS;FF -> HH:MM:SS)
-      sub(/;[0-9][0-9]$/, "", time)
+      frame_step = 0.0333667
+      if (fps > 0) frame_step = 1.0 / fps
 
-      date = escape_drawtext_reinit_value(date)
-      time = escape_drawtext_reinit_value(time)
+      for (i=1; i<=n; i++) {
+        start = t[i]
+        if (i < n) {
+          end = t[i+1] - 0.000001
+          if (end <= start) end = start + 0.000001
+        } else {
+          end = start + frame_step
+        }
 
-      # Two command lines per timestamp (interval syntax):
-      #   dvdate → date
-      #   dvtime → time
-      printf("%.6f-%.6f drawtext@dvdate reinit '\''text=%s'\''\n", t, t, date)
-      printf("%.6f-%.6f drawtext@dvtime reinit '\''text=%s'\''\n", t, t, time)
+        d = escape_drawtext_reinit_value(date[i])
+        tm = escape_drawtext_reinit_value(time[i])
+
+        # IMPORTANT: interval syntax + explicit enter flag
+        printf("%.6f-%.6f enter drawtext@dvdate reinit text=%s\n", start, end, d)
+        printf("%.6f-%.6f enter drawtext@dvtime reinit text=%s\n", start, end, tm)
+      }
     }
   ' "$tsv_path" >> "$sendcmd_path"
 
@@ -948,6 +961,7 @@ build_sendcmd_from_timeline() {
 
   return 0
 }
+
 
 validate_sendcmd_file() {
   local cmdfile="$1"
@@ -962,35 +976,41 @@ validate_sendcmd_file() {
     return 1
   fi
 
-  if ! grep -q "drawtext@dvdate" "$cmdfile"; then
-    echo "[ERROR] sendcmd output missing dvdate commands: $cmdfile" >&2
-    LC_ALL=C awk 'NR<=5 {print "  " $0} NR==5 {exit}' "$cmdfile" >&2
-    return 1
+ if ! grep -qE '(^|[[:space:]])(drawtext@dvdate|@dvdate)([[:space:]]|$)' "$cmdfile"; then
+  echo "[ERROR] sendcmd output missing dvdate commands: $cmdfile" >&2
+  LC_ALL=C awk 'NR<=5 {print "  " $0} NR==5 {exit}' "$cmdfile" >&2
+  return 1
+  
   fi
 
-  if ! grep -q "drawtext@dvtime" "$cmdfile"; then
-    echo "[ERROR] sendcmd output missing dvtime commands: $cmdfile" >&2
-    LC_ALL=C awk 'NR<=5 {print "  " $0} NR==5 {exit}' "$cmdfile" >&2
-    return 1
+if ! grep -qE '(^|[[:space:]])(drawtext@dvtime|@dvtime)([[:space:]]|$)' "$cmdfile"; then
+  echo "[ERROR] sendcmd output missing dvtime commands: $cmdfile" >&2
+  LC_ALL=C awk 'NR<=5 {print "  " $0} NR==5 {exit}' "$cmdfile" >&2
+  return 1
+  
   fi
+  
   local invalid_interval_line
-  invalid_interval_line=$(LC_ALL=C awk '
-    {
-      line = $0
-      sub(/[[:space:]]+$/, "", line)
-      if (line == "") {
-        next
-      }
-      if (line !~ /^[0-9]+(\.[0-9]+)?-[0-9]+(\.[0-9]+)?[[:space:]]+/) {
-        print line
-        exit 1
-      }
+invalid_interval_line=$(LC_ALL=C awk '
+  {
+    line = $0
+    sub(/[[:space:]]+$/, "", line)
+    if (line == "") next
+
+    # allow either:
+    #   "t command..."  OR  "t-t command..."
+    if (line !~ /^[0-9]+(\.[0-9]+)?(-[0-9]+(\.[0-9]+)?)?[[:space:]]+/) {
+      print line
+      exit 1
     }
-  ' "$cmdfile")
-  if [[ -n "$invalid_interval_line" ]]; then
-    echo "[ERROR] sendcmd line missing interval prefix: $invalid_interval_line" >&2
-    return 1
-  fi
+  }
+' "$cmdfile")
+
+if [[ -n "$invalid_interval_line" ]]; then
+  echo "[ERROR] sendcmd line missing timestamp prefix: $invalid_interval_line" >&2
+  return 1
+fi
+
 
   log_sendcmd_debug_snapshot "timestamp.cmd pre-sanitize" "$cmdfile"
 
@@ -1063,6 +1083,13 @@ validate_sendcmd_file() {
     rm -f "$tmp"
     return 1
   fi
+  
+  if [[ ! -s "$tmp" ]]; then
+  echo "[ERROR] sendcmd sanitization produced empty output (refusing to continue): $cmdfile" >&2
+  rm -f "$tmp"
+  return 1
+fi
+
 
   local non_numeric_line
   non_numeric_line=$(LC_ALL=C awk '
