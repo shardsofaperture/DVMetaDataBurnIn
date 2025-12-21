@@ -3385,7 +3385,6 @@ if [[ "$mode" == "batch" ]]; then
       stitch_inputs+=("$abs")
       printf "file '%s'\n" "$(escape_for_single_quotes "$abs")" >> "$list_file"
     done
-    fi
 
     if [[ "$output_mode" == "audio" ]]; then
       local part_duration
