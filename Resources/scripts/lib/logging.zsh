@@ -11,7 +11,9 @@ TRAPZERR() {
     where="${(%):-%N}:${LINENO}"
   fi
 
-  print -r -- "[FATAL] (exit=$rc) stage=${last_stage_marker} cmd=${last_stage_cmd} | $where" >&2
+  local stage="${last_stage_marker-}"
+  local cmd="${last_stage_cmd-}"
+  print -r -- "[FATAL] (exit=$rc) stage=${stage} cmd=${cmd} | $where" >&2
 }
 
 fatal() {
@@ -56,8 +58,8 @@ json_escape() {
 
 escape_for_single_quotes() {
   local raw="$1"
-  raw="${raw//\'/'"'"'"'\'}"
-  echo "$raw"
+  raw=${raw//\'/$'\'\\\'\''}
+  print -r -- "$raw"
 }
 
 log_ffmpeg_command() {

@@ -19,7 +19,9 @@ TRAPZERR() {
     where="${(%):-%N}:${LINENO}"
   fi
 
-  print -r -- "[FATAL] (exit=$rc) stage=${last_stage_marker} cmd=${last_stage_cmd} | $where" >&2
+  local stage="${last_stage_marker-}"
+  local cmd="${last_stage_cmd-}"
+  print -r -- "[FATAL] (exit=$rc) stage=${stage} cmd=${cmd} | $where" >&2
 }
 
 setopt NULL_GLOB
@@ -50,9 +52,24 @@ export TMPDIR TMPPREFIX
 script_root="${0:A:h}"
 lib_root="${script_root}/lib"
 
-for lib in logging pathing artifacts dvrescue timeline filtergraph encode stitch cleanup pipeline; do
-  source "${lib_root}/${lib}.zsh"
+debug_requested=0
+for arg in "$@"; do
+  if [[ "$arg" == "--debug" ]]; then
+    debug_requested=1
+    break
+  fi
 done
+
+for lib in logging pathing artifacts dvrescue timeline filtergraph encode stitch cleanup pipeline; do
+  if ! source "${lib_root}/${lib}.zsh"; then
+    print -r -- "[FATAL] Failed to source ${lib_root}/${lib}.zsh" >&2
+    exit 1
+  fi
+done
+
+if (( debug_requested == 1 )); then
+  true
+fi
 
 : <<'DVMETA_FUNCTIONS'
 
