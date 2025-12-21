@@ -3184,6 +3184,8 @@ if [[ "$mode" == "batch" ]]; then
 
     suppress_finish_run=1
     typeset -a stitch_inputs=()
+    typeset -a burnin_outputs=()
+    typeset -a convert_outputs=()
     typeset -a part_ids=()
     local idx=1
     local abs part_base part_artifact_dir
@@ -3223,7 +3225,6 @@ if [[ "$mode" == "batch" ]]; then
     list_file="${burned_parts_dir%/}/list.txt"
     log_write "$list_file"
     : > "$list_file"
-    local stitched_inputs=0
     local burned_count=0
     local conv_count=0
     local missing_count=0
@@ -3238,25 +3239,44 @@ if [[ "$mode" == "batch" ]]; then
 
       if [[ -f "$burned_path" ]]; then
         info "[stitch] part ${part_id} -> dateburn"
-        stitch_inputs+=("$burned_path")
+        burnin_outputs+=("$burned_path")
         (( ++burned_count ))
       elif [[ -n "$conv_suffix" && -f "$conv_path" ]]; then
-        info "[stitch] part ${part_id} -> conv (fallback)"
-        stitch_inputs+=("$conv_path")
+        info "[stitch] part ${part_id} -> conv (no burn-in)"
+        convert_outputs+=("$conv_path")
         (( ++conv_count ))
       else
         warn "[stitch] part ${part_id} missing (no dateburn/conv output)"
         (( ++missing_count ))
         continue
       fi
-
-      printf "file '%s'\n" "$(escape_for_single_quotes "${stitch_inputs[-1]}")" >> "$list_file"
-      (( ++stitched_inputs ))
     done
 
-    if (( stitched_inputs == 0 )); then
-      echo "[ERROR] No stitchable parts were produced; aborting stitch. (burned=${burned_count} conv=${conv_count} missing=${missing_count})" >&2
-      exit 1
+    if (( ${#burnin_outputs[@]} == 0 )); then
+      info "[stitch] No burn-in outputs to stitch (burned=${burned_count} conv=${conv_count} missing=${missing_count}); leaving convert-only outputs in place."
+      exit 0
+    fi
+
+    if (( ${#burnin_outputs[@]} == 1 )); then
+      local single_output="${burnin_outputs[1]}"
+      local final_single_out="${output_dir_override%/}/${base_name}${part_suffix}"
+      info "[stitch/batch] Single burn-in output; moving into place: $final_single_out"
+      log_move "$single_output" "$final_single_out"
+      if ! mv -f "$single_output" "$final_single_out"; then
+        echo "[ERROR] Failed to move single burn-in output into place: $single_output -> $final_single_out" >&2
+        exit 1
+      fi
+      if final_duration=$(probe_media_duration "$final_single_out"); then
+        info "[stitch/batch] stitched duration: $final_duration"
+        append_run_note "Stitched duration: $final_duration"
+      fi
+      exit 0
+    fi
+
+    for abs in "${burnin_outputs[@]}"; do
+      stitch_inputs+=("$abs")
+      printf "file '%s'\n" "$(escape_for_single_quotes "$abs")" >> "$list_file"
+    done
     fi
 
     if [[ "$output_mode" == "audio" ]]; then
@@ -3276,7 +3296,7 @@ if [[ "$mode" == "batch" ]]; then
     local -a stitch_container_args
     stitch_container_args=("${reply[@]}")
 
-    info "[stitch/batch] Concatenating ${stitched_inputs} stitchable parts into $stitched_output (stream copy)"
+    info "[stitch/batch] Concatenating ${#stitch_inputs[@]} stitchable parts into $stitched_output (stream copy)"
     log_export "$list_file" "$stitched_output"
     prepare_subprocess_env
     local -a stitch_copy_cmd=(

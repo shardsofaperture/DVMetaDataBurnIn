@@ -1963,10 +1963,10 @@ struct ContentView: View {
             }
             .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
 
-        guard !parts.isEmpty else {
+        guard parts.count >= 2 else {
             return (
-                max(originalStatus, 1),
-                "\n[STITCH] ERROR: No burned parts found to stitch at \(burnedPartsDir.path)\n"
+                0,
+                "\n[STITCH] NOTE: Found \(parts.count) burn-in part(s); nothing to stitch.\n"
             )
         }
 
