@@ -1740,29 +1740,40 @@ struct ContentView: View {
         _ = try? fm.removeItem(at: tempLibDirURL)
         try fm.copyItem(at: bundledScriptURL, to: tempScriptURL)
         let bundledLibDirURL = bundledScriptURL.deletingLastPathComponent().appendingPathComponent("lib", isDirectory: true)
+        let fallbackLibDirURL = bundleRoot.appendingPathComponent("scripts/lib", isDirectory: true)
+        let libSourceURL: URL?
         if fm.fileExists(atPath: bundledLibDirURL.path) {
-            try fm.copyItem(at: bundledLibDirURL, to: tempLibDirURL)
+            libSourceURL = bundledLibDirURL
+        } else if fm.fileExists(atPath: fallbackLibDirURL.path) {
+            libSourceURL = fallbackLibDirURL
         } else {
-            try fm.createDirectory(at: tempLibDirURL, withIntermediateDirectories: true)
-            let libScripts = [
-                "logging.zsh",
-                "pathing.zsh",
-                "artifacts.zsh",
-                "dvrescue.zsh",
-                "timeline.zsh",
-                "filtergraph.zsh",
-                "encode.zsh",
-                "stitch.zsh",
-                "cleanup.zsh",
-                "pipeline.zsh"
-            ]
-            for scriptName in libScripts {
-                guard let scriptURL = findBundledResource(named: scriptName) else {
-                    continue
+            libSourceURL = nil
+        }
+
+        guard let resolvedLibSourceURL = libSourceURL else {
+            throw NSError(domain: "DVMeta", code: 7,
+                          userInfo: [NSLocalizedDescriptionKey:
+                                     "ERROR: Could not find scripts/lib in app bundle (root: \(bundleRoot.path))."])
+        }
+
+        try fm.createDirectory(at: tempLibDirURL, withIntermediateDirectories: true)
+        if let enumerator = fm.enumerator(at: resolvedLibSourceURL,
+                                          includingPropertiesForKeys: [.isDirectoryKey],
+                                          options: [.skipsHiddenFiles]) {
+            for case let itemURL as URL in enumerator {
+                let relativePath = itemURL.path.replacingOccurrences(
+                    of: resolvedLibSourceURL.path + "/",
+                    with: ""
+                )
+                let destinationURL = tempLibDirURL.appendingPathComponent(relativePath)
+                let isDirectory = (try itemURL.resourceValues(forKeys: [.isDirectoryKey]).isDirectory ?? false)
+
+                if isDirectory {
+                    try fm.createDirectory(at: destinationURL, withIntermediateDirectories: true)
+                } else {
+                    _ = try? fm.removeItem(at: destinationURL)
+                    try fm.copyItem(at: itemURL, to: destinationURL)
                 }
-                let destinationURL = tempLibDirURL.appendingPathComponent(scriptName)
-                _ = try? fm.removeItem(at: destinationURL)
-                try fm.copyItem(at: scriptURL, to: destinationURL)
             }
         }
 
