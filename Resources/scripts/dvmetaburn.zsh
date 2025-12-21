@@ -871,9 +871,11 @@ build_sendcmd_from_timeline() {
   : > "$sendcmd_path"   # truncate
 
   LC_NUMERIC=C awk -F '\t' '
-    function escape_single_quotes(text, repl) {
-      repl = sprintf("%c\\%c%c", 39, 39, 39)
-      gsub(/\047/, repl, text)
+    function escape_drawtext_reinit_value(text) {
+      gsub(/\\/, "\\\\", text)
+      gsub(/\047/, "\\\047", text)
+      gsub(/%/, "\\%", text)
+      gsub(/:/, "\\:", text)
       return text
     }
     # Expect: frame_index \t t_sec \t date \t time \t dt_key
@@ -890,14 +892,14 @@ build_sendcmd_from_timeline() {
       # Strip DV-style frame suffix (e.g. HH:MM:SS;FF -> HH:MM:SS)
       sub(/;[0-9][0-9]$/, "", time)
 
-      date = escape_single_quotes(date)
-      time = escape_single_quotes(time)
+      date = escape_drawtext_reinit_value(date)
+      time = escape_drawtext_reinit_value(time)
 
       # Two command lines per timestamp (interval syntax):
       #   dvdate → date
       #   dvtime → time
-      printf("%.6f-%.6f drawtext@dvdate reinit text='\''%s'\''\n", t, t, date)
-      printf("%.6f-%.6f drawtext@dvtime reinit text='\''%s'\''\n", t, t, time)
+      printf("%.6f-%.6f drawtext@dvdate reinit '\''text=%s'\''\n", t, t, date)
+      printf("%.6f-%.6f drawtext@dvtime reinit '\''text=%s'\''\n", t, t, time)
     }
   ' "$tsv_path" >> "$sendcmd_path"
 
@@ -2911,6 +2913,21 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
     return 1
   fi
 
+  local -a sendcmd_smoke_cmd=(
+    "$ffmpeg_bin" -v error
+    -f lavfi -i "color=c=black:s=16x16:d=1"
+    -vf "$vf"
+    -frames:v 1
+    -f null -
+  )
+  log_ffmpeg_command "sendcmd-smoke" "${sendcmd_smoke_cmd[@]}"
+  if ! run_stage "sendcmd-smoke" "${sendcmd_smoke_cmd[@]}"; then
+    exit_status=$?
+    manifest_status="error"
+    finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
+    die "sendcmd smoke test failed for: $source_video"
+  fi
+
   if [[ "$format" == "mkv" && "$burn_mode" == "burnin" ]]; then
     if [[ "$vf" == *"sendcmd"* && "$vf" == *"drawtext"* ]]; then
       info "[burn] MKV burn-in filtergraph contains sendcmd and drawtext"
@@ -2930,23 +2947,6 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
   local burn_vf="$vf"
   if [[ -n "$deinterlace_vf" ]]; then
     burn_vf="${deinterlace_vf},${vf}"
-  fi
-
-  if (( debug_mode == 1 )); then
-    local -a sendcmd_smoke_cmd=(
-      "$ffmpeg_bin" -v error
-      -f lavfi -i "color=c=black:s=16x16:d=1"
-      -vf "$vf"
-      -frames:v 1
-      -f null -
-    )
-    log_ffmpeg_command "sendcmd-smoke" "${sendcmd_smoke_cmd[@]}"
-    if ! run_stage "sendcmd-smoke" "${sendcmd_smoke_cmd[@]}"; then
-      exit_status=$?
-      manifest_status="error"
-      finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
-      die "sendcmd smoke test failed for: $source_video"
-    fi
   fi
 
   echo "[INFO] Burning DV metadata into: $final_out"
