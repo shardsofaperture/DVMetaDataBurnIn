@@ -1750,30 +1750,77 @@ struct ContentView: View {
             libSourceURL = nil
         }
 
-        guard let resolvedLibSourceURL = libSourceURL else {
+        let requiredLibFiles = [
+            "logging.zsh",
+            "pathing.zsh",
+            "artifacts.zsh",
+            "dvrescue.zsh",
+            "timeline.zsh",
+            "filtergraph.zsh",
+            "encode.zsh",
+            "stitch.zsh",
+            "cleanup.zsh",
+            "pipeline.zsh"
+        ]
+        let optionalLibFiles = [
+            "env.zsh"
+        ]
+        var flatLibFiles: [URL] = []
+
+        if libSourceURL == nil {
+            var missingLibs: [String] = []
+            for libName in requiredLibFiles {
+                if let libURL = findBundledResource(named: libName) {
+                    flatLibFiles.append(libURL)
+                } else {
+                    missingLibs.append(libName)
+                }
+            }
+            for libName in optionalLibFiles {
+                if let libURL = findBundledResource(named: libName) {
+                    flatLibFiles.append(libURL)
+                }
+            }
+
+            guard missingLibs.isEmpty else {
+                throw NSError(domain: "DVMeta", code: 7,
+                              userInfo: [NSLocalizedDescriptionKey:
+                                         "ERROR: Missing required lib scripts in app bundle (root: \(bundleRoot.path)): \(missingLibs.joined(separator: \", \"))."])
+            }
+        }
+
+        guard libSourceURL != nil || !flatLibFiles.isEmpty else {
             throw NSError(domain: "DVMeta", code: 7,
                           userInfo: [NSLocalizedDescriptionKey:
                                      "ERROR: Could not find scripts/lib in app bundle (root: \(bundleRoot.path))."])
         }
 
         try fm.createDirectory(at: tempLibDirURL, withIntermediateDirectories: true)
-        if let enumerator = fm.enumerator(at: resolvedLibSourceURL,
-                                          includingPropertiesForKeys: [.isDirectoryKey],
-                                          options: [.skipsHiddenFiles]) {
-            for case let itemURL as URL in enumerator {
-                let relativePath = itemURL.path.replacingOccurrences(
-                    of: resolvedLibSourceURL.path + "/",
-                    with: ""
-                )
-                let destinationURL = tempLibDirURL.appendingPathComponent(relativePath)
-                let isDirectory = (try itemURL.resourceValues(forKeys: [.isDirectoryKey]).isDirectory ?? false)
+        if let resolvedLibSourceURL = libSourceURL {
+            if let enumerator = fm.enumerator(at: resolvedLibSourceURL,
+                                              includingPropertiesForKeys: [.isDirectoryKey],
+                                              options: [.skipsHiddenFiles]) {
+                for case let itemURL as URL in enumerator {
+                    let relativePath = itemURL.path.replacingOccurrences(
+                        of: resolvedLibSourceURL.path + "/",
+                        with: ""
+                    )
+                    let destinationURL = tempLibDirURL.appendingPathComponent(relativePath)
+                    let isDirectory = (try itemURL.resourceValues(forKeys: [.isDirectoryKey]).isDirectory ?? false)
 
-                if isDirectory {
-                    try fm.createDirectory(at: destinationURL, withIntermediateDirectories: true)
-                } else {
-                    _ = try? fm.removeItem(at: destinationURL)
-                    try fm.copyItem(at: itemURL, to: destinationURL)
+                    if isDirectory {
+                        try fm.createDirectory(at: destinationURL, withIntermediateDirectories: true)
+                    } else {
+                        _ = try? fm.removeItem(at: destinationURL)
+                        try fm.copyItem(at: itemURL, to: destinationURL)
+                    }
                 }
+            }
+        } else {
+            for libURL in flatLibFiles {
+                let destinationURL = tempLibDirURL.appendingPathComponent(libURL.lastPathComponent)
+                _ = try? fm.removeItem(at: destinationURL)
+                try fm.copyItem(at: libURL, to: destinationURL)
             }
         }
 
