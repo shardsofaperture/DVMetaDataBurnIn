@@ -1,41 +1,50 @@
 # pipeline.zsh
 
+job_spec_value() {
+  local spec_name="$1"
+  local field="$2"
+  local value
+
+  eval "value=\"\${${spec_name}[${field}]-}\""
+  printf "%s" "$value"
+}
+
 apply_job_spec() {
   local spec_name="$1"
-  eval 'mode="${'"$spec_name"'[mode]-}"'
-  eval 'layout="${'"$spec_name"'[layout]-}"'
-  eval 'format="${'"$spec_name"'[format]-}"'
-  eval 'encode_quality="${'"$spec_name"'[encode_quality]-}"'
-  eval 'output_mode="${'"$spec_name"'[output_mode]-}"'
-  eval 'burn_mode="${'"$spec_name"'[burn_mode]-}"'
-  eval 'subtitle_mode="${'"$spec_name"'[subtitle_mode]-}"'
-  eval 'deinterlace_mode="${'"$spec_name"'[deinterlace_mode]-}"'
-  eval 'missing_meta="${'"$spec_name"'[missing_meta]-}"'
-  eval 'fontfile="${'"$spec_name"'[fontfile]-}"'
-  eval 'fontname="${'"$spec_name"'[fontname]-}"'
-  eval 'ffmpeg_bin="${'"$spec_name"'[ffmpeg_bin]-}"'
-  eval 'dvrescue_bin="${'"$spec_name"'[dvrescue_bin]-}"'
-  eval 'dest_dir="${'"$spec_name"'[dest_dir]-}"'
-  eval 'output_base="${'"$spec_name"'[output_base]-}"'
-  eval 'scratch_dir="${'"$spec_name"'[scratch_dir]-}"'
-  eval 'scratch_cleanup_policy="${'"$spec_name"'[scratch_cleanup_policy]-}"'
-  eval 'keep_on_failure="${'"$spec_name"'[keep_on_failure]-}"'
-  eval 'stitch_enabled="${'"$spec_name"'[stitch_enabled]-}"'
-  eval 'stitch_batch="${'"$spec_name"'[stitch_batch]-}"'
-  eval 'stitch_input_list="${'"$spec_name"'[stitch_input_list]-}"'
-  eval 'debug_mode="${'"$spec_name"'[debug_mode]-}"'
-  eval 'burn_granularity="${'"$spec_name"'[burn_granularity]-}"'
+  mode=$(job_spec_value "$spec_name" mode)
+  layout=$(job_spec_value "$spec_name" layout)
+  format=$(job_spec_value "$spec_name" format)
+  encode_quality=$(job_spec_value "$spec_name" encode_quality)
+  output_mode=$(job_spec_value "$spec_name" output_mode)
+  burn_mode=$(job_spec_value "$spec_name" burn_mode)
+  subtitle_mode=$(job_spec_value "$spec_name" subtitle_mode)
+  deinterlace_mode=$(job_spec_value "$spec_name" deinterlace_mode)
+  missing_meta=$(job_spec_value "$spec_name" missing_meta)
+  fontfile=$(job_spec_value "$spec_name" fontfile)
+  fontname=$(job_spec_value "$spec_name" fontname)
+  ffmpeg_bin=$(job_spec_value "$spec_name" ffmpeg_bin)
+  dvrescue_bin=$(job_spec_value "$spec_name" dvrescue_bin)
+  dest_dir=$(job_spec_value "$spec_name" dest_dir)
+  output_base=$(job_spec_value "$spec_name" output_base)
+  scratch_dir=$(job_spec_value "$spec_name" scratch_dir)
+  scratch_cleanup_policy=$(job_spec_value "$spec_name" scratch_cleanup_policy)
+  keep_on_failure=$(job_spec_value "$spec_name" keep_on_failure)
+  stitch_enabled=$(job_spec_value "$spec_name" stitch_enabled)
+  stitch_batch=$(job_spec_value "$spec_name" stitch_batch)
+  stitch_input_list=$(job_spec_value "$spec_name" stitch_input_list)
+  debug_mode=$(job_spec_value "$spec_name" debug_mode)
+  burn_granularity=$(job_spec_value "$spec_name" burn_granularity)
 
-  eval 'requested_format="${'"$spec_name"'[requested_format]-}"'
-  eval 'requested_encode_quality="${'"$spec_name"'[requested_encode_quality]-}"'
-  eval 'effective_format="${'"$spec_name"'[effective_format]-}"'
-  eval 'effective_encode_quality="${'"$spec_name"'[effective_encode_quality]-}"'
-  eval 'effective_quality_kind="${'"$spec_name"'[effective_quality_kind]-}"'
-  eval 'format_coerced="${'"$spec_name"'[format_coerced]-}"'
-  eval 'format_coercion_reason="${'"$spec_name"'[format_coercion_reason]-}"'
+  requested_format=$(job_spec_value "$spec_name" requested_format)
+  requested_encode_quality=$(job_spec_value "$spec_name" requested_encode_quality)
+  effective_format=$(job_spec_value "$spec_name" effective_format)
+  effective_encode_quality=$(job_spec_value "$spec_name" effective_encode_quality)
+  effective_quality_kind=$(job_spec_value "$spec_name" effective_quality_kind)
+  format_coerced=$(job_spec_value "$spec_name" format_coerced)
+  format_coercion_reason=$(job_spec_value "$spec_name" format_coercion_reason)
 
-  eval 'run_scratch_root="${'"$spec_name"'[run_scratch_root]-}"'
-  eval 'artifact_root="${'"$spec_name"'[artifact_root]-}"'
+  run_scratch_root=$(job_spec_value "$spec_name" run_scratch_root)
+  artifact_root=$(job_spec_value "$spec_name" artifact_root)
 
   sanitized_extra_args=()
   if (( ${#job_spec_extra_args[@]} > 0 )); then
