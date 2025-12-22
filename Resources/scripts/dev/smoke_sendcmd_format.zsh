@@ -40,6 +40,24 @@ EOF_CMD
 
 vf=$(build_burnin_filtergraph "single" "$cmdfile" "$fontfile" "off")
 
+cmdfile_exec="${cmdfile}.exec"
+if [[ ! -f "$cmdfile_exec" ]]; then
+  echo "[ERROR] sendcmd exec file not created: $cmdfile_exec" >&2
+  exit 1
+fi
+
+line_count=$(/usr/bin/wc -l < "$cmdfile_exec" | /usr/bin/tr -d "[:space:]")
+if (( line_count <= 1 )); then
+  echo "[ERROR] sendcmd exec file should contain multiple lines: $cmdfile_exec (lines=$line_count)" >&2
+  exit 1
+fi
+
+last_char=$(/usr/bin/tail -c 1 "$cmdfile_exec" 2>/dev/null || /bin/tail -c 1 "$cmdfile_exec" 2>/dev/null || true)
+if [[ "$last_char" != $'\n' ]]; then
+  echo "[ERROR] sendcmd exec file missing trailing newline: $cmdfile_exec" >&2
+  exit 1
+fi
+
 typeset -a sendcmd_smoke_cmd=(
   "$ffmpeg_bin" -v error
   -f lavfi -i "color=c=black:s=16x16:d=1"

@@ -34,6 +34,12 @@ build_burnin_filtergraph() {
   sendcmd_exec_path="$sendcmd_exec"
   log_write "$sendcmd_exec"
   cp -f "$cmdfile" "$sendcmd_exec"
+  if typeset -f sanitize_sendcmd_file >/dev/null 2>&1; then
+    if ! sanitize_sendcmd_file "$sendcmd_exec"; then
+      echo "[ERROR] Unable to sanitize sendcmd exec file: $sendcmd_exec" >&2
+      return 1
+    fi
+  fi
   debug_log "sendcmd exec path: $sendcmd_exec_path"
 
   local cmdfile_safe

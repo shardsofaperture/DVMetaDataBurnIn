@@ -163,7 +163,18 @@ sanitize_sendcmd_file() {
 
   local tmp="${path}.tmp"
   LC_ALL=C /usr/bin/awk '
+    function ltrim(s) { sub(/^[ \t]+/, "", s); return s }
     function rtrim(s) { sub(/[ \t]+$/, "", s); return s }
+    function emit_segment(segment, base_timestamp) {
+      segment = rtrim(ltrim(segment))
+      if (segment == "") {
+        return
+      }
+      if (base_timestamp != "" && segment !~ /^[0-9]+(\.[0-9]+)?(-[0-9]+(\.[0-9]+)?)?[[:space:]]+/) {
+        segment = base_timestamp " " segment
+      }
+      print segment
+    }
     {
       line = $0
       gsub(/\r/, "", line)
@@ -171,10 +182,28 @@ sanitize_sendcmd_file() {
         sub(/^\xef\xbb\xbf/, "", line)
       }
       line = rtrim(line)
+      while (line ~ /;[[:space:]]*$/) {
+        sub(/;[[:space:]]*$/, "", line)
+      }
       if (line == "") {
         next
       }
-      print line
+
+      base_timestamp = ""
+      if (match(line, /^[[:space:]]*[0-9]+(\.[0-9]+)?(-[0-9]+(\.[0-9]+)?)?/)) {
+        base_timestamp = substr(line, RSTART, RLENGTH)
+        base_timestamp = rtrim(ltrim(base_timestamp))
+      }
+
+      split_count = split(line, parts, ";")
+      if (split_count > 1) {
+        for (i = 1; i <= split_count; i++) {
+          emit_segment(parts[i], base_timestamp)
+        }
+        next
+      }
+
+      emit_segment(line, base_timestamp)
     }
   ' "$path" > "$tmp"
 
