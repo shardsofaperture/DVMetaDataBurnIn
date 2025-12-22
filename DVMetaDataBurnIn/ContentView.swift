@@ -1834,6 +1834,10 @@ struct ContentView: View {
             args.append("--debug")
         }
 
+        if snapshot.isBatchMode, snapshot.stitchBatch {
+            args.append("--stitch-batch")
+        }
+
         if let destination = snapshot.destinationOverride {
             args.append("--dest-dir=\(destination)")
         }
