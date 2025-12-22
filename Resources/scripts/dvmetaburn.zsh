@@ -3467,7 +3467,7 @@ if [[ "$mode" == "batch" ]]; then
       base_name="${folder_abs:t}"
     fi
 
-    local target_ext stitched_suffix part_suffix conv_suffix
+    local target_ext stitched_suffix part_suffix conv_suffix conv_stitched_suffix burn_stitched_suffix
     if [[ "$burn_mode" == "subtitleTrack" ]]; then
       target_ext="mkv"
       stitched_suffix="_dvsub_stitched.mkv"
@@ -3478,7 +3478,8 @@ if [[ "$mode" == "batch" ]]; then
       part_suffix="_audio.${target_ext}"
     else
       target_ext="$format"
-      stitched_suffix="_stitched_dateburn.${target_ext}"
+      burn_stitched_suffix="_stitched_dateburn.${target_ext}"
+      conv_stitched_suffix="_stitched_conv.${target_ext}"
       part_suffix="_dateburn.${format}"
       conv_suffix="_conv.${format}"
     fi
@@ -3508,7 +3509,6 @@ if [[ "$mode" == "batch" ]]; then
     fi
 
     suppress_finish_run=1
-    typeset -a stitch_inputs=()
     typeset -a burnin_outputs=()
     typeset -a convert_outputs=()
     typeset -a part_ids=()
@@ -3553,8 +3553,10 @@ if [[ "$mode" == "batch" ]]; then
     local burned_count=0
     local conv_count=0
     local missing_count=0
+    local -a stitch_inputs=()
+    local -a resolved_parts=()
 
-    local part_id burned_path conv_path
+    local part_id burned_path conv_path chosen_path chosen_kind
     for part_id in "$part_ids[@]"; do
       burned_path="${burned_parts_dir%/}/${part_id}${part_suffix}"
       conv_path=""
@@ -3565,27 +3567,38 @@ if [[ "$mode" == "batch" ]]; then
       if [[ -f "$burned_path" ]]; then
         info "[stitch] part ${part_id} -> dateburn"
         burnin_outputs+=("$burned_path")
+        chosen_path="$burned_path"
+        chosen_kind="dateburn"
         (( ++burned_count ))
       elif [[ -n "$conv_suffix" && -f "$conv_path" ]]; then
         info "[stitch] part ${part_id} -> conv (no burn-in)"
         convert_outputs+=("$conv_path")
+        chosen_path="$conv_path"
+        chosen_kind="conv"
         (( ++conv_count ))
       else
         warn "[stitch] part ${part_id} missing (no dateburn/conv output)"
         (( ++missing_count ))
         continue
       fi
+
+      stitch_inputs+=("$chosen_path")
+      resolved_parts+=("${part_id} (${chosen_kind}) -> ${chosen_path}")
     done
 
-    if (( ${#burnin_outputs[@]} == 0 )); then
-      info "[stitch] No burn-in outputs to stitch (burned=${burned_count} conv=${conv_count} missing=${missing_count}); leaving convert-only outputs in place."
+    if (( ${#stitch_inputs[@]} == 0 )); then
+      info "[stitch] No stitchable outputs found (burned=${burned_count} conv=${conv_count} missing=${missing_count}); leaving outputs in place."
       exit 0
     fi
 
-    if (( ${#burnin_outputs[@]} == 1 )); then
-      local single_output="${burnin_outputs[1]}"
-      local final_single_out="${output_dir_override%/}/${base_name}${part_suffix}"
-      info "[stitch/batch] Single burn-in output; moving into place: $final_single_out"
+    if (( ${#stitch_inputs[@]} == 1 )); then
+      local single_output="${stitch_inputs[1]}"
+      local single_suffix="$part_suffix"
+      if [[ -n "$conv_suffix" && "$single_output" == *"${conv_suffix}" ]]; then
+        single_suffix="$conv_suffix"
+      fi
+      local final_single_out="${output_dir_override%/}/${base_name}${single_suffix}"
+      info "[stitch/batch] Single output; moving into place: $final_single_out"
       log_move "$single_output" "$final_single_out"
       if ! mv -f "$single_output" "$final_single_out"; then
         echo "[ERROR] Failed to move single burn-in output into place: $single_output -> $final_single_out" >&2
@@ -3598,9 +3611,13 @@ if [[ "$mode" == "batch" ]]; then
       exit 0
     fi
 
-    for abs in "${burnin_outputs[@]}"; do
-      stitch_inputs+=("$abs")
+    for abs in "${stitch_inputs[@]}"; do
       printf "file '%s'\n" "$(escape_for_single_quotes "$abs")" >> "$list_file"
+    done
+
+    info "[stitch/batch] Resolved parts list (${#stitch_inputs[@]})"
+    for abs in "${resolved_parts[@]}"; do
+      info "[stitch/batch] ${abs}"
     done
 
     if [[ "$output_mode" == "audio" ]]; then
@@ -3613,6 +3630,13 @@ if [[ "$mode" == "batch" ]]; then
       done
     fi
 
+    if [[ "$burn_mode" != "subtitleTrack" && "$output_mode" != "audio" ]]; then
+      if (( burned_count == 0 && conv_count > 0 )); then
+        stitched_suffix="$conv_stitched_suffix"
+      else
+        stitched_suffix="$burn_stitched_suffix"
+      fi
+    fi
     local final_stitch_out="${output_dir_override%/}/${base_name}${stitched_suffix}"
     stitched_output="${artifact_dir_override%/}/stitched.final.${target_ext}"
 
@@ -3620,6 +3644,8 @@ if [[ "$mode" == "batch" ]]; then
     local -a stitch_container_args
     stitch_container_args=("${reply[@]}")
 
+    info "[stitch/batch] concat list: $list_file"
+    info "[stitch/batch] final output: $final_stitch_out"
     info "[stitch/batch] Concatenating ${#stitch_inputs[@]} stitchable parts into $stitched_output (stream copy)"
     log_export "$list_file" "$stitched_output"
     prepare_subprocess_env
