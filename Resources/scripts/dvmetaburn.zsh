@@ -1103,8 +1103,8 @@ build_sendcmd_from_timeline() {
         tm = escape_drawtext_reinit_value(time[i])
 
         # IMPORTANT: interval syntax + explicit enter flag
-		printf("%.6f [enter] drawtext@dvdate reinit text=%s\n", start, d)
-		printf("%.6f [enter] drawtext@dvtime reinit text=%s\n", start, tm)
+		printf("%.6f [enter] drawtext@dvdate reinit text=%s;\n", start, d)
+		printf("%.6f [enter] drawtext@dvtime reinit text=%s;\n", start, tm)
       }
     }
   ' "$tsv_path" >> "$sendcmd_path"
@@ -1150,8 +1150,18 @@ if ! grep -qE '(^|[[:space:]])(drawtext@dvtime|@dvtime)([[:space:]]|$)' "$cmdfil
 invalid_interval_line=$(LC_ALL=C awk '
   {
     line = $0
+    gsub(/\r/, "", line)
+    if (NR == 1) {
+      sub(/^\xef\xbb\xbf/, "", line)
+    }
     sub(/[[:space:]]+$/, "", line)
-    if (line == "") next
+    sub(/^[[:space:]]+/, "", line)
+    if (line == "" || line ~ /^#/) next
+
+    if (line !~ /;$/) {
+      print line
+      exit 1
+    }
 
     # allow either:
     #   "t command..."  OR  "t-t command..."
@@ -1184,7 +1194,16 @@ fi
   if ! LC_ALL=C awk '
     function ltrim(s) { sub(/^[[:space:]]+/, "", s); return s }
     function rtrim(s) { sub(/[[:space:]]+$/, "", s); return s }
-    function normalize_and_print(raw_line, field1, field1_norm) {
+    function normalize_and_print(raw_line, field1, field1_norm, normalized) {
+      raw_line = rtrim(ltrim(raw_line))
+      if (raw_line == "" || raw_line ~ /^#/) {
+        return
+      }
+      while (raw_line ~ /;[[:space:]]*$/) {
+        sub(/;[[:space:]]*$/, "", raw_line)
+        raw_line = rtrim(raw_line)
+      }
+
       $0 = raw_line
       field1 = $1
       field1_norm = field1
@@ -1192,34 +1211,39 @@ fi
 
       # sendcmd treats non-numeric first fields as interval headers and explodes,
       # so drop any line without a numeric interval before normalizing commas.
-     if (field1_norm !~ /^[0-9]+(\.[0-9]+)?(-[0-9]+(\.[0-9]+)?)?$/) {
-         return
-       }
+      if (field1_norm !~ /^[0-9]+(\.[0-9]+)?(-[0-9]+(\.[0-9]+)?)?$/) {
+        return
+      }
 
       $1 = field1_norm
-      print
+      normalized = rtrim($0)
+      if (normalized == "") {
+        return
+      }
+      print normalized ";"
     }
     {
       line = $0
       gsub(/\r/, "", line)
-      line = rtrim(line)
-      while (line ~ /;[[:space:]]*$/) {
-        sub(/;[[:space:]]*$/, "", line)
+      if (NR == 1) {
+        sub(/^\xef\xbb\xbf/, "", line)
       }
-      if (line == "") {
+      line = rtrim(ltrim(line))
+      if (line == "" || line ~ /^#/) {
         next
       }
 
       base_timestamp = ""
       if (match(line, /^[[:space:]]*[0-9]+(\.[0-9]+)?-[0-9]+(\.[0-9]+)?/)) {
         base_timestamp = substr(line, RSTART, RLENGTH)
+        base_timestamp = rtrim(ltrim(base_timestamp))
       }
 
       split_count = split(line, parts, ";")
       if (split_count > 1) {
         for (i = 1; i <= split_count; i++) {
           segment = rtrim(ltrim(parts[i]))
-          if (segment == "") {
+          if (segment == "" || segment ~ /^#/) {
             continue
           }
           if (segment ~ /^[0-9]+(\.[0-9]+)?-[0-9]+(\.[0-9]+)?[[:space:]]/) {
