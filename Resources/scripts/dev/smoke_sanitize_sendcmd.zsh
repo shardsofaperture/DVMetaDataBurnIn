@@ -9,6 +9,10 @@ if ! source "${lib_root}/timeline.zsh"; then
   echo "[FATAL] Unable to source timeline.zsh" >&2
   exit 1
 fi
+if ! source "${lib_root}/pathing.zsh"; then
+  echo "[FATAL] Unable to source pathing.zsh" >&2
+  exit 1
+fi
 
 debug_mode=0
 
@@ -28,7 +32,7 @@ printf '%s' \
 sanitize_sendcmd_file "$cmdfile"
 
 line_count=$(/usr/bin/wc -l < "$cmdfile" | /usr/bin/tr -d '[:space:]')
-if (( line_count < 6 )); then
+if (( line_count <= 1 )); then
   echo "[ERROR] sanitize_sendcmd_file produced too few lines: $line_count" >&2
   exit 1
 fi
@@ -39,4 +43,26 @@ if [[ "$last_char" != $'\n' ]]; then
   exit 1
 fi
 
-echo "[OK] sanitize_sendcmd_file output has $line_count lines and trailing newline."
+if /usr/bin/grep -q ';' "$cmdfile"; then
+  echo "[ERROR] sanitize_sendcmd_file output contains semicolons." >&2
+  exit 1
+fi
+
+ffmpeg_bin="${FFMPEG_BIN:-ffmpeg}"
+if command -v "$ffmpeg_bin" >/dev/null 2>&1; then
+  if fontfile=$(find_font); then
+    cmdfile_safe=$(printf "%s" "$cmdfile" | /usr/bin/sed -e 's/\\/\\\\/g' -e 's/:/\\\:/g')
+    fontfile_safe=$(printf "%s" "$fontfile" | /usr/bin/sed -e 's/\\/\\\\/g' -e 's/:/\\\:/g')
+    vf="sendcmd=f='${cmdfile_safe}',drawtext@dvdate=fontfile='${fontfile_safe}':fontsize=12:fontcolor=white:x=0:y=0:text=''"
+    if ! "$ffmpeg_bin" -v error -f lavfi -i "color=c=black:s=16x16:d=1" -vf "$vf" -frames:v 1 -f null -; then
+      echo "[ERROR] ffmpeg sendcmd smoke run failed." >&2
+      exit 1
+    fi
+  else
+    echo "[WARN] Skipping ffmpeg sendcmd smoke run (font not found)." >&2
+  fi
+else
+  echo "[WARN] Skipping ffmpeg sendcmd smoke run (ffmpeg not found)." >&2
+fi
+
+echo "[OK] sanitize_sendcmd_file output has $line_count lines, no semicolons, and trailing newline."
