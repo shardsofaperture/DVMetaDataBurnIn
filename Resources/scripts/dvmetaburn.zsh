@@ -1236,13 +1236,13 @@ fi
       normalize_and_print(line)
     }
   ' "$cmdfile" > "$tmp"; then
-    rm -f "$tmp"
+    /bin/rm -f "$tmp"
     return 1
   fi
   
   if [[ ! -s "$tmp" ]]; then
   echo "[ERROR] sendcmd sanitization produced empty output (refusing to continue): $cmdfile" >&2
-  rm -f "$tmp"
+  /bin/rm -f "$tmp"
   return 1
 fi
 
@@ -1261,7 +1261,7 @@ fi
     }
   ' "$tmp")
   if [[ -n "$non_numeric_line" ]]; then
-    rm -f "$tmp"
+    /bin/rm -f "$tmp"
     echo "[ERROR] sendcmd timestamp field is not numeric: $non_numeric_line" >&2
     return 1
   fi
@@ -1276,10 +1276,10 @@ fi
 
   if (( changed == 1 )); then
     log_move "$tmp" "$cmdfile"
-    mv "$tmp" "$cmdfile"
+    /bin/mv "$tmp" "$cmdfile"
     info "sendcmd sanitization updated $cmdfile (comma lines before: $comma_lines_before, after: $comma_lines_after)"
   else
-    rm -f "$tmp"
+    /bin/rm -f "$tmp"
   fi
 
   local bad_line
@@ -1293,28 +1293,26 @@ fi
 
   local exec_cmdfile
   exec_cmdfile="${cmdfile}.exec"
-  if ! LC_ALL=C awk '
+  if ! LC_ALL=C /usr/bin/awk '
+    function rtrim(s) { sub(/[[:space:]]+$/, "", s); return s }
     {
-      line = $0
-      sub(/[[:space:]]+$/, "", line)
+      gsub(/\r/, "", $0)
+      line = rtrim($0)
       if (line == "") {
         next
       }
-      if (count == 0) {
-        printf "%s", line
-      } else {
-        printf "; %s", line
-      }
-      count++
-    }
-    END {
-      if (count > 0) {
-        printf "\n"
-      }
+      print line
     }
   ' "$cmdfile" > "$exec_cmdfile"; then
     echo "[ERROR] Failed to build sendcmd exec file: $exec_cmdfile" >&2
     return 1
+  fi
+  if [[ -s "$exec_cmdfile" ]]; then
+    local last_char
+    last_char=$(/usr/bin/tail -c 1 "$exec_cmdfile" 2>/dev/null || /bin/tail -c 1 "$exec_cmdfile" 2>/dev/null || true)
+    if [[ "$last_char" != $'\n' ]]; then
+      printf '\n' >> "$exec_cmdfile"
+    fi
   fi
   sendcmd_exec_path="$exec_cmdfile"
   log_write "$sendcmd_exec_path"
