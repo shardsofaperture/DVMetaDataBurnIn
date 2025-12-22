@@ -1,3 +1,20 @@
+##Change Log 1.0.6B
+
+---12/21/2025
+
+*Added MiniDV deinterlacing support with selectable output modes (30p default, 60p)
+*Deinterlacing now applies consistently to single files, batch jobs, and stitched outputs
+*Established Medium quality + 30p deinterlace as the default MP4 transcode behavior
+*Enhanced low/medium/high transcode presets to apply consistently across single, batch, and stitch jobs
+*Folder drag-and-drop batch handling stabilized with reliable automatic stitching
+*Fixed cases where stitching produced duplicate or partial output files
+*Improved mixed-batch handling when DV metadata is missing (fallback to convert-only without failing batch)
+*Improved stitch execution logic to run once per job and suppress per-clip outputs when stitching is enabled
+*Improved separation of burn-in and subtitle-track modes to prevent invalid pipeline execution
+*Batch jobs no longer abort or stall due to individual file or folder failures
+*Improved scratch and temporary directory handling for batch and stitch jobs
+*General pipeline refactoring and hardening for batch, stitch, and deinterlace workflows
+
 ## Change Log 1.0.5B
 
 ---12/17/2025

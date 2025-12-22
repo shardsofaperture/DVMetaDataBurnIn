@@ -271,9 +271,9 @@ struct ContentView: View {
     @State private var inputPath: String = ""
     @State private var inputMode: InputMode = .singleFile
     @State private var layout: String = "stacked"   // "stacked" or "single"
-    @State private var format: OutputFormat = .mov
-    @State private var quality: Quality = .high
-    @State private var deinterlaceMode: DeinterlaceMode = .off
+    @State private var format: OutputFormat = .mp4
+    @State private var quality: Quality = .medium
+    @State private var deinterlaceMode: DeinterlaceMode = .p30
     @State private var outputMode: OutputMode = .video
     @State private var logText: String = ""
     @State private var isRunning: Bool = false
