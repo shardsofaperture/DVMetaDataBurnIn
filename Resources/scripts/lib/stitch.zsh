@@ -114,23 +114,64 @@ stitch_batch_folder() {
   local out_ext="$6"
   local cleanup_parts="$7"
   local primary_target="$8"
+  local conv_suffix="${9:-}"
 
   local list_file
   list_file="${burn_parts_dir%/}/stitched_inputs.txt"
 
   local -a inputs=()
-  local part_path
+  local -a resolved_parts=()
+  typeset -A burn_parts=()
+  typeset -A conv_parts=()
+
+  local part_path part_name part_id
   for part_path in "${burn_parts_dir%/}"/*"${part_suffix}"; do
     [[ -f "$part_path" ]] || continue
-    inputs+=("$part_path")
+    part_name="${part_path:t}"
+    part_id="${part_name%${part_suffix}}"
+    burn_parts["$part_id"]="$part_path"
   done
 
-  if (( ${#inputs[@]} == 0 )); then
-    echo "[ERROR] No burn-in parts to stitch in: $burn_parts_dir" >&2
+  if [[ -n "$conv_suffix" ]]; then
+    for part_path in "${burn_parts_dir%/}"/*"${conv_suffix}"; do
+      [[ -f "$part_path" ]] || continue
+      part_name="${part_path:t}"
+      part_id="${part_name%${conv_suffix}}"
+      conv_parts["$part_id"]="$part_path"
+    done
+  fi
+
+  local -a part_ids
+  part_ids=(${(k)burn_parts} ${(k)conv_parts})
+  part_ids=(${(onu)part_ids})
+
+  if (( ${#part_ids[@]} == 0 )); then
+    echo "[ERROR] No stitchable parts found in: $burn_parts_dir" >&2
     return 1
   fi
 
-  inputs=( ${(on)inputs} )
+  local chosen_path chosen_kind
+  for part_id in "${part_ids[@]}"; do
+    chosen_path=""
+    chosen_kind=""
+    if [[ -n "${burn_parts[$part_id]:-}" ]]; then
+      chosen_path="${burn_parts[$part_id]}"
+      chosen_kind="dateburn"
+    elif [[ -n "${conv_parts[$part_id]:-}" ]]; then
+      chosen_path="${conv_parts[$part_id]}"
+      chosen_kind="conv"
+    fi
+
+    if [[ -n "$chosen_path" ]]; then
+      inputs+=("$chosen_path")
+      resolved_parts+=("${part_id} (${chosen_kind}) -> ${chosen_path}")
+    fi
+  done
+
+  if (( ${#inputs[@]} == 0 )); then
+    echo "[ERROR] No stitchable parts matched after resolution in: $burn_parts_dir" >&2
+    return 1
+  fi
 
   : > "$list_file"
   local clip
@@ -138,9 +179,17 @@ stitch_batch_folder() {
     printf "file '%s'\n" "$(escape_for_single_quotes "$clip")" >>"$list_file"
   done
 
+  info "[stitch/batch] Resolved parts list (${#inputs[@]})"
+  local resolved
+  for resolved in "${resolved_parts[@]}"; do
+    info "[stitch/batch] ${resolved}"
+  done
+
   local stitched_path
   stitched_path="${output_dir%/}/${stitched_base}${output_suffix}"
 
+  info "[stitch/batch] concat list: $list_file"
+  info "[stitch/batch] final output: $stitched_path"
   info "[stitch/batch] Concatenating ${#inputs[@]} clips into $stitched_path (stream copy)"
   prepare_subprocess_env
   local -a stitch_copy_cmd=(
