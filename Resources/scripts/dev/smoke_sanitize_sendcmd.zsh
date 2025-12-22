@@ -20,18 +20,29 @@ tmpdir=$(/usr/bin/mktemp -d "${TMPDIR:-/tmp}/sendcmd-sanitize.XXXXXX")
 cmdfile="${tmpdir}/timestamp.cmd"
 
 printf '%s' \
-  '0.000000 drawtext@dvdate reinit text=2024-01-01\r' \
-  '0.000000 drawtext@dvtime reinit text=12\\:34\\:56\r\n' \
-  '\r\n' \
-  '1.000000 drawtext@dvdate reinit text=2024-01-02\r' \
-  '1.000000 drawtext@dvtime reinit text=12\\:34\\:57\r\n' \
-  '2.000000 drawtext@dvdate reinit text=2024-01-03\r' \
-  '2.000000 drawtext@dvtime reinit text=12\\:34\\:58\r' \
+  $'\xEF\xBB\xBF0.000000 drawtext@dvdate reinit text=2024-01-01\r' \
+  $'0.000000 drawtext@dvtime reinit text=12\\:34\\:56\r\n' \
+  $'\r\n' \
+  $'# comment line should be ignored\r\n' \
+  $'1.000000 drawtext@dvdate reinit text=2024-01-02   \r' \
+  $'1.000000 drawtext@dvtime reinit text=12\\:34\\:57\r\n' \
+  $'2.000000 drawtext@dvdate reinit text=2024-01-03\r' \
+  $'2.000000 drawtext@dvtime reinit text=12\\:34\\:58\r' \
   > "$cmdfile"
 
 sanitize_sendcmd_file "$cmdfile"
 
-line_count=$(/usr/bin/wc -l < "$cmdfile" | /usr/bin/tr -d '[:space:]')
+if ! validate_sendcmd_file "$cmdfile"; then
+  echo "[ERROR] validate_sendcmd_file failed on sanitized output." >&2
+  exit 1
+fi
+
+line_count=$(sendcmd_effective_line_count "$cmdfile")
+expected_lines=6
+if (( line_count != expected_lines )); then
+  echo "[ERROR] sanitize_sendcmd_file produced unexpected line count: $line_count (expected $expected_lines)" >&2
+  exit 1
+fi
 if (( line_count <= 1 )); then
   echo "[ERROR] sanitize_sendcmd_file produced too few lines: $line_count" >&2
   exit 1
