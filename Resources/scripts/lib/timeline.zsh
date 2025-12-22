@@ -162,18 +162,17 @@ sanitize_sendcmd_file() {
   fi
 
   local tmp="${path}.tmp"
-  LC_ALL=C /usr/bin/awk '
+  /usr/bin/tr "\r" "\n" < "$path" | LC_ALL=C /usr/bin/awk '
     function rtrim(s) { sub(/[ \t]+$/, "", s); return s }
     {
       line = $0
-      gsub(/\r/, "", line)
       line = rtrim(line)
       if (line == "") {
         next
       }
       print line
     }
-  ' "$path" > "$tmp"
+  ' > "$tmp"
 
   if [[ -s "$tmp" ]]; then
     /bin/mv -f "$tmp" "$path"
