@@ -54,8 +54,8 @@ if [[ "$last_char" != $'\n' ]]; then
   exit 1
 fi
 
-if /usr/bin/grep -q ';' "$cmdfile"; then
-  echo "[ERROR] sanitize_sendcmd_file output contains semicolons." >&2
+if /usr/bin/grep -qvE '^[[:space:]]*$|^[[:space:]]*#|;[[:space:]]*$' "$cmdfile"; then
+  echo "[ERROR] sanitize_sendcmd_file output has a line without trailing semicolon." >&2
   exit 1
 fi
 
@@ -76,4 +76,4 @@ else
   echo "[WARN] Skipping ffmpeg sendcmd smoke run (ffmpeg not found)." >&2
 fi
 
-echo "[OK] sanitize_sendcmd_file output has $line_count lines, no semicolons, and trailing newline."
+echo "[OK] sanitize_sendcmd_file output has $line_count lines, trailing semicolons, and trailing newline."

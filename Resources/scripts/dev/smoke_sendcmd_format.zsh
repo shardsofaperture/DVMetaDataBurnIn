@@ -58,6 +58,11 @@ if [[ "$last_char" != $'\n' ]]; then
   exit 1
 fi
 
+if /usr/bin/grep -qvE '^[[:space:]]*$|^[[:space:]]*#|;[[:space:]]*$' "$cmdfile_exec"; then
+  echo "[ERROR] sendcmd exec file has a line without trailing semicolon: $cmdfile_exec" >&2
+  exit 1
+fi
+
 typeset -a sendcmd_smoke_cmd=(
   "$ffmpeg_bin" -v error
   -f lavfi -i "color=c=black:s=16x16:d=1"

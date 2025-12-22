@@ -133,8 +133,8 @@ build_sendcmd_from_timeline() {
         d = escape_drawtext_reinit_value(date[i])
         tm = escape_drawtext_reinit_value(time[i])
 
-        printf("%.6f drawtext@dvdate reinit text=%s\n", start, d)
-        printf("%.6f drawtext@dvtime reinit text=%s\n", start, tm)
+        printf("%.6f drawtext@dvdate reinit text=%s;\n", start, d)
+        printf("%.6f drawtext@dvtime reinit text=%s;\n", start, tm)
       }
     }
   ' "$tsv_path" >> "$sendcmd_path"
@@ -170,10 +170,17 @@ sanitize_sendcmd_file() {
       if (segment == "") {
         return
       }
+      if (segment ~ /^#/) {
+        return
+      }
+      while (segment ~ /;[[:space:]]*$/) {
+        sub(/;[[:space:]]*$/, "", segment)
+        segment = rtrim(segment)
+      }
       if (base_timestamp != "" && segment !~ /^[0-9]+(\.[0-9]+)?(-[0-9]+(\.[0-9]+)?)?[[:space:]]+/) {
         segment = base_timestamp " " segment
       }
-      print segment
+      print segment ";"
     }
     {
       line = $0
@@ -182,10 +189,8 @@ sanitize_sendcmd_file() {
         sub(/^\xef\xbb\xbf/, "", line)
       }
       line = rtrim(line)
-      while (line ~ /;[[:space:]]*$/) {
-        sub(/;[[:space:]]*$/, "", line)
-      }
-      if (line == "") {
+      line = ltrim(line)
+      if (line == "" || line ~ /^#/) {
         next
       }
 
@@ -282,6 +287,11 @@ validate_sendcmd_file() {
       }
       line = rtrim(ltrim(line))
       if (line == "" || line ~ /^#/) {
+        next
+      }
+      if (line !~ /;$/) {
+        bad++
+        print raw_line >> bad_out
         next
       }
       fields = split(line, parts, /[[:space:]]+/)
