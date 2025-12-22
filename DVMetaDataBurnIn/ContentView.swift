@@ -1621,8 +1621,15 @@ struct ContentView: View {
                     self.currentProcess = process
                 }
 
+                let wantsStitch = snapshot.isBatchMode && snapshot.stitchBatch
+                let launchLine =
+                    "[launch] wantsStitch=\(wantsStitch) " +
+                    "burnMode=\(snapshot.burnMode.rawValue) " +
+                    "mode=\(snapshot.inputMode.scriptValue) " +
+                    "argv=\(argv)"
+
                 DispatchQueue.main.async {
-                    self.appendToLog("[launch argv] \(argv)", capped: false)
+                    self.appendToLog(launchLine, capped: false)
                 }
 
                 let handle = pipe.fileHandleForReading
@@ -1785,6 +1792,47 @@ struct ContentView: View {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/zsh")
 
+        let args = buildScriptArgs(
+            scriptURL: tempScriptURL,
+            ffmpegURL: ffmpegURL,
+            dvrescueURL: dvrescueURL,
+            inputPath: inputPath,
+            rawExtraArgs: rawExtraArgs,
+            snapshot: snapshot
+        )
+
+        process.arguments = args
+
+        // Debug logging is limited to the appended flag above; runtime environment stays identical.
+        var env = ProcessInfo.processInfo.environment
+        env["TMPDIR"] = tempDir.path
+        if let inputFolderPath {
+            env["DVMETA_INPUT_FOLDER"] = inputFolderPath
+        }
+        if let outputBaseName {
+            env["DVMETA_OUTPUT_BASENAME"] = outputBaseName
+        }
+        env["DVMETA_RUN_ID"] = runID
+        process.environment = env
+        process.currentDirectoryURL = tempDir
+
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+
+        let argv = [process.executableURL?.path ?? ""] + args
+
+        return (process, pipe, argv)
+    }
+
+    private func buildScriptArgs(
+        scriptURL: URL,
+        ffmpegURL: URL,
+        dvrescueURL: URL,
+        inputPath: String,
+        rawExtraArgs: String?,
+        snapshot: BurnSettingsSnapshot
+    ) -> [String] {
         let missingMetaArg: String
         switch snapshot.missingMetaMode {
         case .error:
@@ -1800,9 +1848,8 @@ struct ContentView: View {
             missingMetaArg = "skip_file"
         }
 
-
         var args: [String] = [
-            tempScriptURL.path,
+            scriptURL.path,
             "--mode=\(snapshot.inputMode.scriptValue)",
             "--layout=\(snapshot.layout)",
             "--format=\(snapshot.format.rawValue)",
@@ -1834,7 +1881,8 @@ struct ContentView: View {
             args.append("--debug")
         }
 
-        if snapshot.isBatchMode, snapshot.stitchBatch {
+        let wantsStitch = snapshot.isBatchMode && snapshot.stitchBatch
+        if wantsStitch {
             args.append("--stitch-batch")
         }
 
@@ -1852,28 +1900,7 @@ struct ContentView: View {
 
         args.append(contentsOf: ["--", inputPath])
 
-        process.arguments = args
-
-        // Debug logging is limited to the appended flag above; runtime environment stays identical.
-        var env = ProcessInfo.processInfo.environment
-        env["TMPDIR"] = tempDir.path
-        if let inputFolderPath {
-            env["DVMETA_INPUT_FOLDER"] = inputFolderPath
-        }
-        if let outputBaseName {
-            env["DVMETA_OUTPUT_BASENAME"] = outputBaseName
-        }
-        env["DVMETA_RUN_ID"] = runID
-        process.environment = env
-        process.currentDirectoryURL = tempDir
-
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = pipe
-
-        let argv = [process.executableURL?.path ?? ""] + args
-
-        return (process, pipe, argv)
+        return args
     }
 
     private func performBatchStitchConcatIfNeeded(
