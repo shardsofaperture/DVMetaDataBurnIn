@@ -165,8 +165,12 @@ sanitize_sendcmd_file() {
   LC_ALL=C /usr/bin/awk '
     function rtrim(s) { sub(/[ \t]+$/, "", s); return s }
     {
-      gsub(/\r/, "", $0)
-      line = rtrim($0)
+      line = $0
+      gsub(/\r/, "", line)
+      if (NR == 1) {
+        sub(/^\xef\xbb\xbf/, "", line)
+      }
+      line = rtrim(line)
       if (line == "") {
         next
       }
@@ -191,6 +195,32 @@ sanitize_sendcmd_file() {
   return 0
 }
 
+sendcmd_effective_line_count() {
+  local path="$1"
+
+  if [[ ! -f "$path" ]]; then
+    return 1
+  fi
+
+  LC_ALL=C /usr/bin/awk '
+    function ltrim(s) { sub(/^[[:space:]]+/, "", s); return s }
+    function rtrim(s) { sub(/[[:space:]]+$/, "", s); return s }
+    {
+      line = $0
+      gsub(/\r/, "", line)
+      if (NR == 1) {
+        sub(/^\xef\xbb\xbf/, "", line)
+      }
+      line = rtrim(ltrim(line))
+      if (line == "" || line ~ /^#/) {
+        next
+      }
+      count++
+    }
+    END { print count + 0 }
+  ' "$path"
+}
+
 validate_sendcmd_file() {
   local path="$1"
   if [[ ! -s "$path" ]]; then
@@ -199,33 +229,49 @@ validate_sendcmd_file() {
   fi
 
   local lines
-  lines=$(/usr/bin/wc -l < "$path" | /usr/bin/tr -d "[:space:]")
+  lines=$(sendcmd_effective_line_count "$path")
   if (( lines < 1 )); then
     echo "[ERROR] timestamp.cmd has no lines: $path" >&2
     return 1
   fi
 
   local bad_lines_path="${path:h}/sendcmd.bad_lines.txt"
+  local bad_lines_raw="${bad_lines_path}.raw"
   log_write "$bad_lines_path"
-  : > "$bad_lines_path"
+  : > "$bad_lines_raw"
 
   local bad_count
-  bad_count=$(LC_ALL=C /usr/bin/awk -v bad_out="$bad_lines_path" '
+  bad_count=$(LC_ALL=C /usr/bin/awk -v bad_out="$bad_lines_raw" '
+    function ltrim(s) { sub(/^[[:space:]]+/, "", s); return s }
+    function rtrim(s) { sub(/[[:space:]]+$/, "", s); return s }
     {
-      if ($1 !~ /^[0-9]+([.][0-9]+)?$/ || NF < 3) {
+      raw_line = $0
+      line = raw_line
+      gsub(/\r/, "", line)
+      if (NR == 1) {
+        sub(/^\xef\xbb\xbf/, "", line)
+      }
+      line = rtrim(ltrim(line))
+      if (line == "" || line ~ /^#/) {
+        next
+      }
+      fields = split(line, parts, /[[:space:]]+/)
+      if (parts[1] !~ /^[0-9]+([.][0-9]+)?$/ || fields < 3) {
         bad++
-        if (bad <= 5) {
-          print $0 >> bad_out
-        }
+        print raw_line >> bad_out
       }
     }
     END { print bad + 0 }
   ' "$path")
 
   if (( bad_count > 0 )); then
+    /usr/bin/sed -n 'l' "$bad_lines_raw" > "$bad_lines_path"
+    /bin/rm -f "$bad_lines_raw"
     echo "[ERROR] timestamp.cmd contains ${bad_count} malformed lines (see $bad_lines_path)" >&2
     return 1
   fi
+
+  /bin/rm -f "$bad_lines_raw"
 
   debug_log "timestamp.cmd validation succeeded ($lines lines)"
   return 0
@@ -284,7 +330,7 @@ make_timestamp_cmd() {
   log_sendcmd_debug_snapshot "$cmdfile"
 
   local cmd_lines timeline_lines
-  cmd_lines=$(/usr/bin/wc -l < "$cmdfile" | /usr/bin/tr -d '[:space:]')
+  cmd_lines=$(sendcmd_effective_line_count "$cmdfile")
   timeline_lines=$(/usr/bin/wc -l < "$timeline_debug" | /usr/bin/tr -d '[:space:]')
 
   if (( cmd_lines != (timeline_lines * 2) )); then
