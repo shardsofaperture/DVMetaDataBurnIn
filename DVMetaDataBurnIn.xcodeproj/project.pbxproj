@@ -32,10 +32,10 @@
 		92908F902ED9603D00A9A38A /* LICENSE.md in Resources */ = {isa = PBXBuildFile; fileRef = 92908F7E2ED9603D00A9A38A /* LICENSE.md */; };
 		92908F912ED9603D00A9A38A /* NOTICE.txt in Resources */ = {isa = PBXBuildFile; fileRef = 92908F7F2ED9603D00A9A38A /* NOTICE.txt */; };
 		92908F922ED9603D00A9A38A /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 92908F802ED9603D00A9A38A /* README.md */; };
-		92908F992ED967E000A9A38A /* dvmetaburn.zsh in Resources */ = {isa = PBXBuildFile; fileRef = 92908F982ED967E000A9A38A /* dvmetaburn.zsh */; };
 		92908F9B2ED9743300A9A38A /* ffmpeg in Resources */ = {isa = PBXBuildFile; fileRef = 92908F9A2ED9743300A9A38A /* ffmpeg */; };
 		92908F9F2ED987C700A9A38A /* SplashContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92908F9E2ED987C700A9A38A /* SplashContentView.swift */; };
 		92908FA32EDA720800A9A38A /* readme.md in Resources */ = {isa = PBXBuildFile; fileRef = 92908FA22EDA720800A9A38A /* readme.md */; };
+		9A1B2C3D4E5F678901234568 /* scripts in Resources */ = {isa = PBXBuildFile; fileRef = 9A1B2C3D4E5F678901234567 /* scripts */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -65,11 +65,11 @@
 		92908F7E2ED9603D00A9A38A /* LICENSE.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = LICENSE.md; sourceTree = "<group>"; };
 		92908F7F2ED9603D00A9A38A /* NOTICE.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = NOTICE.txt; sourceTree = "<group>"; };
 		92908F802ED9603D00A9A38A /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
-		92908F982ED967E000A9A38A /* dvmetaburn.zsh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = dvmetaburn.zsh; sourceTree = "<group>"; };
 		92908F9A2ED9743300A9A38A /* ffmpeg */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = ffmpeg; sourceTree = "<group>"; };
 		92908F9E2ED987C700A9A38A /* SplashContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashContentView.swift; sourceTree = "<group>"; };
 		92908FA22EDA720800A9A38A /* readme.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = readme.md; sourceTree = "<group>"; };
 		92B952412EE3EC4F00464FCA /* DVMetaDataBurnIn.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DVMetaDataBurnIn.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		9A1B2C3D4E5F678901234567 /* scripts */ = {isa = PBXFileReference; lastKnownFileType = folder; path = scripts; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -165,19 +165,11 @@
 			path = licenses;
 			sourceTree = "<group>";
 		};
-		92908F832ED9603D00A9A38A /* scripts */ = {
-			isa = PBXGroup;
-			children = (
-				92908F982ED967E000A9A38A /* dvmetaburn.zsh */,
-			);
-			path = scripts;
-			sourceTree = "<group>";
-		};
 		92908F842ED9603D00A9A38A /* Resources */ = {
 			isa = PBXGroup;
 			children = (
 				9244F84A2EE39C6000B583A2 /* Screenshots */,
-				92908F832ED9603D00A9A38A /* scripts */,
+				9A1B2C3D4E5F678901234567 /* scripts */,
 				92908F732ED9603D00A9A38A /* bin */,
 				92908F772ED9603D00A9A38A /* fonts */,
 				92908F812ED9603D00A9A38A /* licenses */,
@@ -256,7 +248,6 @@
 				922023272EE3E2C30046F768 /* Font_Picker.png in Resources */,
 				92908F8B2ED9603D00A9A38A /* COPYING.GPLv2 in Resources */,
 				92908F902ED9603D00A9A38A /* LICENSE.md in Resources */,
-				92908F992ED967E000A9A38A /* dvmetaburn.zsh in Resources */,
 				92908F8E2ED9603D00A9A38A /* COPYING.LGPLv3 in Resources */,
 				92908F9B2ED9743300A9A38A /* ffmpeg in Resources */,
 				92908F8C2ED9603D00A9A38A /* COPYING.GPLv3 in Resources */,
@@ -266,6 +257,7 @@
 				9226A4E12EDE59CA0041247E /* Change Log.txt in Resources */,
 				922023282EE3E2C30046F768 /* Fonts.png in Resources */,
 				92908F872ED9603D00A9A38A /* UAV-OSD-Mono.ttf in Resources */,
+				9A1B2C3D4E5F678901234568 /* scripts in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -430,7 +422,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 12.0;
-				MARKETING_VERSION = 1.0.5;
+				MARKETING_VERSION = 1.0.6;
 				PRODUCT_BUNDLE_IDENTIFIER = com.SML.DVMetaDataBurnIn;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -469,7 +461,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 12.0;
-				MARKETING_VERSION = 1.0.5;
+				MARKETING_VERSION = 1.0.6;
 				PRODUCT_BUNDLE_IDENTIFIER = com.SML.DVMetaDataBurnIn;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;

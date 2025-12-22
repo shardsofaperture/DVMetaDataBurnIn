@@ -36,12 +36,59 @@ enum MissingMetaMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+enum InputMode: String, CaseIterable, Identifiable {
+    case singleFile = "single"
+    case batchFolder = "batch"
+    case folderQueue = "folderQueue"
+
+    var id: String { rawValue }
+
+    var scriptValue: String {
+        switch self {
+        case .singleFile:
+            return "single"
+        case .batchFolder, .folderQueue:
+            return "batch"
+        }
+    }
+
+    var displayName: String {
+        switch self {
+        case .singleFile:
+            return "Single file"
+        case .batchFolder:
+            return "Batch folder"
+        case .folderQueue:
+            return "Folder queue"
+        }
+    }
+}
+
 enum OutputFormat: String, CaseIterable, Identifiable {
     case mov
     case mp4
     case mkv
 
     var id: String { rawValue }
+}
+
+enum DeinterlaceMode: String, CaseIterable, Identifiable {
+    case off = "off"
+    case p30 = "30p"
+    case p60 = "60p"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .off:
+            return "Off"
+        case .p30:
+            return "30p"
+        case .p60:
+            return "60p"
+        }
+    }
 }
 
 enum Quality: String, CaseIterable, Identifiable {
@@ -74,6 +121,77 @@ struct ResolvedQuality {
 
     var isPassthrough: Bool {
         qscale == nil
+    }
+}
+
+struct BurnSettingsSnapshot: Hashable {
+    let inputMode: InputMode
+    let burnMode: BurnMode
+    let missingMetaMode: MissingMetaMode
+    let subtitleMode: SubtitleMode?
+    let layout: String
+    let format: OutputFormat
+    let quality: Quality
+    let deinterlace: DeinterlaceMode
+    let outputMode: OutputMode
+    let stitchBatch: Bool
+    let destinationOverride: String?
+    let scratchDirectory: String?
+    let debugMode: Bool
+    let resolvedFontPath: String
+    let resolvedFontName: String
+    let outputToLocationFolder: Bool
+    let advancedFFmpegOptions: Bool
+    let extraFFmpegArgsText: String
+    let sanitizedExtraArgs: [String]
+    let extraArgWarnings: [String]
+    let rawExtraArgs: String?
+
+    var summaryDescription: String {
+        var parts: [String] = []
+        parts.append("Burn: \(burnMode.rawValue)")
+        parts.append("Missing: \(missingMetaMode.rawValue)")
+        if let subtitleMode {
+            parts.append("Subs: \(subtitleMode.rawValue)")
+        }
+        parts.append("Layout: \(layout)")
+        parts.append("Format: \(format.rawValue)")
+        parts.append("Quality: \(quality.rawValue)")
+        if outputMode == .video {
+            parts.append("Deinterlace: \(deinterlace.rawValue)")
+        }
+        parts.append("Output: \(outputMode.rawValue)")
+        if stitchBatch {
+            parts.append("Stitch on")
+        }
+        if let destinationOverride, !destinationOverride.isEmpty {
+            parts.append("Dest: \(destinationOverride)")
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    var queueSummaryDescription: String {
+        let stitchLabel = stitchBatch ? "on" : "off"
+        let deinterlacePart = outputMode == .video ? " · Deinterlace: \(deinterlace.rawValue)" : ""
+        return "Burn: \(burnMode.rawValue) · Stitch: \(stitchLabel) · Quality: \(quality.rawValue)\(deinterlacePart)"
+    }
+
+    var isBatchMode: Bool { inputMode != .singleFile }
+}
+
+struct QueueEntry: Identifiable, Hashable {
+    let id = UUID()
+    let path: String
+    var settingsSnapshot: BurnSettingsSnapshot
+
+    var url: URL { URL(fileURLWithPath: path) }
+
+    var displayName: String {
+        url.lastPathComponent
+    }
+
+    var outputBaseName: String {
+        url.deletingPathExtension().lastPathComponent
     }
 }
 
@@ -151,13 +269,16 @@ func outputExtension(for format: OutputFormat, outputMode: OutputMode) -> String
 struct ContentView: View {
     // UI state
     @State private var inputPath: String = ""
-    @State private var mode: String = "single"      // "single" or "batch"
+    @State private var inputMode: InputMode = .singleFile
     @State private var layout: String = "stacked"   // "stacked" or "single"
-    @State private var format: OutputFormat = .mov
-    @State private var quality: Quality = .high
+    @State private var format: OutputFormat = .mp4
+    @State private var quality: Quality = .medium
+    @State private var deinterlaceMode: DeinterlaceMode = .p30
     @State private var outputMode: OutputMode = .video
     @State private var logText: String = ""
     @State private var isRunning: Bool = false
+    @State private var isProcessing: Bool = false
+    @State private var runID: String = ""
     @State private var showingAbout: Bool = false
     @State private var currentProcess: Process?
     @State private var fullLogText: String = ""
@@ -174,6 +295,8 @@ struct ContentView: View {
     @State private var hoveredLayoutPreviewName: String?
     @State private var hoveredQuality: Quality?
     @State private var outputToLocationFolder: Bool = false
+    @State private var folderQueue: [QueueEntry] = []
+    @State private var isFolderDropTarget: Bool = false
     @State private var scratchDirectory: String =
         UserDefaults.standard.string(forKey: "DVMetaScratchDirectory") ?? ""
     @AppStorage("DVMetaAdvancedFFmpegOptions")
@@ -209,8 +332,48 @@ struct ContentView: View {
         return nil
     }
 
+    private func startBlockReason(for snapshot: BurnSettingsSnapshot) -> String? {
+        if snapshot.outputToLocationFolder && snapshot.destinationOverride == nil {
+            return "Choose an output folder before starting."
+        }
+
+        if snapshot.outputMode == .audioOnly {
+            return nil
+        }
+
+        if snapshot.burnMode == .subtitleTrack && snapshot.subtitleMode == nil {
+            return "Choose a subtitle timing mode before starting."
+        }
+
+        return nil
+    }
+
     private var shouldBlockStart: Bool {
         startBlockReason != nil
+    }
+
+    private var isBatchMode: Bool {
+        inputMode != .singleFile
+    }
+
+    private var activeInputPath: String {
+        switch inputMode {
+        case .folderQueue:
+            if let first = folderQueue.first { return first.path }
+            return ""
+        case .singleFile, .batchFolder:
+            return inputPath
+        }
+    }
+
+    private var hasInputPath: Bool {
+        !activeInputPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var resolvedInputURL: URL? {
+        let trimmed = activeInputPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        return URL(fileURLWithPath: trimmed)
     }
 
     private func sanitizedDestinationOverride() -> String? {
@@ -220,8 +383,8 @@ struct ContentView: View {
         return trimmed.isEmpty ? nil : trimmed
     }
 
-    private func resolvedDestinationPath(for input: String) -> String? {
-        if let override = sanitizedDestinationOverride() {
+    private func resolvedDestinationPath(for input: String, destinationOverride: String? = nil) -> String? {
+        if let override = destinationOverride ?? sanitizedDestinationOverride() {
             return override
         }
 
@@ -331,38 +494,68 @@ struct ContentView: View {
                 Text("DV Metadata Date/Time Burn-In")
                     .font(.title2)
                     .bold()
-            
-            // Input picker
-            HStack {
-                Text("Input:")
-                TextField("File or folder path", text: $inputPath)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .help("Enter a single DV file or a folder of DV files to process.")
 
-                Button("Choose…") {
-                    chooseInput()
+            // Input picker
+            if inputMode != .folderQueue {
+                HStack {
+                    Text("Input:")
+                    TextField("File or folder path", text: $inputPath)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .help("Enter a single DV file or a folder of DV files to process.")
+
+                    Button("Choose…") {
+                        chooseInput()
+                    }
+                    .help("Browse for a DV file or folder.")
                 }
-                .help("Browse for a DV file or folder.")
             }
-            
+
             // Mode: single vs batch
-            HStack {
-                Text("Mode:")
-                Picker("", selection: $mode) {
-                    Text("Single file").tag("single")
-                    Text("Batch folder").tag("batch")
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Mode:")
+                    Picker("", selection: $inputMode) {
+                        ForEach(InputMode.allCases) { mode in
+                            Text(mode.displayName).tag(mode)
+                        }
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                    .frame(width: 360)
+                    .help("Choose whether to process one file, a batch folder, or a queue of folders.")
+
+                    if inputMode == .folderQueue {
+                        Spacer()
+                        Button("Add Folders…") {
+                            chooseInput()
+                        }
+                        .help("Append folders to the queue using the file picker.")
+
+                        Button("Clear") {
+                            folderQueue.removeAll()
+                        }
+                        .disabled(folderQueue.isEmpty)
+                        .help("Remove all queued folders.")
+
+                    }
                 }
-                .pickerStyle(SegmentedPickerStyle())
-                .frame(width: 240)
-                .help("Choose whether to process one file or every DV file in a folder.")
+
+                if isBatchMode {
+                    Toggle(
+                        "Stitch batch files together into one file",
+                        isOn: $stitchBatch
+                    )
+                    .toggleStyle(.checkbox)
+                    .help("Produces one final stitched output instead of per-clip files.")
+                }
             }
-            if mode == "batch" {
-                Toggle(
-                    "Stitch batch files together into one file",
-                    isOn: $stitchBatch
-                )
-                .toggleStyle(.checkbox)
-                .help("Produces one final stitched output instead of per-clip files.")
+            .onChange(of: inputMode) { newMode in
+                if newMode == .singleFile {
+                    stitchBatch = false
+                }
+            }
+
+            if inputMode == .folderQueue {
+                folderQueueView
             }
             HStack {
                 Text("Output:")
@@ -378,11 +571,6 @@ struct ContentView: View {
                 if newMode == .audioOnly {
                     burnMode = .off
                     subtitleMode = nil
-                }
-            }
-            .onChange(of: mode) { newMode in
-                if newMode == "single" {
-                    stitchBatch = false
                 }
             }
             // Layout: stacked vs single bar
@@ -461,6 +649,13 @@ struct ContentView: View {
                     .pickerStyle(SegmentedPickerStyle())
                     .frame(width: 420)
                     .help("Pick the container format for the output file.")
+                    .onChange(of: format) { newValue in
+                        guard newValue == .mov else { return }
+                        if deinterlaceMode != .off {
+                            deinterlaceMode = .off
+                            appendToLog("[INFO] Deinterlace disabled for MOV passthrough.\n")
+                        }
+                    }
                 }
 
                 Text("MOV = DV passthrough only · MP4 / MKV = transcode")
@@ -486,6 +681,21 @@ struct ContentView: View {
                     .help("Choose the transcode quality for MP4 or MKV outputs.")
                     .disabled(qualityPickerDisabled)
                     .opacity(qualityPickerDisabled ? 0.5 : 1.0)
+
+                    Text("Deinterlace:")
+                        .frame(width: 110, alignment: .leading)
+
+                    Picker("", selection: $deinterlaceMode) {
+                        ForEach(DeinterlaceMode.allCases) { option in
+                            Text(option.displayName)
+                                .tag(option)
+                        }
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                    .frame(width: 220)
+                    .help("Apply deinterlacing when transcoding.")
+                    .disabled(format == .mov)
+                    .opacity(format == .mov ? 0.5 : 1.0)
                 }
 
                 if let hoveredQuality, !qualityPickerDisabled, outputMode == .video {
@@ -689,20 +899,29 @@ struct ContentView: View {
                             let coneOrange = Color(red: 1.0, green: 0.4, blue: 0.0)
 
                             // START button — cone orange
-                            Button(action: { runBurn() }) {
+                            Button(action: {
+                                if isProcessing {
+                                    let idValue = runID.isEmpty ? "unknown" : runID
+                                    appendToLog("[RUN] duplicate launch ignored id=\(idValue)")
+                                    return
+                                }
+                                runID = UUID().uuidString
+                                isProcessing = true
+                                runBurn()
+                            }) {
                                 Text(isRunning ? "Running…" : "Start Burn/Encode")
                                     .font(.system(size: 13, weight: .semibold))
                                     .foregroundColor(.black)
                                     .frame(width: 150, height: 22)   // FIXED HEIGHT
                                     .background(
                                         RoundedRectangle(cornerRadius: 6)
-                                            .fill((isRunning || inputPath.isEmpty || shouldBlockStart)
+                                            .fill((isRunning || !hasInputPath || shouldBlockStart)
                                                   ? coneOrange.opacity(0.45)
                                                   : coneOrange)
                                     )
                             }
                             .buttonStyle(.plain)
-                            .disabled(isRunning || inputPath.isEmpty || shouldBlockStart)
+                            .disabled(isRunning || !hasInputPath || shouldBlockStart)
 
                             // STOP button — match *same height + corner radius*
                             Button(action: { stopCurrentProcess() }) {
@@ -754,6 +973,92 @@ struct ContentView: View {
             AboutView()
         }
         .onAppear(perform: loadAvailableFonts)
+    }
+
+    private var folderQueueView: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Queued folders")
+                .font(.headline)
+
+            VStack(alignment: .leading, spacing: 8) {
+                if folderQueue.isEmpty {
+                    Text(isFolderDropTarget
+                         ? "Release to add folders to the queue"
+                         : "Drop folders here or click “Add Folders…”")
+                        .font(.callout)
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 8)
+                } else {
+                    List {
+                        ForEach(folderQueue) { entry in
+                            queueRow(for: entry)
+                        }
+                    }
+                    .frame(minHeight: 160, maxHeight: 260)
+                    .listStyle(.inset)
+                }
+            }
+            .padding(8)
+            .frame(maxWidth: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .strokeBorder(
+                        isFolderDropTarget ? Color.accentColor : Color.gray.opacity(0.3),
+                        lineWidth: isFolderDropTarget ? 2 : 1
+                    )
+            )
+            .onDrop(of: [UTType.folder, .fileURL], isTargeted: $isFolderDropTarget) { providers in
+                handleQueueDrop(providers)
+            }
+        }
+    }
+
+    private func queueRow(for entry: QueueEntry) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(entry.displayName)
+                    .font(.headline)
+                Text("Output base: \(entry.outputBaseName)")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                Text(entry.settingsSnapshot.queueSummaryDescription)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                Text(entry.settingsSnapshot.summaryDescription)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            VStack(spacing: 6) {
+                Button {
+                    moveEntry(entry, offset: -1)
+                } label: {
+                    Image(systemName: "arrow.up")
+                }
+                .help("Move folder earlier in the queue.")
+                .disabled(folderQueue.first?.id == entry.id)
+
+                Button {
+                    moveEntry(entry, offset: 1)
+                } label: {
+                    Image(systemName: "arrow.down")
+                }
+                .help("Move folder later in the queue.")
+                .disabled(folderQueue.last?.id == entry.id)
+
+                Button {
+                    removeEntry(entry)
+                } label: {
+                    Image(systemName: "trash")
+                }
+                .help("Remove this folder from the queue.")
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.vertical, 4)
     }
 
     private var logPanel: some View {
@@ -828,20 +1133,21 @@ struct ContentView: View {
     //New logic to try and fix stiching issues
     private func findDvsubParts(
         destFolderURL: URL,
-        inputPath: String
+        inputPath: String,
+        scratchOverride: String?
     ) -> [URL] {
         let fm = FileManager.default
         var candidateDirs: [URL] = [destFolderURL]
 
         // Also look in latest artifact dir (same logic you already use for burn-in stitching)
-        if let burnedPartsRoot = locateLatestBurnedPartsDirectory()?.deletingLastPathComponent() {
+        if let burnedPartsRoot = locateLatestBurnedPartsDirectory(scratchOverride: scratchOverride)?.deletingLastPathComponent() {
             // burned_parts lives under run/artifacts/<artifactRun>/burned_parts
             // so its parent is the artifact run dir where other outputs may live
             candidateDirs.append(burnedPartsRoot)
         }
 
         // Also consider scratch root if set (script may drop outputs there)
-        let trimmedScratch = scratchDirectory.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedScratch = scratchOverride?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if !trimmedScratch.isEmpty {
             candidateDirs.append(URL(fileURLWithPath: trimmedScratch, isDirectory: true))
         }
@@ -905,20 +1211,130 @@ struct ContentView: View {
         NSWorkspace.shared.open(base)
     }
 
+    private func captureSettingsSnapshot(for mode: InputMode? = nil) -> BurnSettingsSnapshot {
+        let (extraArgsForRun, extraWarnings, rawExtraArgs) = resolveExtraFFmpegArgs()
+        let trimmedScratch = scratchDirectory.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedDeinterlace: DeinterlaceMode = (format == .mov) ? .off : deinterlaceMode
+
+        return BurnSettingsSnapshot(
+            inputMode: mode ?? inputMode,
+            burnMode: burnMode,
+            missingMetaMode: missingMetaMode,
+            subtitleMode: subtitleMode,
+            layout: layout,
+            format: format,
+            quality: quality,
+            deinterlace: resolvedDeinterlace,
+            outputMode: outputMode,
+            stitchBatch: stitchBatch,
+            destinationOverride: sanitizedDestinationOverride(),
+            scratchDirectory: trimmedScratch.isEmpty ? nil : trimmedScratch,
+            debugMode: debugMode,
+            resolvedFontPath: resolvedFontPath(),
+            resolvedFontName: resolvedFontName(),
+            outputToLocationFolder: outputToLocationFolder,
+            advancedFFmpegOptions: advancedFFmpegOptions,
+            extraFFmpegArgsText: extraFFmpegArgsText,
+            sanitizedExtraArgs: extraArgsForRun,
+            extraArgWarnings: extraWarnings,
+            rawExtraArgs: rawExtraArgs
+        )
+    }
+
+    private func appendQueueEntries(from urls: [URL]) {
+        let snapshot = captureSettingsSnapshot(for: .folderQueue)
+        let existing = Set(folderQueue.map { $0.path })
+        var localSeen = Set<String>()
+        var additions: [QueueEntry] = []
+
+        for url in urls where url.hasDirectoryPath {
+            let path = url.path
+            guard !existing.contains(path), !localSeen.contains(path) else { continue }
+            localSeen.insert(path)
+            additions.append(QueueEntry(path: path, settingsSnapshot: snapshot))
+        }
+
+        guard !additions.isEmpty else { return }
+
+        folderQueue.append(contentsOf: additions)
+        inputMode = .folderQueue
+
+        if inputPath.isEmpty {
+            inputPath = additions.first?.path ?? inputPath
+        }
+    }
+
+    private func removeEntry(_ entry: QueueEntry) {
+        folderQueue.removeAll { $0.id == entry.id }
+    }
+
+    private func moveEntry(_ entry: QueueEntry, offset: Int) {
+        guard let currentIndex = folderQueue.firstIndex(of: entry) else { return }
+        let newIndex = currentIndex + offset
+        guard folderQueue.indices.contains(newIndex) else { return }
+
+        var updated = folderQueue
+        let item = updated.remove(at: currentIndex)
+        updated.insert(item, at: newIndex)
+        folderQueue = updated
+    }
+
+    private func handleQueueDrop(_ providers: [NSItemProvider]) -> Bool {
+        let identifiers = [UTType.folder.identifier, UTType.fileURL.identifier]
+        let dispatchGroup = DispatchGroup()
+        var urls: [URL] = []
+        var accepted = false
+
+        for provider in providers {
+            guard identifiers.contains(where: { provider.hasItemConformingToTypeIdentifier($0) }) else { continue }
+            accepted = true
+            for identifier in identifiers where provider.hasItemConformingToTypeIdentifier(identifier) {
+                dispatchGroup.enter()
+                provider.loadItem(forTypeIdentifier: identifier, options: nil) { item, _ in
+                    defer { dispatchGroup.leave() }
+
+                    if let data = item as? Data,
+                       let url = URL(dataRepresentation: data, relativeTo: nil, isAbsolute: true),
+                       url.hasDirectoryPath {
+                        urls.append(url)
+                    } else if let url = item as? URL, url.hasDirectoryPath {
+                        urls.append(url)
+                    }
+                }
+            }
+        }
+
+        dispatchGroup.notify(queue: .main) {
+            inputMode = .folderQueue
+            appendQueueEntries(from: urls)
+        }
+
+        return accepted
+    }
+
     // MARK: - File / folder picker
 
     private func chooseInput() {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
         panel.canChooseDirectories = true
-        panel.allowsMultipleSelection = false
+        panel.allowsMultipleSelection = true
 
-        if panel.runModal() == .OK, let url = panel.url {
-            inputPath = url.path
-            if url.hasDirectoryPath {
-                mode = "batch"
-            } else {
-                mode = "single"
+        if panel.runModal() == .OK {
+            let urls = panel.urls
+            let folders = urls.filter { $0.hasDirectoryPath }
+            let files = urls.filter { !$0.hasDirectoryPath }
+
+            if !folders.isEmpty {
+                appendQueueEntries(from: folders)
+                inputMode = .folderQueue
+            }
+
+            if folders.isEmpty, let file = files.first {
+                inputPath = file.path
+                inputMode = .singleFile
+            } else if folders.count == 1 && files.isEmpty {
+                inputPath = folders.first?.path ?? inputPath
             }
         }
     }
@@ -939,9 +1355,7 @@ struct ContentView: View {
         } else if let existing = selectedOutputFolder, !existing.isEmpty {
             panel.directoryURL = URL(fileURLWithPath: existing, isDirectory: true)
         } else {
-            let trimmedInput = inputPath.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmedInput.isEmpty {
-                let inputURL = URL(fileURLWithPath: trimmedInput)
+            if let inputURL = resolvedInputURL {
                 if inputURL.hasDirectoryPath {
                     panel.directoryURL = inputURL
                 } else {
@@ -990,12 +1404,10 @@ struct ContentView: View {
         let fm = FileManager.default
         var debugURL: URL?
 
-        if !inputPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-           fm.fileExists(atPath: inputPath) {
-            let url = URL(fileURLWithPath: inputPath)
-            if !url.hasDirectoryPath {
-                debugURL = url
-            }
+        if let existingInput = resolvedInputURL,
+           fm.fileExists(atPath: existingInput.path),
+           !existingInput.hasDirectoryPath {
+            debugURL = existingInput
         }
 
         if debugURL == nil {
@@ -1007,7 +1419,7 @@ struct ContentView: View {
             if panel.runModal() == .OK, let url = panel.url {
                 debugURL = url
                 inputPath = url.path
-                mode = "single"
+                inputMode = .singleFile
             }
         }
 
@@ -1119,29 +1531,60 @@ struct ContentView: View {
             currentProcess = nil
         }
         isRunning = false
+        isProcessing = false
     }
 
     // MARK: - Run script
 
     private func runBurn() {
-        guard !inputPath.isEmpty else {
+        if inputMode == .folderQueue {
+            startFolderQueueRun()
+            return
+        }
+
+        let snapshot = captureSettingsSnapshot()
+        let selectedInput = activeInputPath.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        launchRun(using: snapshot, inputPath: selectedInput, outputBaseName: nil)
+    }
+
+    private func startFolderQueueRun() {
+        guard !folderQueue.isEmpty else {
+            logText = "Queue is empty."
+            isProcessing = false
+            return
+        }
+
+        guard !isRunning else { return }
+
+        guard let entry = folderQueue.first else { return }
+        let trimmedPath = entry.path.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        launchRun(using: entry.settingsSnapshot, inputPath: trimmedPath, outputBaseName: entry.outputBaseName) {
+            folderQueue.removeAll { $0.id == entry.id }
+            if !folderQueue.isEmpty {
+                startFolderQueueRun()
+            }
+        }
+    }
+
+    private func launchRun(
+        using snapshot: BurnSettingsSnapshot,
+        inputPath: String,
+        outputBaseName: String?,
+        completion: (() -> Void)? = nil
+    ) {
+        let selectedInput = inputPath.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !selectedInput.isEmpty else {
             logText = "Please choose an input file or folder first."
+            isProcessing = false
             return
         }
 
-        if let reason = startBlockReason {
+        if let reason = startBlockReason(for: snapshot) {
             logText = reason
-            return
-        }
-
-        if burnMode == .subtitleTrack && subtitleMode == nil {
-            logText = "Please choose a subtitle timing mode before starting."
-            return
-
-        }
-
-        if outputToLocationFolder && sanitizedDestinationOverride() == nil {
-            logText = "Please choose an output folder before starting."
+            isProcessing = false
             return
         }
 
@@ -1149,29 +1592,44 @@ struct ContentView: View {
         fullLogText = ""
         isRunning = true
 
-        let (extraArgsForRun, extraWarnings, rawExtraArgs) = resolveExtraFFmpegArgs()
-
-        if !extraWarnings.isEmpty {
-            appendToLog(extraWarnings.joined(separator: "\n") + "\n", capped: false)
+        if !snapshot.extraArgWarnings.isEmpty {
+            appendToLog(snapshot.extraArgWarnings.joined(separator: "\n") + "\n", capped: false)
         }
 
-        if debugMode {
-            appendToLog(debugSnapshot(), capped: false)
+        if snapshot.debugMode {
+            appendToLog(debugSnapshot(for: selectedInput, snapshot: snapshot), capped: false)
         }
+
+        let resolvedDestination = resolvedDestinationPath(
+            for: selectedInput,
+            destinationOverride: snapshot.destinationOverride
+        ) ?? "unknown"
+        print("[RUN] id=\(runID) mode=\(snapshot.inputMode) stitch=\(snapshot.stitchBatch) output=\(resolvedDestination)")
 
         DispatchQueue.global(qos: .userInitiated).async {
             do {
                 let (process, pipe, argv) = try self.makeProcess(
-                    extraArgs: extraArgsForRun,
-                    rawExtraArgs: rawExtraArgs
+                    inputPath: selectedInput,
+                    inputFolderPath: snapshot.isBatchMode ? selectedInput : nil,
+                    extraArgs: snapshot.sanitizedExtraArgs,
+                    rawExtraArgs: snapshot.rawExtraArgs,
+                    snapshot: snapshot,
+                    outputBaseName: outputBaseName
                 )
 
                 DispatchQueue.main.async {
                     self.currentProcess = process
                 }
 
+                let wantsStitch = snapshot.isBatchMode && snapshot.stitchBatch
+                let launchLine =
+                    "[launch] wantsStitch=\(wantsStitch) " +
+                    "burnMode=\(snapshot.burnMode.rawValue) " +
+                    "mode=\(snapshot.inputMode.scriptValue) " +
+                    "argv=\(argv)"
+
                 DispatchQueue.main.async {
-                    self.appendToLog("[launch argv] \(argv)", capped: false)
+                    self.appendToLog(launchLine, capped: false)
                 }
 
                 let handle = pipe.fileHandleForReading
@@ -1192,32 +1650,37 @@ struct ContentView: View {
                 try process.run()
                 process.waitUntilExit()
                 let status = process.terminationStatus
-                
+
                 let remainder = self.drainPipeRemainder(handle)
                 if !remainder.isEmpty {
                     DispatchQueue.main.async {
                         self.appendToLog(remainder)
                     }
                 }
-                
+
                 let (finalStatus, stitchLog) = self.performBatchStitchConcatIfNeeded(
                     originalStatus: status,
-                    inputPath: self.inputPath,
-                    extraArgs: extraArgsForRun
+                    inputPath: selectedInput,
+                    extraArgs: snapshot.sanitizedExtraArgs,
+                    snapshot: snapshot,
+                    outputBaseName: outputBaseName
                 )
 
                 DispatchQueue.main.async {
                     self.isRunning = false
+                    self.isProcessing = false
                     if !stitchLog.isEmpty { self.appendToLog(stitchLog, capped: false) }
                     self.appendToLog("\n\n[process exit status: \(finalStatus)]")
                     handle.readabilityHandler = nil
                     self.currentProcess = nil
+                    completion?()
                 }
 
             } catch {
                 DispatchQueue.main.async {
                     self.logText = "Error: \(error.localizedDescription)"
                     self.isRunning = false
+                    self.isProcessing = false
                     self.currentProcess = nil
                 }
             }
@@ -1234,8 +1697,12 @@ struct ContentView: View {
     // MARK: - Process builder
 
     private func makeProcess(
+        inputPath: String,
+        inputFolderPath: String?,
         extraArgs: [String],
-        rawExtraArgs: String?
+        rawExtraArgs: String?,
+        snapshot: BurnSettingsSnapshot,
+        outputBaseName: String?
     ) throws -> (Process, Pipe, [String]) {
         let bundleRoot = Bundle.main.resourceURL ?? Bundle.main.bundleURL
         let fm = FileManager.default
@@ -1274,9 +1741,48 @@ struct ContentView: View {
 
         let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
         let tempScriptURL = tempDir.appendingPathComponent("dvmetaburn_run.zsh")
+        let tempLibDirURL = tempDir.appendingPathComponent("lib", isDirectory: true)
 
         _ = try? fm.removeItem(at: tempScriptURL)
+        _ = try? fm.removeItem(at: tempLibDirURL)
         try fm.copyItem(at: bundledScriptURL, to: tempScriptURL)
+        let bundledLibDirURL = bundledScriptURL.deletingLastPathComponent().appendingPathComponent("lib", isDirectory: true)
+        let fallbackLibDirURL = bundleRoot.appendingPathComponent("scripts/lib", isDirectory: true)
+        let libSourceURL: URL?
+        if fm.fileExists(atPath: bundledLibDirURL.path) {
+            libSourceURL = bundledLibDirURL
+        } else if fm.fileExists(atPath: fallbackLibDirURL.path) {
+            libSourceURL = fallbackLibDirURL
+        } else {
+            libSourceURL = nil
+        }
+
+        guard let resolvedLibSourceURL = libSourceURL else {
+            throw NSError(domain: "DVMeta", code: 7,
+                          userInfo: [NSLocalizedDescriptionKey:
+                                     "ERROR: Could not find scripts/lib in app bundle (root: \(bundleRoot.path))."])
+        }
+
+        try fm.createDirectory(at: tempLibDirURL, withIntermediateDirectories: true)
+        if let enumerator = fm.enumerator(at: resolvedLibSourceURL,
+                                          includingPropertiesForKeys: [.isDirectoryKey],
+                                          options: [.skipsHiddenFiles]) {
+            for case let itemURL as URL in enumerator {
+                let relativePath = itemURL.path.replacingOccurrences(
+                    of: resolvedLibSourceURL.path + "/",
+                    with: ""
+                )
+                let destinationURL = tempLibDirURL.appendingPathComponent(relativePath)
+                let isDirectory = (try itemURL.resourceValues(forKeys: [.isDirectoryKey]).isDirectory ?? false)
+
+                if isDirectory {
+                    try fm.createDirectory(at: destinationURL, withIntermediateDirectories: true)
+                } else {
+                    _ = try? fm.removeItem(at: destinationURL)
+                    try fm.copyItem(at: itemURL, to: destinationURL)
+                }
+            }
+        }
 
         let attrs: [FileAttributeKey: Any] = [
             .posixPermissions: NSNumber(value: Int16(0o755))
@@ -1286,85 +1792,27 @@ struct ContentView: View {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/zsh")
 
-        let missingMetaArg: String
-        switch missingMetaMode {
-        case .error:
-            missingMetaArg = "error"
-
-        case .skipBurninConvert:
-            // subtitleTrack has no burn-in stage; treat as skip_file
-            missingMetaArg = (burnMode == .subtitleTrack)
-                ? "skip_file"
-                : "skip_burnin_convert"
-
-        case .skipFile:
-            missingMetaArg = "skip_file"
-        }
-
-
-        var args: [String] = [
-            tempScriptURL.path,
-            "--mode=\(mode)",
-            "--layout=\(layout)",
-            "--format=\(format.rawValue)",
-            "--output-mode=\(outputMode.rawValue)",
-            "--missing-meta=\(missingMetaArg)",
-            "--fontfile=\(resolvedFontPath())",
-            "--fontname=\(resolvedFontName())",
-            "--ffmpeg=\(ffmpegURL.path)",
-            "--dvrescue=\(dvrescueURL.path)"
-        ]
-
-        if burnMode != .subtitleTrack, (format == .mp4 || format == .mkv) {
-            args.append("--quality=\(quality.rawValue)")
-        }
-        if mode == "batch"
-            && stitchBatch
-            && (burnMode != .off || outputMode == .audioOnly)
-        {
-            args.append("--stitch-mode=stitch")
-        }
-
-        if mode == "batch" && stitchBatch {
-            args.append("--stitch-batch=1")
-        }
-
-        switch burnMode {
-        case .burnin:
-            args.append("--burn-mode=\(BurnMode.burnin.rawValue)")
-        case .off:
-            args.append("--burn-mode=\(BurnMode.off.rawValue)")
-        case .subtitleTrack:
-            args.append("--burn-mode=\(BurnMode.subtitleTrack.rawValue)")
-            if let subtitleMode {
-                args.append("--subtitle-mode=\(subtitleMode.rawValue)")
-            }
-        }
-
-        if debugMode {
-            args.append("--debug")
-        }
-
-        if let destination = sanitizedDestinationOverride() {
-            args.append("--dest-dir=\(destination)")
-        }
-
-        let trimmedScratch = scratchDirectory.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !trimmedScratch.isEmpty {
-            args.append("--scratch-dir=\(trimmedScratch)")
-        }
-
-        if let rawExtraArgs, !rawExtraArgs.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            args.append("--extra-ffmpeg-flags=\(rawExtraArgs)")
-        }
-
-        args.append(contentsOf: ["--", inputPath])
+        let args = buildScriptArgs(
+            scriptURL: tempScriptURL,
+            ffmpegURL: ffmpegURL,
+            dvrescueURL: dvrescueURL,
+            inputPath: inputPath,
+            rawExtraArgs: rawExtraArgs,
+            snapshot: snapshot
+        )
 
         process.arguments = args
 
         // Debug logging is limited to the appended flag above; runtime environment stays identical.
         var env = ProcessInfo.processInfo.environment
         env["TMPDIR"] = tempDir.path
+        if let inputFolderPath {
+            env["DVMETA_INPUT_FOLDER"] = inputFolderPath
+        }
+        if let outputBaseName {
+            env["DVMETA_OUTPUT_BASENAME"] = outputBaseName
+        }
+        env["DVMETA_RUN_ID"] = runID
         process.environment = env
         process.currentDirectoryURL = tempDir
 
@@ -1377,18 +1825,98 @@ struct ContentView: View {
         return (process, pipe, argv)
     }
 
+    private func buildScriptArgs(
+        scriptURL: URL,
+        ffmpegURL: URL,
+        dvrescueURL: URL,
+        inputPath: String,
+        rawExtraArgs: String?,
+        snapshot: BurnSettingsSnapshot
+    ) -> [String] {
+        let missingMetaArg: String
+        switch snapshot.missingMetaMode {
+        case .error:
+            missingMetaArg = "error"
+
+        case .skipBurninConvert:
+            // subtitleTrack has no burn-in stage; treat as skip_file
+            missingMetaArg = (snapshot.burnMode == .subtitleTrack)
+                ? "skip_file"
+                : "skip_burnin_convert"
+
+        case .skipFile:
+            missingMetaArg = "skip_file"
+        }
+
+        var args: [String] = [
+            scriptURL.path,
+            "--mode=\(snapshot.inputMode.scriptValue)",
+            "--layout=\(snapshot.layout)",
+            "--format=\(snapshot.format.rawValue)",
+            "--deinterlace=\(snapshot.deinterlace.rawValue)",
+            "--output-mode=\(snapshot.outputMode.rawValue)",
+            "--missing-meta=\(missingMetaArg)",
+            "--fontfile=\(snapshot.resolvedFontPath)",
+            "--fontname=\(snapshot.resolvedFontName)",
+            "--ffmpeg=\(ffmpegURL.path)",
+            "--dvrescue=\(dvrescueURL.path)"
+        ]
+
+        if snapshot.burnMode != .subtitleTrack, (snapshot.format == .mp4 || snapshot.format == .mkv) {
+            args.append("--quality=\(snapshot.quality.rawValue)")
+        }
+        switch snapshot.burnMode {
+        case .burnin:
+            args.append("--burn-mode=\(BurnMode.burnin.rawValue)")
+        case .off:
+            args.append("--burn-mode=\(BurnMode.off.rawValue)")
+        case .subtitleTrack:
+            args.append("--burn-mode=\(BurnMode.subtitleTrack.rawValue)")
+            if let subtitleMode = snapshot.subtitleMode {
+                args.append("--subtitle-mode=\(subtitleMode.rawValue)")
+            }
+        }
+
+        if snapshot.debugMode {
+            args.append("--debug")
+        }
+
+        let wantsStitch = snapshot.isBatchMode && snapshot.stitchBatch
+        if wantsStitch {
+            args.append("--stitch-batch")
+        }
+
+        if let destination = snapshot.destinationOverride {
+            args.append("--dest-dir=\(destination)")
+        }
+
+        if let trimmedScratch = snapshot.scratchDirectory, !trimmedScratch.isEmpty {
+            args.append("--scratch-dir=\(trimmedScratch)")
+        }
+
+        if let rawExtraArgs, !rawExtraArgs.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            args.append("--extra-ffmpeg-flags=\(rawExtraArgs)")
+        }
+
+        args.append(contentsOf: ["--", inputPath])
+
+        return args
+    }
+
     private func performBatchStitchConcatIfNeeded(
         originalStatus: Int32,
         inputPath: String,
-        extraArgs: [String]
+        extraArgs: [String],
+        snapshot: BurnSettingsSnapshot,
+        outputBaseName: String?
     ) -> (Int32, String) {
 
         // Stitch rules:
         // - Only applies when the batch toggle is enabled
         let wantsStitch =
-            mode == "batch" &&
-            stitchBatch &&
-            (burnMode != .off || outputMode == .audioOnly)
+            snapshot.isBatchMode &&
+            snapshot.stitchBatch &&
+            (snapshot.burnMode != .off || snapshot.outputMode == .audioOnly)
 
         guard wantsStitch else { return (originalStatus, "") }
 
@@ -1398,7 +1926,7 @@ struct ContentView: View {
         }
 
         // ---------- subtitleTrack stitching (concat *_dvsub.mkv) ----------
-        if burnMode == .subtitleTrack {
+        if snapshot.burnMode == .subtitleTrack {
 
             func shellEscapeForConcatFile(_ path: String) -> String {
                 path.replacingOccurrences(of: "'", with: "'\\''")
@@ -1413,15 +1941,16 @@ struct ContentView: View {
 
             // Use the same destination logic as the run.
             let destFolderPath =
-                sanitizedDestinationOverride()
-                ?? resolvedDestinationPath(for: inputPath)
+                snapshot.destinationOverride
+                ?? resolvedDestinationPath(for: inputPath, destinationOverride: snapshot.destinationOverride)
                 ?? (inputURL.hasDirectoryPath ? inputURL.path : inputURL.deletingLastPathComponent().path)
 
             let destFolderURL = URL(fileURLWithPath: destFolderPath, isDirectory: true)
 
             let parts = findDvsubParts(
                 destFolderURL: destFolderURL,
-                inputPath: inputPath
+                inputPath: inputPath,
+                scratchOverride: snapshot.scratchDirectory
             )
 
             guard parts.count >= 2 else {
@@ -1467,7 +1996,7 @@ struct ContentView: View {
             return (max(originalStatus, 1), "\n[STITCH] ERROR: ffmpeg not found in app bundle.\n")
         }
 
-        guard let burnedPartsDir = locateLatestBurnedPartsDirectory() else {
+        guard let burnedPartsDir = locateLatestBurnedPartsDirectory(scratchOverride: snapshot.scratchDirectory) else {
             return (
                 max(originalStatus, 1),
                 "\n[STITCH] ERROR: Unable to locate burned parts for stitching in scratch or log directories.\n"
@@ -1475,9 +2004,9 @@ struct ContentView: View {
         }
 
         let fm = FileManager.default
-        let targetExtension = outputExtension(for: format, outputMode: outputMode)
-        let partSuffix = outputMode == .audioOnly ? "_audio" : "_dateburn"
-        let resolvedQuality = resolveQuality(quality, format: format, outputMode: outputMode)
+        let targetExtension = outputExtension(for: snapshot.format, outputMode: snapshot.outputMode)
+        let partSuffix = snapshot.outputMode == .audioOnly ? "_audio" : "_dateburn"
+        let resolvedQuality = resolveQuality(snapshot.quality, format: snapshot.format, outputMode: snapshot.outputMode)
 
         guard let entries = try? fm.contentsOfDirectory(at: burnedPartsDir, includingPropertiesForKeys: nil) else {
             return (
@@ -1493,10 +2022,10 @@ struct ContentView: View {
             }
             .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
 
-        guard !parts.isEmpty else {
+        guard parts.count >= 2 else {
             return (
-                max(originalStatus, 1),
-                "\n[STITCH] ERROR: No burned parts found to stitch at \(burnedPartsDir.path)\n"
+                0,
+                "\n[STITCH] NOTE: Found \(parts.count) burn-in part(s); nothing to stitch.\n"
             )
         }
 
@@ -1514,7 +2043,7 @@ struct ContentView: View {
             )
         }
 
-        guard let destinationPath = resolvedDestinationPath(for: inputPath) else {
+        guard let destinationPath = resolvedDestinationPath(for: inputPath, destinationOverride: snapshot.destinationOverride) else {
             return (
                 max(originalStatus, 1),
                 "\n[STITCH] ERROR: Unable to resolve destination output directory.\n"
@@ -1524,7 +2053,7 @@ struct ContentView: View {
         let outputDirectory = URL(fileURLWithPath: destinationPath, isDirectory: true)
         _ = try? fm.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
 
-        let baseName = URL(fileURLWithPath: inputPath, isDirectory: true).lastPathComponent
+        let baseName = outputBaseName ?? URL(fileURLWithPath: inputPath, isDirectory: true).lastPathComponent
         let outputName = "\(baseName)_stitched\(partSuffix).\(targetExtension)"
         let finalOutput = outputDirectory.appendingPathComponent(outputName)
 
@@ -1541,7 +2070,7 @@ struct ContentView: View {
         concatArgs.append(finalOutput.path)
 
         var log = "\n[STITCH] part extension: .\(targetExtension)"
-        if outputMode == .audioOnly {
+        if snapshot.outputMode == .audioOnly {
             for part in parts {
                 if let duration = probeDuration(for: part, ffmpegURL: ffmpegURL) {
                     log += "\n[STITCH] part \(part.lastPathComponent): duration \(duration)"
@@ -1670,12 +2199,12 @@ struct ContentView: View {
         return nil
     }
 
-    private func locateLatestBurnedPartsDirectory() -> URL? {
+    private func locateLatestBurnedPartsDirectory(scratchOverride: String? = nil) -> URL? {
         let fm = FileManager.default
         var searchRoots: [URL] = []
 
-        let trimmedScratch = scratchDirectory.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !trimmedScratch.isEmpty {
+        let trimmedScratch = scratchOverride?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let trimmedScratch, !trimmedScratch.isEmpty {
             searchRoots.append(URL(fileURLWithPath: trimmedScratch, isDirectory: true)
                 .appendingPathComponent("DVMetaDataBurnIn"))
         }
@@ -2072,29 +2601,27 @@ struct ContentView: View {
 
     // MARK: - Debug helpers
 
-    private func debugSnapshot() -> String {
+    private func debugSnapshot(for inputPath: String, snapshot: BurnSettingsSnapshot) -> String {
         var lines: [String] = []
         let fm = FileManager.default
         let inputExists = fm.fileExists(atPath: inputPath) ? "yes" : "no"
-        let systemFontsEnabled = includeSystemFonts ? "yes" : "no"
-        let debugFlag = debugMode ? "on" : "off"
-        let resolvedQuality = resolveQuality(quality, format: format, outputMode: outputMode)
+        let debugFlag = snapshot.debugMode ? "on" : "off"
+        let resolvedQuality = resolveQuality(snapshot.quality, format: snapshot.format, outputMode: snapshot.outputMode)
         let qscaleDisplay = resolvedQuality.qscale.map { String($0) } ?? "passthrough"
-        let subtitleModeValue = subtitleMode?.rawValue ?? "(none selected)"
+        let subtitleModeValue = snapshot.subtitleMode?.rawValue ?? "(none selected)"
 
         lines.append("[DEBUG] Input path: \(inputPath)")
         lines.append("[DEBUG] Input exists: \(inputExists)")
-        lines.append("[DEBUG] Mode: \(mode) | Layout: \(layout) | Format: \(format) | Output: \(outputMode.rawValue)")
-        lines.append("[DEBUG] Quality: \(quality.rawValue) | qscale=\(qscaleDisplay)")
-        lines.append("[DEBUG] Burn mode: \(burnMode.rawValue) | Missing metadata handling: \(missingMetaMode.rawValue)")
+        lines.append("[DEBUG] Mode: \(snapshot.inputMode.rawValue) | Layout: \(snapshot.layout) | Format: \(snapshot.format) | Output: \(snapshot.outputMode.rawValue)")
+        lines.append("[DEBUG] Quality: \(snapshot.quality.rawValue) | qscale=\(qscaleDisplay)")
+        lines.append("[DEBUG] Burn mode: \(snapshot.burnMode.rawValue) | Missing metadata handling: \(snapshot.missingMetaMode.rawValue)")
         lines.append("[DEBUG] Subtitle timing mode: \(subtitleModeValue)")
-        lines.append("[DEBUG] Font path: \(resolvedFontPath()) | Font name: \(resolvedFontName())")
-        lines.append("[DEBUG] System fonts enabled: \(systemFontsEnabled)")
-        let requestedDestination = sanitizedDestinationOverride() ?? "(default: input folder)"
-        let resolvedDestination = resolvedDestinationPath(for: inputPath) ?? "(unresolved)"
+        lines.append("[DEBUG] Font path: \(snapshot.resolvedFontPath) | Font name: \(snapshot.resolvedFontName)")
+        let requestedDestination = snapshot.destinationOverride ?? "(default: input folder)"
+        let resolvedDestination = resolvedDestinationPath(for: inputPath, destinationOverride: snapshot.destinationOverride) ?? "(unresolved)"
         lines.append("[DEBUG] Requested destination: \(requestedDestination)")
         lines.append("[DEBUG] Resolved destination: \(resolvedDestination)")
-        let scratchDisplay = scratchDirectory.trimmingCharacters(in: .whitespacesAndNewlines)
+        let scratchDisplay = snapshot.scratchDirectory?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         lines.append("[DEBUG] Scratch directory override: \(scratchDisplay.isEmpty ? "(default)" : scratchDisplay)")
         lines.append("[DEBUG] Debug flag passed to script: \(debugFlag)")
         return lines.joined(separator: "\n") + "\n\n"

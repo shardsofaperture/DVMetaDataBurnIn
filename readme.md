@@ -7,18 +7,21 @@
 
 - File chooser doesn't limit to file types which the program will accept
 - Unknown issue if this will this work on m series mac. Was built / works on an intel mac.
-- Running a massive batch folder seems to overflow storage and cause other issues - most likely due to log handling - have to look into (ran 80 files) which resulted in the computer resetting at some point + breaking the RDT time burning in some videos (all conversions completed) with static time rather than rolling clock and an error saying low on space (that was not true after reset - thinking temp dir was full and caused a reboot)
+- UI could be way better
+- Does not work on Windows 98 =(
 
 ---
 
 
-## Features (work in progress but already functional)
+## Features
 
-- Batch or single-file AVI processing  
+- Batch or single-file AVI processing including folder queue
 - Extracts original camcorder recording date/time from embedded DV metadata  
 - Overlay date/time using what I feel are camcorder-style fonts   
 - Export to MOV (original quality) or MP4 (H.264) but trying to keep it as close to "DV visual style" as possible (low compression) 
+- Containerize as MP4 in MKV with Subtittles (ASS format) so you can burn in or have the option to output with a turn on/off time and date option
 - No command-line required — simple macOS UI (thank god) 
+- Built in options to deinerlace
 
 ---
 
@@ -26,15 +29,15 @@
 - Additional layouts for how the camcorder fonts are burned in
     - Maybe a gallery, maybe a preview function idk
 - Visual guide improvement (overlay with font instead of static image with prerendered default font)
-- Hide debug in a tab or slider of sorts
-- Improve debug logs
-- Add clear temp directory button under debug 
-- Fix temp file handling / clearing
+- Hide better handling of debug options
+- Improve debug logs 
+- Fix temp / scratch file handling / clearing
 - Organize UI better
-- Custom FFMPEG args
+- Custom FFMPEG args instructions
 - Better file browsing handling 
 - Progress bar
 - Auto chose batch or single file based on input field (.avi = single file, open folder = batch process)
+- Presets as an easier way to select options
 
 ---
 ## Screenshots
@@ -96,7 +99,7 @@ Bundled tools:
 
 ## Credits
 
-- App & UI: Zach Zarzycki (powered by a suspicious amount of late-night vibe-coding)  
+- App & UI: ThePolish (very vibe coded)  
 
 - **UAV OSD Font** by Nicholas Kruse  
   - Free for personal and commercial use  
