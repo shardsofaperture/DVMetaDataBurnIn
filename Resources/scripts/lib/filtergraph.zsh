@@ -28,8 +28,8 @@ build_burnin_filtergraph() {
   local font="$3"
   local deinterlace_mode="$4"
 
-  local vf sendcmd drawtext_date drawtext_time drawtext_time_stacked
-
+  local vf sendcmd drawtext_date drawtext_time drawtext_time_stacked drawtext_date_stacked
+  
   local sendcmd_exec="${cmdfile}.exec"
   sendcmd_exec_path="$sendcmd_exec"
   log_write "$sendcmd_exec"
@@ -48,11 +48,12 @@ build_burnin_filtergraph() {
 
   drawtext_date="drawtext@dvdate=fontfile='${fontfile}':fontsize=24:fontcolor=white:x=20:y=h-th-20:${shadow}:text=''"
   drawtext_time="drawtext@dvtime=fontfile='${fontfile}':fontsize=24:fontcolor=white:x=w-tw-20:y=h-th-20:${shadow}:text=''"
-  drawtext_time_stacked="drawtext@dvtime=fontfile='${fontfile}':fontsize=24:fontcolor=white:x=w-tw-20:y=h-th-60:${shadow}:text=''"
+  drawtext_time_stacked="drawtext@dvtime=fontfile='${fontfile}':fontsize=24:fontcolor=white:x=w-tw-20:y=h-th-30:${shadow}:text=''"
+  drawtext_date_stacked="drawtext@dvdate=fontfile='${fontfile}':fontsize=24:fontcolor=white:x=w-tw-20:y=h-th-60:${shadow}:text=''"
 
   case "$layout" in
     stacked)
-      vf="${sendcmd},${drawtext_time_stacked},${drawtext_date}"
+      vf="${sendcmd},${drawtext_date_stacked},${drawtext_time_stacked}"
       ;;
     single)
       vf="${sendcmd},${drawtext_date},${drawtext_time}"
