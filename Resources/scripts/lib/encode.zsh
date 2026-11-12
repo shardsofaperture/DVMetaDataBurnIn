@@ -34,48 +34,45 @@ resolve_audio_bitrate() {
 
   case "$quality_kind" in
     low)
-      resolved_audio_bitrate="96k"
+      resolved_audio_bitrate=128
       ;;
-    medium)
-      resolved_audio_bitrate="128k"
+    medium|"")
+      resolved_audio_bitrate=192
       ;;
     high)
-      resolved_audio_bitrate="192k"
+      resolved_audio_bitrate=256
       ;;
     *)
-      resolved_audio_bitrate="128k"
+      resolved_audio_bitrate=192
       ;;
   esac
 }
 
 quality_to_video_args() {
-  local quality="$1"
+  local quality_kind="$1"
   reply=()
 
-  case "$quality" in
-    low)
-      reply=(-c:v libx264 -preset fast -crf 26 -profile:v high -level 4.1)
-      ;;
-    medium)
-      reply=(-c:v libx264 -preset medium -crf 22 -profile:v high -level 4.1)
-      ;;
+  case "$quality_kind" in
     high)
-      reply=(-c:v libx264 -preset slow -crf 18 -profile:v high -level 4.1)
+      reply=(-c:v libx264 -crf 18 -preset slow)
+      ;;
+    low)
+      reply=(-c:v libx264 -crf 28 -preset veryfast)
       ;;
     *)
-      reply=(-c:v libx264 -preset medium -crf 22 -profile:v high -level 4.1)
+      reply=(-c:v libx264 -crf 22 -preset medium)
       ;;
   esac
 }
 
 normalize_deinterlace_mode() {
-  local raw="$1"
+  local raw="${1:-}"
   raw="${raw//[[:space:]]/}"
+  raw="${raw//_/-}"
   raw="${raw:l}"
-  raw="${raw//-/_}"
 
   case "$raw" in
-    off|none|disable|false|0|"" )
+    ""|off|none|false|0)
       echo "off"
       ;;
     30|30p|p30)

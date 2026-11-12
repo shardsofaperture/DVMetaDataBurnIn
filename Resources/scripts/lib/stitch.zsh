@@ -7,7 +7,10 @@ build_stitch_input_list() {
   local -a inputs=()
   if [[ -n "$stitch_input_list" ]]; then
     if [[ -f "$stitch_input_list" ]]; then
-      mapfile -t inputs < "$stitch_input_list"
+      local input_line
+      while IFS= read -r input_line || [[ -n "$input_line" ]]; do
+        [[ -n "$input_line" ]] && inputs+=("$input_line")
+      done < "$stitch_input_list"
     else
       warn "[stitch] stitch input list not found: $stitch_input_list"
     fi
@@ -59,7 +62,7 @@ stitch_sources() {
   log_stage_marker "stitch"
 
   local stitched_path
-  stitched_path="${artifact_dir%/}/stitched.${target_ext}"
+  stitched_path="${artifact_dir%/}/stitched_source.mov"
 
   info "[stitch] Concatenating ${#inputs[@]} clips into $stitched_path (stream copy)"
   prepare_subprocess_env
@@ -69,7 +72,7 @@ stitch_sources() {
     "$stitched_path"
   )
   log_ffmpeg_command "stitch-copy" "${stitch_copy_cmd[@]}"
-  if "${stitch_copy_cmd[@]}"; then
+  if run_owned_command "${stitch_copy_cmd[@]}"; then
     stitched_source="$stitched_path"
     stitch_inputs_resolved="$list_file"
     if final_duration=$(probe_media_duration "$stitched_path"); then
@@ -90,7 +93,7 @@ stitch_sources() {
     "$stitched_path"
   )
   log_ffmpeg_command "stitch-encode" "${stitch_reencode_cmd[@]}"
-  if "${stitch_reencode_cmd[@]}"; then
+  if run_owned_command "${stitch_reencode_cmd[@]}"; then
     stitched_source="$stitched_path"
     stitch_inputs_resolved="$list_file"
     if final_duration=$(probe_media_duration "$stitched_path"); then
@@ -198,7 +201,7 @@ stitch_batch_folder() {
     "$stitched_path"
   )
   log_ffmpeg_command "stitch-batch-copy" "${stitch_copy_cmd[@]}"
-  if "${stitch_copy_cmd[@]}"; then
+  if run_owned_command "${stitch_copy_cmd[@]}"; then
     stitch_inputs_resolved="$list_file"
     stitched_source="$stitched_path"
     return 0
@@ -215,7 +218,7 @@ stitch_batch_folder() {
     "$stitched_path"
   )
   log_ffmpeg_command "stitch-batch-encode" "${stitch_reencode_cmd[@]}"
-  if "${stitch_reencode_cmd[@]}"; then
+  if run_owned_command "${stitch_reencode_cmd[@]}"; then
     stitch_inputs_resolved="$list_file"
     stitched_source="$stitched_path"
     return 0

@@ -14,8 +14,9 @@ run_sendcmd_smoke_check() {
     printf "%s\n" "$output" >&2
   fi
 
-  if [[ "$output" == *"Key '\"text' not found."* ]]; then
-    echo "[ERROR] sendcmd smoke test output indicates quoted drawtext text key; timestamp.cmd should use unquoted text= values." >&2
+  if [[ "$output" == *"Failed to process command"* || "$output" == *"Missing key"* ||
+        "$output" == *"Key '\"text' not found."* ]]; then
+    echo "[ERROR] sendcmd smoke test rejected a drawtext reinitialization command." >&2
     return 1
   fi
 
@@ -42,20 +43,18 @@ build_burnin_filtergraph() {
   fi
   debug_log "sendcmd exec path: $sendcmd_exec_path"
 
-  local cmdfile_safe
-  cmdfile_safe=$(printf "%s" "$sendcmd_exec" | sed -e 's/\\/\\\\/g' -e 's/:/\\\:/g')
+  local cmdfile_safe fontfile
+  cmdfile_safe=$(escape_filter_value "$sendcmd_exec")
+  fontfile=$(escape_filter_value "$font")
 
-  local fontfile
-  fontfile=$(printf "%s" "$font" | sed -e 's/\\/\\\\/g' -e 's/:/\\\:/g')
-
-  sendcmd="sendcmd=f='${cmdfile_safe}'"
+  sendcmd="sendcmd=f=${cmdfile_safe}"
 
   local shadow="shadowcolor=black:shadowx=1:shadowy=1"
 
-  drawtext_date="drawtext@dvdate=fontfile='${fontfile}':fontsize=24:fontcolor=white:x=20:y=h-th-20:${shadow}:text=''"
-  drawtext_time="drawtext@dvtime=fontfile='${fontfile}':fontsize=24:fontcolor=white:x=w-tw-20:y=h-th-20:${shadow}:text=''"
-  drawtext_time_stacked="drawtext@dvtime=fontfile='${fontfile}':fontsize=24:fontcolor=white:x=w-tw-20:y=h-th-30:${shadow}:text=''"
-  drawtext_date_stacked="drawtext@dvdate=fontfile='${fontfile}':fontsize=24:fontcolor=white:x=w-tw-20:y=h-th-60:${shadow}:text=''"
+  drawtext_date="drawtext@dvdate=fontfile=${fontfile}:fontsize=24:fontcolor=white:x=20:y=h-th-20:${shadow}:text=''"
+  drawtext_time="drawtext@dvtime=fontfile=${fontfile}:fontsize=24:fontcolor=white:x=w-tw-20:y=h-th-20:${shadow}:text=''"
+  drawtext_time_stacked="drawtext@dvtime=fontfile=${fontfile}:fontsize=24:fontcolor=white:x=w-tw-20:y=h-th-30:${shadow}:text=''"
+  drawtext_date_stacked="drawtext@dvdate=fontfile=${fontfile}:fontsize=24:fontcolor=white:x=w-tw-20:y=h-th-60:${shadow}:text=''"
 
   case "$layout" in
     stacked)

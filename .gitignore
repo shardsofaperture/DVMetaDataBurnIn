@@ -1,0 +1,6 @@
+.DS_Store
+.build/
+.maintenance/
+DerivedData/
+**/__pycache__/
+*.pyc

@@ -1,3 +1,18 @@
+## Change Log 1.0.7 — Maintenance release (local build verified)
+
+---11/12/2026
+
+* Corrected final ASS event duration using source-frame-aligned media duration, with a last-numbered-frame fallback when duration is unavailable.
+* Preserved exact NTSC timing in frame-to-time conversion; fixed ASS minute/hour carry and rejected duplicate/backwards timeline rows.
+* Isolated GUI scripts, libraries, logs, temporary files and intermediates in owned per-run workspaces, including configured scratch folders.
+* Deferred scratch cleanup until the entire job exits; added ownership/path guards and cancellation of the tracked child before cleanup.
+* Removed the GUI's redundant second stitch pass and its searches through prior runs. The CLI remains responsible for stitching current-run parts.
+* Removed both disabled legacy heredocs and consolidated duplicated active encoding helpers while retaining the previously active defaults.
+* Corrected swallowed failure status, rolling-time sendcmd escaping, quoted filter paths, JSON path escaping, missing stitch destinations and Zsh stitch-list reading.
+* Repaired existing smoke tests and added synthetic timing, workspace, cancellation and media regression tests.
+* Added VS Code tasks and native Xcode development documentation. No new application runtime dependencies.
+* Native Xcode 15.4 build verified before the version bump; version 1.0.7 Debug/Release builds and six Swift workspace checks passed. The VS Code build task selects the owner's external Xcode locally. GUI and real-footage acceptance remain pending. No release was published.
+
 ##Change Log 1.0.6B
 
 ---12/21/2025

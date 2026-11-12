@@ -31,7 +31,7 @@
 - Visual guide improvement (overlay with font instead of static image with prerendered default font)
 - Hide better handling of debug options
 - Improve debug logs 
-- Fix temp / scratch file handling / clearing
+- Further scratch/artifact UI improvements (per-run isolation is implemented; see development notes)
 - Organize UI better
 - Custom FFMPEG args instructions
 - Better file browsing handling 
@@ -82,14 +82,24 @@ Full license texts are in:
 
 ---
 
-## Building (if you want to build it yourself)
+## Building and developing
 
-1. Clone the repo:
-    ```bash
-    git clone https://github.com/shardsofaperture/DVMetaDataBurnIn.git
-    ```
-2. Open `DVMetaDataBurnIn.xcodeproj` in Xcode.  
-3. Build & run.
+Open `DVMetaDataBurnIn.xcodeproj` in **full Xcode** and build the `DVMetaDataBurnIn` scheme. Command Line Tools alone cannot build the app.
+
+You can also open this same folder in VS Code. Git history and branches belong to the folder, so both editors use the same repository. The included `.vscode/tasks.json` provides tool checks, automated tests, the native Xcode build, and an action to open Xcode. No new Git repository or application architecture is needed.
+
+```sh
+zsh Resources/scripts/dev/check_environment.zsh
+zsh Resources/scripts/dev/test_all.zsh
+zsh Resources/scripts/dev/xcodebuild.zsh -project DVMetaDataBurnIn.xcodeproj -scheme DVMetaDataBurnIn \
+  -configuration Debug -derivedDataPath .build/Xcode15DerivedData CODE_SIGNING_ALLOWED=NO build
+```
+
+See [development instructions](DEV.md), [test coverage](docs/DEV_TESTS.md), and the [1.0.7 maintenance status](docs/MAINTENANCE_1.0.7.md). Version 1.0.7 passed native Debug and Release builds using Xcode 15.4 on Intel macOS. The build task can use this Mac's Xcode at `/Volumes/1 TB Storage/xcode-15.4/Xcode.app` without changing the system developer selection. Real-footage and GUI acceptance remain separate checks.
+
+Each processing run now uses its own scratch workspace. Defaults live under `~/Library/Logs/DVMeta/run.XXXXXXXX/`; a configured scratch folder uses `<scratch>/DVMetaDataBurnIn/run.XXXXXXXX/`. Temporary subprocess files are removed at handled exit. Diagnostic artifacts are retained by default; existing cleanup controls apply once after the whole job. The GUI's **Open temp folder** opens its latest available run location. Final export locations and filenames retain their existing conventions.
+
+Subtitle tails use a source-frame boundary derived from media duration, with a numbered-frame fallback when duration is unavailable. ASS timing has 10 ms precision. Timestamp styling and encoding defaults are retained. Synthetic tests cover these changes; real-footage and GUI acceptance remain necessary.
 
 Bundled tools:
 - FFmpeg (LGPL/GPL)  

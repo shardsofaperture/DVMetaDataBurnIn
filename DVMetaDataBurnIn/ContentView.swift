@@ -280,6 +280,8 @@ struct ContentView: View {
     @State private var isProcessing: Bool = false
     @State private var runID: String = ""
     @State private var showingAbout: Bool = false
+    @State private var lastWorkspaceURL: URL?
+    @State private var cancellationRequested = false
     @State private var currentProcess: Process?
     @State private var fullLogText: String = ""
     @State private var stitchBatch: Bool = false
@@ -1130,53 +1132,6 @@ struct ContentView: View {
     }
     
     
-    //New logic to try and fix stiching issues
-    private func findDvsubParts(
-        destFolderURL: URL,
-        inputPath: String,
-        scratchOverride: String?
-    ) -> [URL] {
-        let fm = FileManager.default
-        var candidateDirs: [URL] = [destFolderURL]
-
-        // Also look in latest artifact dir (same logic you already use for burn-in stitching)
-        if let burnedPartsRoot = locateLatestBurnedPartsDirectory(scratchOverride: scratchOverride)?.deletingLastPathComponent() {
-            // burned_parts lives under run/artifacts/<artifactRun>/burned_parts
-            // so its parent is the artifact run dir where other outputs may live
-            candidateDirs.append(burnedPartsRoot)
-        }
-
-        // Also consider scratch root if set (script may drop outputs there)
-        let trimmedScratch = scratchOverride?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if !trimmedScratch.isEmpty {
-            candidateDirs.append(URL(fileURLWithPath: trimmedScratch, isDirectory: true))
-        }
-
-        func scan(_ dir: URL) -> [URL] {
-            guard let entries = try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { return [] }
-            return entries
-                .filter {
-                    $0.pathExtension.lowercased() == "mkv"
-                    && $0.lastPathComponent.localizedCaseInsensitiveContains("_dvsub")
-                    && !$0.lastPathComponent.localizedCaseInsensitiveContains("_dvsub_stitched")
-                }
-                .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
-        }
-
-        // Pick the directory that yields the most parts
-        let scans = candidateDirs.map { (dir: $0, parts: scan($0)) }
-        let best = scans.max { $0.parts.count < $1.parts.count }
-
-        // Optional: log where we found them
-        if let best, best.parts.count > 0 {
-            appendToLog("\n[STITCH] dvsub scan picked: \(best.dir.path) (parts=\(best.parts.count))\n", capped: false)
-        } else {
-            appendToLog("\n[STITCH] dvsub scan found 0 parts in:\n" +
-                        scans.map { "  - \($0.dir.path)" }.joined(separator: "\n") + "\n", capped: false)
-        }
-
-        return best?.parts ?? []
-    }
     // MARK: - Save log
 
     private func saveLogToFile() {
@@ -1199,10 +1154,17 @@ struct ContentView: View {
 
     private func openTempFolder() {
         let fm = FileManager.default
-        let base = fm.homeDirectoryForCurrentUser
+        let defaultBase = fm.homeDirectoryForCurrentUser
             .appendingPathComponent("Library")
             .appendingPathComponent("Logs")
             .appendingPathComponent("DVMeta")
+        let base: URL
+        if let lastWorkspaceURL {
+            base = fm.fileExists(atPath: lastWorkspaceURL.path)
+                ? lastWorkspaceURL : lastWorkspaceURL.deletingLastPathComponent()
+        } else {
+            base = defaultBase
+        }
 
         if !fm.fileExists(atPath: base.path) {
             try? fm.createDirectory(at: base, withIntermediateDirectories: true)
@@ -1427,6 +1389,7 @@ struct ContentView: View {
 
         logText = ""
         fullLogText = ""
+        cancellationRequested = false
         isRunning = true
 
         DispatchQueue.global(qos: .userInitiated).async {
@@ -1525,13 +1488,11 @@ struct ContentView: View {
     // MARK: - Stop current process
 
     private func stopCurrentProcess() {
-        if let proc = currentProcess {
+        if let proc = currentProcess, proc.isRunning {
+            cancellationRequested = true
             proc.terminate()
-            logText.append("\n\n[process terminated by user]")
-            currentProcess = nil
+            appendToLog("\n[stop requested; waiting for processing and cleanup]\n")
         }
-        isRunning = false
-        isProcessing = false
     }
 
     // MARK: - Run script
@@ -1590,6 +1551,7 @@ struct ContentView: View {
 
         logText = ""
         fullLogText = ""
+        cancellationRequested = false
         isRunning = true
 
         if !snapshot.extraArgWarnings.isEmpty {
@@ -1608,17 +1570,18 @@ struct ContentView: View {
 
         DispatchQueue.global(qos: .userInitiated).async {
             do {
-                let (process, pipe, argv) = try self.makeProcess(
+                let (process, pipe, argv, workspace) = try self.makeProcess(
                     inputPath: selectedInput,
                     inputFolderPath: snapshot.isBatchMode ? selectedInput : nil,
-                    extraArgs: snapshot.sanitizedExtraArgs,
                     rawExtraArgs: snapshot.rawExtraArgs,
                     snapshot: snapshot,
                     outputBaseName: outputBaseName
                 )
 
-                DispatchQueue.main.async {
-                    self.currentProcess = process
+                var didLaunch = false
+                defer {
+                    if didLaunch { workspace.removeLaunchFiles() }
+                    else { workspace.discardBeforeLaunch() }
                 }
 
                 let wantsStitch = snapshot.isBatchMode && snapshot.stitchBatch
@@ -1647,7 +1610,12 @@ struct ContentView: View {
                     }
                 }
 
-                try process.run()
+                try DispatchQueue.main.sync {
+                    try process.run()
+                    self.currentProcess = process
+                    self.lastWorkspaceURL = workspace.url
+                }
+                didLaunch = true
                 process.waitUntilExit()
                 let status = process.terminationStatus
 
@@ -1658,22 +1626,13 @@ struct ContentView: View {
                     }
                 }
 
-                let (finalStatus, stitchLog) = self.performBatchStitchConcatIfNeeded(
-                    originalStatus: status,
-                    inputPath: selectedInput,
-                    extraArgs: snapshot.sanitizedExtraArgs,
-                    snapshot: snapshot,
-                    outputBaseName: outputBaseName
-                )
-
                 DispatchQueue.main.async {
                     self.isRunning = false
                     self.isProcessing = false
-                    if !stitchLog.isEmpty { self.appendToLog(stitchLog, capped: false) }
-                    self.appendToLog("\n\n[process exit status: \(finalStatus)]")
+                    self.appendToLog("\n\n[process exit status: \(status)]")
                     handle.readabilityHandler = nil
                     self.currentProcess = nil
-                    completion?()
+                    if !self.cancellationRequested { completion?() }
                 }
 
             } catch {
@@ -1699,11 +1658,10 @@ struct ContentView: View {
     private func makeProcess(
         inputPath: String,
         inputFolderPath: String?,
-        extraArgs: [String],
         rawExtraArgs: String?,
         snapshot: BurnSettingsSnapshot,
         outputBaseName: String?
-    ) throws -> (Process, Pipe, [String]) {
+    ) throws -> (Process, Pipe, [String], RunWorkspace) {
         let bundleRoot = Bundle.main.resourceURL ?? Bundle.main.bundleURL
         let fm = FileManager.default
 
@@ -1739,12 +1697,12 @@ struct ContentView: View {
         }
         _ = fontURL
 
-        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+        let workspace = try RunWorkspace.create(scratchDirectory: snapshot.scratchDirectory)
+        var prepared = false
+        defer { if !prepared { workspace.discardBeforeLaunch() } }
+        let tempDir = workspace.url
         let tempScriptURL = tempDir.appendingPathComponent("dvmetaburn_run.zsh")
         let tempLibDirURL = tempDir.appendingPathComponent("lib", isDirectory: true)
-
-        _ = try? fm.removeItem(at: tempScriptURL)
-        _ = try? fm.removeItem(at: tempLibDirURL)
         try fm.copyItem(at: bundledScriptURL, to: tempScriptURL)
         let bundledLibDirURL = bundledScriptURL.deletingLastPathComponent().appendingPathComponent("lib", isDirectory: true)
         let fallbackLibDirURL = bundleRoot.appendingPathComponent("scripts/lib", isDirectory: true)
@@ -1763,26 +1721,7 @@ struct ContentView: View {
                                      "ERROR: Could not find scripts/lib in app bundle (root: \(bundleRoot.path))."])
         }
 
-        try fm.createDirectory(at: tempLibDirURL, withIntermediateDirectories: true)
-        if let enumerator = fm.enumerator(at: resolvedLibSourceURL,
-                                          includingPropertiesForKeys: [.isDirectoryKey],
-                                          options: [.skipsHiddenFiles]) {
-            for case let itemURL as URL in enumerator {
-                let relativePath = itemURL.path.replacingOccurrences(
-                    of: resolvedLibSourceURL.path + "/",
-                    with: ""
-                )
-                let destinationURL = tempLibDirURL.appendingPathComponent(relativePath)
-                let isDirectory = (try itemURL.resourceValues(forKeys: [.isDirectoryKey]).isDirectory ?? false)
-
-                if isDirectory {
-                    try fm.createDirectory(at: destinationURL, withIntermediateDirectories: true)
-                } else {
-                    _ = try? fm.removeItem(at: destinationURL)
-                    try fm.copyItem(at: itemURL, to: destinationURL)
-                }
-            }
-        }
+        try fm.copyItem(at: resolvedLibSourceURL, to: tempLibDirURL)
 
         let attrs: [FileAttributeKey: Any] = [
             .posixPermissions: NSNumber(value: Int16(0o755))
@@ -1803,9 +1742,11 @@ struct ContentView: View {
 
         process.arguments = args
 
-        // Debug logging is limited to the appended flag above; runtime environment stays identical.
+        // Pass ownership to the CLI; every subprocess shares this run workspace.
         var env = ProcessInfo.processInfo.environment
         env["TMPDIR"] = tempDir.path
+        env["DVMETA_WORKSPACE"] = workspace.url.path
+        env["DVMETA_WORKSPACE_TOKEN"] = workspace.token
         if let inputFolderPath {
             env["DVMETA_INPUT_FOLDER"] = inputFolderPath
         }
@@ -1822,7 +1763,8 @@ struct ContentView: View {
 
         let argv = [process.executableURL?.path ?? ""] + args
 
-        return (process, pipe, argv)
+        prepared = true
+        return (process, pipe, argv, workspace)
     }
 
     private func buildScriptArgs(
@@ -1903,288 +1845,6 @@ struct ContentView: View {
         return args
     }
 
-    private func performBatchStitchConcatIfNeeded(
-        originalStatus: Int32,
-        inputPath: String,
-        extraArgs: [String],
-        snapshot: BurnSettingsSnapshot,
-        outputBaseName: String?
-    ) -> (Int32, String) {
-
-        // Stitch rules:
-        // - Only applies when the batch toggle is enabled
-        let wantsStitch =
-            snapshot.isBatchMode &&
-            snapshot.stitchBatch &&
-            (snapshot.burnMode != .off || snapshot.outputMode == .audioOnly)
-
-        guard wantsStitch else { return (originalStatus, "") }
-
-        // If upstream failed, don't stitch.
-        guard originalStatus == 0 else {
-            return (originalStatus, "\n[STITCH] SKIP: upstream run failed; not stitching.\n")
-        }
-
-        // ---------- subtitleTrack stitching (concat *_dvsub.mkv) ----------
-        if snapshot.burnMode == .subtitleTrack {
-
-            func shellEscapeForConcatFile(_ path: String) -> String {
-                path.replacingOccurrences(of: "'", with: "'\\''")
-            }
-
-            guard let ffmpegURL = findBundledResource(named: "ffmpeg") else {
-                return (1, "\n[STITCH] ERROR: ffmpeg not found in app bundle.\n")
-            }
-
-            let fm = FileManager.default
-            let inputURL = URL(fileURLWithPath: inputPath)
-
-            // Use the same destination logic as the run.
-            let destFolderPath =
-                snapshot.destinationOverride
-                ?? resolvedDestinationPath(for: inputPath, destinationOverride: snapshot.destinationOverride)
-                ?? (inputURL.hasDirectoryPath ? inputURL.path : inputURL.deletingLastPathComponent().path)
-
-            let destFolderURL = URL(fileURLWithPath: destFolderPath, isDirectory: true)
-
-            let parts = findDvsubParts(
-                destFolderURL: destFolderURL,
-                inputPath: inputPath,
-                scratchOverride: snapshot.scratchDirectory
-            )
-
-            guard parts.count >= 2 else {
-                return (0, "\n[STITCH] NOTE: Found \(parts.count) *_dvsub.mkv file(s); nothing to stitch.\n")
-            }
-
-
-            let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
-            let listURL = tempDir.appendingPathComponent("dvmeta_subs_concat_list.txt")
-
-            let listBody = parts
-                .map { "file '\(shellEscapeForConcatFile($0.path))'" }
-                .joined(separator: "\n") + "\n"
-
-            do {
-                try listBody.write(to: listURL, atomically: true, encoding: .utf8)
-            } catch {
-                return (1, "\n[STITCH] ERROR: Failed writing concat list: \(error.localizedDescription)\n")
-            }
-
-            let baseName = inputURL.lastPathComponent.isEmpty ? "dvmeta" : inputURL.lastPathComponent
-            let outURL = destFolderURL.appendingPathComponent("\(baseName)_dvsub_stitched.mkv")
-
-            let args: [String] = [
-                "-hide_banner", "-y",
-                "-f", "concat", "-safe", "0",
-                "-i", listURL.path,
-                "-map", "0",
-                "-c", "copy",
-                outURL.path
-            ]
-
-            let (rc, out) = runFFmpegProcess(at: ffmpegURL, arguments: args)
-            if rc != 0 || !fm.fileExists(atPath: outURL.path) {
-                return (1, "\n[STITCH] ERROR: subtitleTrack concat failed (exit \(rc)).\n\(out)\n")
-            }
-
-            return (0, "\n[STITCH] OK: Created stitched subtitle MKV:\n  \(outURL.path)\n")
-        }
-
-        // ---------- EXISTING: burn-in/audio stitching (burned_parts) ----------
-        guard let ffmpegURL = findBundledResource(named: "ffmpeg") else {
-            return (max(originalStatus, 1), "\n[STITCH] ERROR: ffmpeg not found in app bundle.\n")
-        }
-
-        guard let burnedPartsDir = locateLatestBurnedPartsDirectory(scratchOverride: snapshot.scratchDirectory) else {
-            return (
-                max(originalStatus, 1),
-                "\n[STITCH] ERROR: Unable to locate burned parts for stitching in scratch or log directories.\n"
-            )
-        }
-
-        let fm = FileManager.default
-        let targetExtension = outputExtension(for: snapshot.format, outputMode: snapshot.outputMode)
-        let partSuffix = snapshot.outputMode == .audioOnly ? "_audio" : "_dateburn"
-        let resolvedQuality = resolveQuality(snapshot.quality, format: snapshot.format, outputMode: snapshot.outputMode)
-
-        guard let entries = try? fm.contentsOfDirectory(at: burnedPartsDir, includingPropertiesForKeys: nil) else {
-            return (
-                max(originalStatus, 1),
-                "\n[STITCH] ERROR: Failed to read burned parts directory: \(burnedPartsDir.path)\n"
-            )
-        }
-
-        let parts = entries
-            .filter { url in
-                url.pathExtension.lowercased() == targetExtension &&
-                url.lastPathComponent.contains(partSuffix)
-            }
-            .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
-
-        guard parts.count >= 2 else {
-            return (
-                0,
-                "\n[STITCH] NOTE: Found \(parts.count) burn-in part(s); nothing to stitch.\n"
-            )
-        }
-
-        let escapedList = parts
-            .map { "file '\(escapeSingleQuotes($0.path))'" }
-            .joined(separator: "\n")
-
-        let listFile = burnedPartsDir.appendingPathComponent("list.txt")
-        do {
-            try escapedList.write(to: listFile, atomically: true, encoding: .utf8)
-        } catch {
-            return (
-                max(originalStatus, 1),
-                "\n[STITCH] ERROR: Unable to write concat list: \(error.localizedDescription)\n"
-            )
-        }
-
-        guard let destinationPath = resolvedDestinationPath(for: inputPath, destinationOverride: snapshot.destinationOverride) else {
-            return (
-                max(originalStatus, 1),
-                "\n[STITCH] ERROR: Unable to resolve destination output directory.\n"
-            )
-        }
-
-        let outputDirectory = URL(fileURLWithPath: destinationPath, isDirectory: true)
-        _ = try? fm.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
-
-        let baseName = outputBaseName ?? URL(fileURLWithPath: inputPath, isDirectory: true).lastPathComponent
-        let outputName = "\(baseName)_stitched\(partSuffix).\(targetExtension)"
-        let finalOutput = outputDirectory.appendingPathComponent(outputName)
-
-        var concatArgs = [
-            "-hide_banner",
-            "-y",
-            "-f", "concat",
-            "-safe", "0",
-            "-i", listFile.path,
-            "-c", "copy"
-        ]
-
-        concatArgs.append(contentsOf: extraArgs)
-        concatArgs.append(finalOutput.path)
-
-        var log = "\n[STITCH] part extension: .\(targetExtension)"
-        if snapshot.outputMode == .audioOnly {
-            for part in parts {
-                if let duration = probeDuration(for: part, ffmpegURL: ffmpegURL) {
-                    log += "\n[STITCH] part \(part.lastPathComponent): duration \(duration)"
-                }
-            }
-        }
-        log += "\n[STITCH] concat list => \(listFile.path)"
-        log += "\n[STITCH] ffmpeg concat => \(finalOutput.path)"
-
-        if !extraArgs.isEmpty {
-            log += "\n[STITCH] extra args: \(extraArgs.joined(separator: " "))"
-        }
-
-        log += "\n[STITCH] concat cmd: \(concatArgs.joined(separator: " "))"
-
-        let (copyStatus, copyOutput) = runFFmpegProcess(at: ffmpegURL, arguments: concatArgs)
-        var finalStatus = originalStatus
-
-        if copyStatus == 0, fm.fileExists(atPath: finalOutput.path) {
-            log += "\n[STITCH] success (exit 0)"
-            finalStatus = 0
-            if let finalDuration = probeDuration(for: finalOutput, ffmpegURL: ffmpegURL) {
-                log += "\n[STITCH] stitched duration: \(finalDuration)"
-            }
-            return (finalStatus, log)
-        }
-
-        if !copyOutput.isEmpty {
-            log += "\n[STITCH] stream copy failed (exit \(copyStatus))\n\(copyOutput)"
-        } else {
-            log += "\n[STITCH] stream copy failed (exit \(copyStatus))"
-        }
-
-        let crfValue = qscaleToCRF(resolvedQuality.qscale ?? 2)
-        let containerArgs = targetExtension == "mkv" ? ["-f", "matroska"] : []
-        var fallbackArgs: [String]
-
-        if outputMode == .audioOnly {
-            let bitrate = resolvedQuality.audioBitrateKbps ?? 192
-            fallbackArgs = [
-                "-hide_banner",
-                "-y",
-                "-f", "concat",
-                "-safe", "0",
-                "-i", listFile.path,
-                "-vn",
-                "-c:a", "aac",
-                "-b:a", "\(bitrate)k"
-            ]
-        } else {
-            switch targetExtension {
-            case "mov":
-                fallbackArgs = [
-                    "-hide_banner",
-                    "-y",
-                    "-f", "concat",
-                    "-safe", "0",
-                    "-i", listFile.path,
-                    "-c:v", "dvvideo",
-                    "-c:a", "pcm_s16le"
-                ]
-            case "mp4":
-                fallbackArgs = [
-                    "-hide_banner",
-                    "-y",
-                    "-f", "concat",
-                    "-safe", "0",
-                    "-i", listFile.path,
-                    "-c:v", "libx264",
-                    "-crf", "\(crfValue)",
-                    "-preset", "medium",
-                    "-c:a", "aac",
-                    "-b:a", "192k"
-                ]
-            default:
-                fallbackArgs = [
-                    "-hide_banner",
-                    "-y",
-                    "-f", "concat",
-                    "-safe", "0",
-                    "-i", listFile.path,
-                    "-c:v", "libx264",
-                    "-crf", "\(crfValue)",
-                    "-preset", "medium",
-                    "-c:a", "aac",
-                    "-b:a", "192k"
-                ]
-            }
-        }
-
-        fallbackArgs.append(contentsOf: containerArgs)
-        fallbackArgs.append(contentsOf: extraArgs)
-        fallbackArgs.append(finalOutput.path)
-
-        log += "\n[STITCH] fallback cmd: \(fallbackArgs.joined(separator: " "))"
-
-        let (fallbackStatus, fallbackOutput) = runFFmpegProcess(at: ffmpegURL, arguments: fallbackArgs)
-
-        if fallbackStatus == 0, fm.fileExists(atPath: finalOutput.path) {
-            log += "\n[STITCH] fallback succeeded (exit 0)"
-            finalStatus = 0
-            if let finalDuration = probeDuration(for: finalOutput, ffmpegURL: ffmpegURL) {
-                log += "\n[STITCH] stitched duration: \(finalDuration)"
-            }
-        } else {
-            log += "\n[STITCH] fallback failed (exit \(fallbackStatus))"
-            if !fallbackOutput.isEmpty { log += "\n\(fallbackOutput)" }
-            finalStatus = max(originalStatus, 1)
-        }
-
-        return (finalStatus, log)
-    }
-
-
     private func findBundledResource(named name: String) -> URL? {
         let fm = FileManager.default
         let bundleRoot = Bundle.main.resourceURL ?? Bundle.main.bundleURL
@@ -2197,112 +1857,6 @@ struct ContentView: View {
             return url
         }
         return nil
-    }
-
-    private func locateLatestBurnedPartsDirectory(scratchOverride: String? = nil) -> URL? {
-        let fm = FileManager.default
-        var searchRoots: [URL] = []
-
-        let trimmedScratch = scratchOverride?.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let trimmedScratch, !trimmedScratch.isEmpty {
-            searchRoots.append(URL(fileURLWithPath: trimmedScratch, isDirectory: true)
-                .appendingPathComponent("DVMetaDataBurnIn"))
-        }
-
-        let defaultArtifacts = URL(fileURLWithPath: NSHomeDirectory())
-            .appendingPathComponent("Library/Logs/DVMeta")
-        searchRoots.append(defaultArtifacts)
-
-        for root in searchRoots {
-            guard let runDirs = try? fm.contentsOfDirectory(
-                at: root,
-                includingPropertiesForKeys: [.isDirectoryKey, .contentModificationDateKey],
-                options: [.skipsHiddenFiles]
-            ) else { continue }
-
-            let sortedRuns = runDirs.sorted {
-                modificationDate(for: $0) ?? .distantPast > modificationDate(for: $1) ?? .distantPast
-            }
-
-            for runDir in sortedRuns {
-                if let burnedParts = burnedPartsDirectory(in: runDir) {
-                    return burnedParts
-                }
-            }
-        }
-
-        return nil
-    }
-
-    private func burnedPartsDirectory(in runDir: URL) -> URL? {
-        let fm = FileManager.default
-
-        let artifactsDir = runDir.appendingPathComponent("artifacts")
-        if let artifactRuns = try? fm.contentsOfDirectory(
-            at: artifactsDir,
-            includingPropertiesForKeys: [.isDirectoryKey, .contentModificationDateKey],
-            options: [.skipsHiddenFiles]
-        ) {
-            let sortedArtifacts = artifactRuns.sorted {
-                modificationDate(for: $0) ?? .distantPast > modificationDate(for: $1) ?? .distantPast
-            }
-
-            for artifact in sortedArtifacts {
-                let burnedParts = artifact.appendingPathComponent("burned_parts")
-                if fm.fileExists(atPath: burnedParts.path) {
-                    return burnedParts
-                }
-            }
-        }
-
-        let direct = runDir.appendingPathComponent("burned_parts")
-        if fm.fileExists(atPath: direct.path) {
-            return direct
-        }
-
-        return nil
-    }
-
-    private func modificationDate(for url: URL) -> Date? {
-        let values = try? url.resourceValues(forKeys: [.contentModificationDateKey])
-        return values?.contentModificationDate
-    }
-
-    private func runFFmpegProcess(at executable: URL, arguments: [String]) -> (Int32, String) {
-        let process = Process()
-        process.executableURL = executable
-        process.arguments = arguments
-
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = pipe
-
-        do {
-            try process.run()
-        } catch {
-            return (1, "\n[STITCH] ERROR: Failed to launch ffmpeg: \(error.localizedDescription)")
-        }
-
-        process.waitUntilExit()
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        let output = String(data: data, encoding: .utf8) ?? ""
-
-        return (process.terminationStatus, output)
-    }
-
-    private func probeDuration(for url: URL, ffmpegURL: URL) -> String? {
-        let (_, output) = runFFmpegProcess(at: ffmpegURL, arguments: ["-hide_banner", "-i", url.path])
-
-        guard let line = output
-            .split(separator: "\n")
-            .first(where: { $0.contains("Duration:") })
-        else { return nil }
-
-        guard let durationPart = line.split(separator: ",").first else { return nil }
-
-        let cleaned = durationPart.replacingOccurrences(of: "Duration:", with: "")
-            .trimmingCharacters(in: .whitespaces)
-        return cleaned.isEmpty ? nil : cleaned
     }
 
     private func resolveExtraFFmpegArgs() -> ([String], [String], String?) {
@@ -2436,9 +1990,7 @@ struct ContentView: View {
         return !lines.isEmpty && lines.allSatisfy { $0.hasPrefix("#") }
     }
 
-    private func escapeSingleQuotes(_ path: String) -> String {
-        path.replacingOccurrences(of: "'", with: "'\\''")
-    }
+
 
     // MARK: - Font discovery
 
