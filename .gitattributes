@@ -1,0 +1,4 @@
+# Preserve vendor license bytes and unified-diff context exactly as verified.
+Resources/licenses/*-OFL.txt -text -whitespace
+docs/audit/2026-11-13/HISTORICAL-BUNDLED-NOTICE.txt -text -whitespace
+scripts/dependencies/*.patch -text -whitespace

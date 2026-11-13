@@ -30,7 +30,8 @@
     "final-regressions.log": "712409f5b0930773d26c3ebc42ffc81eb388f8c87d8776250b8fdac372f4264b",
     "release-gate-tests.log": "9dfd7c2dc8ad389c12c525fc66722585602cb7d9d0aaab0c7c6e1a077506d89c",
     "xcode-release-final.log": "8f666d727ee7b68edb7da2fd776820c5689625f1b200ba59ee2f3e872a0cfb3b",
-    "real-footage-final.log": "dfe6fafa395a709cdbb9680c6e3a6dc182da01222eee5cb07310d54bc56aece6"
+    "real-footage-final.log": "dfe6fafa395a709cdbb9680c6e3a6dc182da01222eee5cb07310d54bc56aece6",
+    "xcode-package-final.log": "e1e09b637a8c15b4e6c7e99bf8ae6cf0da21f7be17882678aea4d38c0be1adc3"
   },
   "acceptance_not_performed": [
     "GUI queues/Stop",
@@ -38,5 +39,6 @@
     "other cameras/hardware capture",
     "Apple Silicon native or Rosetta"
   ],
-  "historical_original_train_sha256": "13be6af4cc481e5eea0a8ed9daee8d9ef329abd79ccc5c6620147604cefcca0a"
+  "historical_original_train_sha256": "13be6af4cc481e5eea0a8ed9daee8d9ef329abd79ccc5c6620147604cefcca0a",
+  "packaging_readme_collision": "FFmpeg README renamed to FFmpeg-README.md so both app and dependency documents survive case-insensitive resource copying."
 }
