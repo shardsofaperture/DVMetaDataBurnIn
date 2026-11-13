@@ -1,0 +1,53 @@
+name: Application release integrity
+on:
+  pull_request:
+    paths:
+      - scripts/verify_release.py
+      - scripts/tests/**
+      - .github/workflows/release-integrity.yml
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Application release tag to verify
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  gate-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m unittest discover -s scripts/tests -v
+  verify:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'release' && !startsWith(github.event.release.tag_name, 'examples-'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Download and validate application release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag || github.event.release.tag_name }}
+        run: |
+          mkdir release-check
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern BUILD-MANIFEST.json --pattern '*.zip' --dir release-check
+          python3 - <<'PY'
+          import json, os, pathlib, subprocess
+          root = pathlib.Path('release-check')
+          m = json.loads((root/'BUILD-MANIFEST.json').read_text())
+          commit = m['source_commit']
+          import re
+          assert re.fullmatch('[0-9a-f]{40}', commit), 'Invalid source commit'
+          tag_commit = subprocess.check_output(['git','rev-parse',os.environ['RELEASE_TAG']+'^{commit}'], text=True).strip()
+          assert tag_commit == commit, 'Release tag and source manifest differ'
+          project = root/'project.pbxproj'
+          project.write_bytes(subprocess.check_output(['git','show',commit+':DVMetaDataBurnIn.xcodeproj/project.pbxproj']))
+          subprocess.run(['python3','scripts/verify_release.py','--tag',os.environ['RELEASE_TAG'],
+                          '--manifest',str(root/'BUILD-MANIFEST.json'),'--archive',str(root/pathlib.Path(m['archive']['name']).name),
+                          '--project',str(project)], check=True)
+          PY
