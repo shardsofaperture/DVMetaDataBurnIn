@@ -20,6 +20,8 @@ remains experimental 1.0.7.
 | DVRescue 24.07 | BSD-3-Clause. Stable uses the official binary; its dependency notices accompany the historical downloads as `DVRESCUE-NOTICES-2026-11-13.txt`. Current maintenance uses the source-built capture-disabled variant with MediaInfoLib 24.06 (BSD-2-Clause) and ZenLib 0.4.41 (zlib); no DeckLink SDK is used in that build. |
 | UAV OSD Mono, UAV OSD Sans Mono, VCR OSD Mono | Original unmodified fonts in stable and current maintenance, with permissions and attribution below. |
 
+FFmpeg includes code based in part on the work of the Independent JPEG Group.
+
 ## Corresponding source and notices
 
 The [preview 2 release](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.2)
@@ -35,7 +37,9 @@ must be made available alongside the affected downloads under an applicable
 [GPLv3 section 6 route](https://www.gnu.org/licenses/gpl-3.0.html#section6).
 Source delivery does not require byte-identical rebuilding. A license copy alone
 is not corresponding source. This work remains tracked in
-[#194](https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194).
+[#194](https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194). The
+[historical-source investigation](HISTORICAL_FFMPEG.md) records the checked
+publisher/archive channels, remaining materials and supported alternatives.
 
 ## Bundled fonts
 
@@ -51,6 +55,8 @@ VCR OSD Mono is by Riciery Leal (MrManet). In his
 the author states: “Yes, the font is free even for commercial purposes.”
 [DaFont](https://www.dafont.com/vcr-osd-mono.font) lists the font as 100% Free.
 The maintainer retains it with the original attribution and source reference.
+These public statements establish the documented use terms; they are not
+represented as an express redistribution or embedding grant from Riciery Leal.
 Font licensing issue [#196](https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/196)
 is closed. The maintainer will incorporate any further author clarification.
 

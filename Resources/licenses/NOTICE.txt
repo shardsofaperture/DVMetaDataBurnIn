@@ -2,6 +2,8 @@ Bundled Components and Licenses
 
 This application bundles the following third-party tools and assets:
 
+FFmpeg includes code based in part on the work of the Independent JPEG Group.
+
 FFmpeg, © The FFmpeg Developers
 This bundled 8.0.1-tessus build is licensed under GPL version 3 or later.
 See the included LICENSE and COPYING.* files, or visit:

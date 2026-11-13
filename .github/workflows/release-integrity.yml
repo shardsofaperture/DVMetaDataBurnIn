@@ -1,10 +1,8 @@
 name: Application release integrity
 on:
+  push:
+    branches: [main, maintenance/1.0.7]
   pull_request:
-    paths:
-      - scripts/verify_release.py
-      - scripts/tests/**
-      - .github/workflows/release-integrity.yml
   release:
     types: [published]
   workflow_dispatch:
@@ -20,6 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - run: python3 scripts/check_docs.py
       - run: python3 -m unittest discover -s scripts/tests -v
   verify:
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'release' && !startsWith(github.event.release.tag_name, 'examples-'))
@@ -27,7 +26,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.ref }}
           fetch-depth: 0
       - name: Download and validate application release
         env:
@@ -47,7 +46,14 @@ jobs:
           assert tag_commit == commit, 'Release tag and source manifest differ'
           project = root/'project.pbxproj'
           project.write_bytes(subprocess.check_output(['git','show',commit+':DVMetaDataBurnIn.xcodeproj/project.pbxproj']))
+          extra = []
+          if 'dependency_sources' in m:
+              name = m['dependency_sources']['name']
+              assert pathlib.Path(name).name == name, 'Source asset must be a basename'
+              subprocess.run(['gh','release','download',os.environ['RELEASE_TAG'],'--repo',os.environ['GITHUB_REPOSITORY'],
+                              '--pattern',name,'--dir',str(root)], check=True)
+              extra = ['--sources', str(root/name)]
           subprocess.run(['python3','scripts/verify_release.py','--tag',os.environ['RELEASE_TAG'],
                           '--manifest',str(root/'BUILD-MANIFEST.json'),'--archive',str(root/pathlib.Path(m['archive']['name']).name),
-                          '--project',str(project)], check=True)
+                          '--project',str(project), *extra], check=True)
           PY

@@ -65,11 +65,11 @@ struct AboutView: View {
                     Text("""
                     This application bundles:
 
-                    • FFmpeg, © the FFmpeg developers, under LGPL/GPL.
-                      See the included LICENSE and COPYING.* files in the app bundle,
-                      and ffmpeg.org for source and details.
+                    • FFmpeg 8.0.1-tessus, © the FFmpeg developers,
+                      under GPL version 3 or later. See COPYING.GPLv3 and
+                      NOTICE.txt for component terms and source-delivery information.
 
-                    • dvrescue, © Moving Image Preservation of Puget Sound (MIPoPS),
+                    • DVRescue 24.07, © MIPoPS and MediaArea contributors,
                       under the BSD 3-Clause License.
                       See dvrescue_LICENSE.txt in the app bundle and mediaarea.net/DVRescue for details.
                     """)
@@ -89,7 +89,7 @@ struct AboutView: View {
 
             HStack {
                 Spacer()
-                Text("All included licenses are in Resources/licenses inside the app bundle.")
+                Text("Included licenses and font notices are in Contents/Resources inside the app bundle.")
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }

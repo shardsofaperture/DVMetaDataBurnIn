@@ -1,9 +1,11 @@
 import hashlib
+import io
 import importlib.util
 import json
 from pathlib import Path
 import plistlib
 import tempfile
+import tarfile
 import unittest
 import zipfile
 
@@ -61,6 +63,45 @@ class IntegrityTests(unittest.TestCase):
     def test_executable_mismatch(self):
         self.manifest['executable_sha256'] = '0'*64
         with self.assertRaisesRegex(ValueError, 'executable hash'): self.check()
+
+    def source_delivery(self, corrupt=False, subset=False):
+        source = self.root / 'dependency-sources.tar'
+        archive = b'original vendor source archive'
+        recipe = b'build with pinned inputs'
+        entry = {'file': 'vendor.tar.gz', 'sha256': hashlib.sha256(archive).hexdigest()}
+        if subset:
+            entry = {'file': 'full-upstream.tar.gz', 'sha256': '0'*64, 'delivery': entry}
+        lock = json.dumps({'archives': [entry]}).encode()
+        with tarfile.open(source, 'w') as t:
+            for name, data in [('scripts/dependencies/build.py', recipe),
+                               ('scripts/dependencies/sources.lock.json', lock),
+                               ('archives/vendor.tar.gz', b'wrong' if corrupt else archive)]:
+                info = tarfile.TarInfo(name)
+                info.size = len(data)
+                t.addfile(info, io.BytesIO(data))
+        self.manifest['dependency_sources'] = dict(name=source.name, bytes=source.stat().st_size,
+            sha256=hashlib.sha256(source.read_bytes()).hexdigest(),
+            lock_sha256=hashlib.sha256(lock).hexdigest(), recipe_sha256=hashlib.sha256(recipe).hexdigest())
+        return source
+
+    def test_source_delivery_required_when_declared(self):
+        self.source_delivery()
+        with self.assertRaisesRegex(ValueError, 'source delivery is required'): self.check()
+
+    def test_source_delivery_matches_locked_archives(self):
+        source = self.source_delivery()
+        self.assertEqual(module.verify(self.manifest['release_tag'], self.manifest,
+                         self.archive, self.project, source)['result'], 'passed')
+
+    def test_repacked_wrong_vendor_source_rejected(self):
+        source = self.source_delivery(corrupt=True)
+        with self.assertRaisesRegex(ValueError, 'source archive differs'):
+            module.verify(self.manifest['release_tag'], self.manifest, self.archive, self.project, source)
+
+    def test_source_subset_checked_against_delivery_hash(self):
+        source = self.source_delivery(subset=True)
+        self.assertEqual(module.verify(self.manifest['release_tag'], self.manifest,
+                         self.archive, self.project, source)['result'], 'passed')
 
 
 if __name__ == '__main__': unittest.main()

@@ -31,7 +31,7 @@
 		92908F8F2ED9603D00A9A38A /* dvrescue_LICENSE.txt in Resources */ = {isa = PBXBuildFile; fileRef = 92908F7D2ED9603D00A9A38A /* dvrescue_LICENSE.txt */; };
 		92908F902ED9603D00A9A38A /* LICENSE.md in Resources */ = {isa = PBXBuildFile; fileRef = 92908F7E2ED9603D00A9A38A /* LICENSE.md */; };
 		92908F912ED9603D00A9A38A /* NOTICE.txt in Resources */ = {isa = PBXBuildFile; fileRef = 92908F7F2ED9603D00A9A38A /* NOTICE.txt */; };
-		92908F922ED9603D00A9A38A /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 92908F802ED9603D00A9A38A /* README.md */; };
+		92908F922ED9603D00A9A38A /* FFmpeg-README.md in Resources */ = {isa = PBXBuildFile; fileRef = 92908F802ED9603D00A9A38A /* FFmpeg-README.md */; };
 		92908F9B2ED9743300A9A38A /* ffmpeg in Resources */ = {isa = PBXBuildFile; fileRef = 92908F9A2ED9743300A9A38A /* ffmpeg */; };
 		92908F9F2ED987C700A9A38A /* SplashContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92908F9E2ED987C700A9A38A /* SplashContentView.swift */; };
 		92908FA32EDA720800A9A38A /* readme.md in Resources */ = {isa = PBXBuildFile; fileRef = 92908FA22EDA720800A9A38A /* readme.md */; };
@@ -64,7 +64,7 @@
 		92908F7D2ED9603D00A9A38A /* dvrescue_LICENSE.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = dvrescue_LICENSE.txt; sourceTree = "<group>"; };
 		92908F7E2ED9603D00A9A38A /* LICENSE.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = LICENSE.md; sourceTree = "<group>"; };
 		92908F7F2ED9603D00A9A38A /* NOTICE.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = NOTICE.txt; sourceTree = "<group>"; };
-		92908F802ED9603D00A9A38A /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		92908F802ED9603D00A9A38A /* FFmpeg-README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = FFmpeg-README.md; sourceTree = "<group>"; };
 		92908F9A2ED9743300A9A38A /* ffmpeg */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = ffmpeg; sourceTree = "<group>"; };
 		92908F9E2ED987C700A9A38A /* SplashContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashContentView.swift; sourceTree = "<group>"; };
 		92908FA22EDA720800A9A38A /* readme.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = readme.md; sourceTree = "<group>"; };
@@ -160,7 +160,7 @@
 				92908F7D2ED9603D00A9A38A /* dvrescue_LICENSE.txt */,
 				92908F7E2ED9603D00A9A38A /* LICENSE.md */,
 				92908F7F2ED9603D00A9A38A /* NOTICE.txt */,
-				92908F802ED9603D00A9A38A /* README.md */,
+				92908F802ED9603D00A9A38A /* FFmpeg-README.md */,
 			);
 			path = licenses;
 			sourceTree = "<group>";
@@ -244,7 +244,7 @@
 				922023292EE3E2C30046F768 /* Main_Window_Two.png in Resources */,
 				92908F882ED9603D00A9A38A /* UAV-OSD-Sans-Mono.ttf in Resources */,
 				92908F892ED9603D00A9A38A /* VCR_OSD_MONO.ttf in Resources */,
-				92908F922ED9603D00A9A38A /* README.md in Resources */,
+				92908F922ED9603D00A9A38A /* FFmpeg-README.md in Resources */,
 				922023272EE3E2C30046F768 /* Font_Picker.png in Resources */,
 				92908F8B2ED9603D00A9A38A /* COPYING.GPLv2 in Resources */,
 				92908F902ED9603D00A9A38A /* LICENSE.md in Resources */,
