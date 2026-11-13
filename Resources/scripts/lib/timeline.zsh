@@ -22,6 +22,8 @@ build_timeline_from_log() {
     granularity="per_second"
   fi
 
+  fps=$(normalize_fps "$fps") || return 1
+
   log_write "$timeline_out"
   tr '\r' '\n' < "$log_path" | LC_NUMERIC=C awk -v fps="$fps" -v granularity="$granularity" '
     BEGIN {
@@ -42,9 +44,10 @@ build_timeline_from_log() {
       date = $3;
       time = $4;
 
-      if (idx ~ /^[0-9]+$/ &&
+      if (idx ~ /^[0-9]+$/ && idx > 0 && idx > last_idx &&
           date ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/ &&
           time ~ /^[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?$/) {
+        last_idx = idx;
         frame_index = idx - 1;
         t_sec = frame_index / fps;
 
@@ -95,13 +98,16 @@ build_sendcmd_from_timeline() {
   : > "$sendcmd_path"
 
   LC_NUMERIC=C awk -F '\t' -v fps="$fps_in" '
-    function escape_drawtext_reinit_value(text) {
-      gsub(/\\/, "\\\\", text)
-      gsub(/"/, "\\\"", text)
-      gsub(/\047/, "\\\047", text)
-      gsub(/%/, "\\%", text)
-      gsub(/:/, "\\\\:", text)
-      return text
+    function escape_drawtext_reinit_value(text, escaped, k, c, bs) {
+      # Two parser layers: sendcmd unescapes once, then drawtext reinit.
+      # Build literally; BSD and GNU awk differ on replacement backslashes.
+      bs=sprintf("%c", 92); escaped="";
+      for (k=1; k<=length(text); k++) {
+        c=substr(text,k,1);
+        if (c==":") escaped=escaped bs bs c;
+        else escaped=escaped c;
+      }
+      return escaped;
     }
 
     # read all rows so we can lookahead to next timestamp
@@ -118,18 +124,8 @@ build_sendcmd_from_timeline() {
     END {
       if (n < 1) exit 2
 
-      frame_step = 0.0333667
-      if (fps > 0) frame_step = 1.0 / fps
-
       for (i=1; i<=n; i++) {
         start = t[i]
-        if (i < n) {
-          end = t[i+1] - 0.000001
-          if (end <= start) end = start + 0.000001
-        } else {
-          end = start + frame_step
-        }
-
         d = escape_drawtext_reinit_value(date[i])
         tm = escape_drawtext_reinit_value(time[i])
 
@@ -154,15 +150,15 @@ build_sendcmd_from_timeline() {
 }
 
 sanitize_sendcmd_file() {
-  local path="$1"
+  local file_path="$1"
 
-  if [[ ! -f "$path" ]]; then
-    echo "[ERROR] sanitize_sendcmd_file: missing file $path" >&2
+  if [[ ! -f "$file_path" ]]; then
+    echo "[ERROR] sanitize_sendcmd_file: missing file $file_path" >&2
     return 1
   fi
 
-  local tmp="${path}.tmp"
-  LC_ALL=C /usr/bin/awk '
+  local tmp="${file_path}.tmp"
+  /usr/bin/tr '\r' '\n' < "$file_path" | LC_ALL=C /usr/bin/awk '
     function ltrim(s) { sub(/^[ \t]+/, "", s); return s }
     function rtrim(s) { sub(/[ \t]+$/, "", s); return s }
     function emit_segment(segment, base_timestamp) {
@@ -210,18 +206,10 @@ sanitize_sendcmd_file() {
 
       emit_segment(line, base_timestamp)
     }
-  ' "$path" > "$tmp"
+  ' > "$tmp"
 
   if [[ -s "$tmp" ]]; then
-    local last_char
-    last_char=$(/usr/bin/tail -c 1 "$tmp" 2>/dev/null || /bin/tail -c 1 "$tmp" 2>/dev/null || true)
-    if [[ "$last_char" != $'\n' ]]; then
-      printf '\n' >> "$tmp"
-    fi
-  fi
-
-  if [[ -s "$tmp" ]]; then
-    /bin/mv -f "$tmp" "$path"
+    /bin/mv -f "$tmp" "$file_path"
   else
     /bin/rm -f "$tmp"
   fi
@@ -230,9 +218,9 @@ sanitize_sendcmd_file() {
 }
 
 sendcmd_effective_line_count() {
-  local path="$1"
+  local file_path="$1"
 
-  if [[ ! -f "$path" ]]; then
+  if [[ ! -f "$file_path" ]]; then
     return 1
   fi
 
@@ -252,24 +240,24 @@ sendcmd_effective_line_count() {
       count++
     }
     END { print count + 0 }
-  ' "$path"
+  ' "$file_path"
 }
 
 validate_sendcmd_file() {
-  local path="$1"
-  if [[ ! -s "$path" ]]; then
-    echo "[ERROR] timestamp.cmd is missing or empty: $path" >&2
+  local file_path="$1"
+  if [[ ! -s "$file_path" ]]; then
+    echo "[ERROR] timestamp.cmd is missing or empty: $file_path" >&2
     return 1
   fi
 
   local lines
-  lines=$(sendcmd_effective_line_count "$path")
+  lines=$(sendcmd_effective_line_count "$file_path")
   if (( lines < 1 )); then
-    echo "[ERROR] timestamp.cmd has no lines: $path" >&2
+    echo "[ERROR] timestamp.cmd has no lines: $file_path" >&2
     return 1
   fi
 
-  local bad_lines_path="${path:h}/sendcmd.bad_lines.txt"
+  local bad_lines_path="${file_path:h}/sendcmd.bad_lines.txt"
   local bad_lines_raw="${bad_lines_path}.raw"
   log_write "$bad_lines_path"
   : > "$bad_lines_raw"
@@ -301,7 +289,7 @@ validate_sendcmd_file() {
       }
     }
     END { print bad + 0 }
-  ' "$path")
+  ' "$file_path")
 
   if (( bad_count > 0 )); then
     /usr/bin/sed -n 'l' "$bad_lines_raw" > "$bad_lines_path"
@@ -389,11 +377,8 @@ seconds_to_ass_time() {
   fi
 
   LC_NUMERIC=C awk -v s="$sec" 'BEGIN {
-    if (s < 0) s = 0;
-    h = int(s / 3600);
-    m = int((s - h*3600) / 60);
-    sec = s - h*3600 - m*60;
-    printf("%d:%02d:%05.2f", h, m, sec);
+    cs=int(s*100+0.5); if (cs<0) cs=0;
+    printf("%d:%02d:%02d.%02d", int(cs/360000), int(cs/6000)%60, int(cs/100)%60, cs%100);
   }'
 }
 
@@ -469,93 +454,53 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 EOF_ASS
 
 
-   local frame_step
-  frame_step=$(awk -v fps="$fps" 'BEGIN{if (fps<=0) {exit 1} printf "%.6f", 1/fps}') || {
-    echo "[ERROR] Unable to compute frame step for subtitles" >&2
-    return 1
-  }
-
-  local -i raw_lines=0 dialogue_count=0 skipped_lines=0
-  local prev_start_sec="" prev_date="" prev_time="" prev_dt=""
-
-  while IFS=$'\t' read -r frame_idx t_sec date_part time_part dt_key; do
-    (( ++raw_lines ))
-
-    if [[ -z "$t_sec" || -z "$date_part" || -z "$time_part" ]]; then
-      (( ++skipped_lines ))
-      continue
-    fi
-
-    local dt_key_fallback="${date_part} ${time_part}"
-    [[ -z "$dt_key" ]] && dt_key="$dt_key_fallback"
-
-    if [[ -n "$prev_dt" ]]; then
-      local start_str end_str
-      start_str=$(seconds_to_ass_time "$prev_start_sec")
-      end_str=$(seconds_to_ass_time "$t_sec")
-
-      case "$layout" in
-        stacked)
-          # One stacked block, bottom-right
-          printf "Dialogue: 0,%s,%s,DVRight,,0,0,40,,%s\\N%s\n" \
-            "$start_str" "$end_str" "$prev_date" "$prev_time" >> "$ass_out"
-          (( dialogue_count++ ))
-          ;;
-        single)
-          # Date bottom-left, time bottom-right on same baseline
-          printf "Dialogue: 0,%s,%s,DVLeft,,20,0,40,,%s\n" \
-            "$start_str" "$end_str" "$prev_date" >> "$ass_out"
-          printf "Dialogue: 0,%s,%s,DVRight,,0,20,40,,%s\n" \
-            "$start_str" "$end_str" "$prev_time" >> "$ass_out"
-          (( dialogue_count+=2 ))
-          ;;
-        *)
-          printf "Dialogue: 0,%s,%s,DVRight,,0,0,40,,%s\\N%s\n" \
-            "$start_str" "$end_str" "$prev_date" "$prev_time" >> "$ass_out"
-          (( ++dialogue_count ))
-          ;;
-      esac
-    fi
-
-    prev_start_sec="$t_sec"
-    prev_date="$date_part"
-    prev_time="$time_part"
-    prev_dt="$dt_key"
-  done < "$timeline_debug"
-
-  # Close the last subtitle segment
-  if [[ -n "$prev_dt" && -n "$prev_start_sec" ]]; then
-    local start_str end_str end_sec
-    start_str=$(seconds_to_ass_time "$prev_start_sec")
-    end_sec=$(awk -v start="$prev_start_sec" -v step="$frame_step" 'BEGIN{printf "%.6f", start+step}')
-    end_str=$(seconds_to_ass_time "$end_sec")
-
-    case "$layout" in
-      stacked)
-        printf "Dialogue: 0,%s,%s,DVRight,,0,0,40,,%s\\N%s\n" \
-          "$start_str" "$end_str" "$prev_date" "$prev_time" >> "$ass_out"
-        (( ++dialogue_count ))
-        ;;
-      single)
-        printf "Dialogue: 0,%s,%s,DVLeft,,20,0,40,,%s\n" \
-          "$start_str" "$end_str" "$prev_date" >> "$ass_out"
-        printf "Dialogue: 0,%s,%s,DVRight,,0,20,40,,%s\n" \
-          "$start_str" "$end_str" "$prev_time" >> "$ass_out"
-        (( dialogue_count+=2 ))
-        ;;
-      *)
-        printf "Dialogue: 0,%s,%s,DVRight,,0,0,40,,%s\\N%s\n" \
-          "$start_str" "$end_str" "$prev_date" "$prev_time" >> "$ass_out"
-        (( dialogue_count++ ))
-        ;;
-    esac
+  fps=$(normalize_fps "$fps") || return 1
+  local media_end=""
+  media_end=$(subtitle_media_end "$in" "$dv_log" "$fps") || true
+  if [[ -z "$media_end" ]]; then
+    warn "[subtitle] No media duration or numbered frames; using a one-frame final event."
   fi
 
-  if [[ ${timeline_entries:-0} -gt 0 ]]; then
-    last_parse_timeline_entries=${timeline_entries}
-  else
-    last_parse_timeline_entries=$dialogue_count
-  fi
+  # ASS stores centiseconds. Interior boundaries round down together so the
+  # timestamp has changed by the next source frame; the final end rounds up
+  # to cover the entire last frame. Two single-layout styles share boundaries.
+  LC_NUMERIC=C awk -F '\t' -v fps="$fps" -v media_end="$media_end" -v layout="$layout" '
+    function ass_time(cs) {
+      return sprintf("%d:%02d:%02d.%02d", int(cs/360000), int(cs/6000)%60, int(cs/100)%60, cs%100);
+    }
+    function emit(start_cs, end_cs, date_value, time_value, start_text, end_text) {
+      if (end_cs<=start_cs || start_cs<0) return;
+      start_text=ass_time(start_cs); end_text=ass_time(end_cs);
+      if (layout == "single") {
+        printf "Dialogue: 0,%s,%s,DVLeft,,20,0,40,,%s\n", start_text, end_text, date_value;
+        printf "Dialogue: 0,%s,%s,DVRight,,0,20,40,,%s\n", start_text, end_text, time_value;
+      } else {
+        printf "Dialogue: 0,%s,%s,DVRight,,0,0,40,,%s\\N%s\n", start_text, end_text, date_value, time_value;
+      }
+    }
+    NF>=4 {
+      seconds=$1/fps;
+      if (seconds<0 || (media_end!="" && seconds>=media_end)) next;
+      # Out-of-order/duplicate source rows cannot create overlapping events.
+      if (n>0 && seconds<=times[n]) next;
+      n++; times[n]=seconds; dates[n]=$3; clock_times[n]=$4;
+    }
+    END {
+      if (n<1) exit 2;
+      if (media_end=="") media_end=times[n]+1/fps;
+      final_cs=int(media_end*100);
+      if (media_end*100-final_cs>0.000001) final_cs++;
+      for (i=1; i<=n; i++) {
+        start_cs=int(times[i]*100+0.000001);
+        end_cs=(i<n ? int(times[i+1]*100+0.000001) : final_cs);
+        emit(start_cs, end_cs, dates[i], clock_times[i]);
+      }
+    }
+  ' "$timeline_debug" >> "$ass_out" || return 2
+
+  local dialogue_count
+  dialogue_count=$(awk '/^Dialogue:/ {n++} END {print n+0}' "$ass_out")
+  last_parse_timeline_entries=${timeline_entries:-0}
 
   local skipped_rows=$last_parse_skipped_rows
   local summary_line

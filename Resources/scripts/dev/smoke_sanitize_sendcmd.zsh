@@ -5,6 +5,9 @@ set -euo pipefail
 script_root="${0:A:h:h}"
 lib_root="${script_root}/lib"
 
+source "${lib_root}/env.zsh"
+source "${lib_root}/logging.zsh"
+source "${lib_root}/dvrescue.zsh"
 if ! source "${lib_root}/timeline.zsh"; then
   echo "[FATAL] Unable to source timeline.zsh" >&2
   exit 1
@@ -15,8 +18,11 @@ if ! source "${lib_root}/pathing.zsh"; then
 fi
 
 debug_mode=0
+fontfile=""
+DVMETABURN_FONTFILE=""
 
 tmpdir=$(/usr/bin/mktemp -d "${TMPDIR:-/tmp}/sendcmd-sanitize.XXXXXX")
+trap 'rm -rf -- "$tmpdir"' EXIT
 cmdfile="${tmpdir}/timestamp.cmd"
 
 printf '%s' \
@@ -48,11 +54,8 @@ if (( line_count <= 1 )); then
   exit 1
 fi
 
-last_char=$(/usr/bin/tail -c 1 "$cmdfile" || true)
-if [[ "$last_char" != $'\n' ]]; then
-  echo "[ERROR] sanitize_sendcmd_file output missing trailing newline." >&2
-  exit 1
-fi
+last_byte=$(/usr/bin/tail -c 1 "$cmdfile" | /usr/bin/od -An -tu1 | /usr/bin/tr -d '[:space:]')
+[[ "$last_byte" == 10 ]] || { echo "[ERROR] Missing trailing newline" >&2; exit 1; }
 
 if /usr/bin/grep -qvE '^[[:space:]]*$|^[[:space:]]*#|;[[:space:]]*$' "$cmdfile"; then
   echo "[ERROR] sanitize_sendcmd_file output has a line without trailing semicolon." >&2

@@ -22,6 +22,11 @@ if ! source "${lib_root}/filtergraph.zsh"; then
   exit 1
 fi
 
+source "${lib_root}/timeline.zsh"
+source "${lib_root}/cleanup.zsh"
+debug_mode=0
+fontfile=""
+DVMETABURN_FONTFILE=""
 ffmpeg_bin="${FFMPEG_BIN:-ffmpeg}"
 
 fontfile=""
@@ -31,11 +36,12 @@ if ! fontfile=$(find_font); then
 fi
 
 tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/sendcmd-smoke.XXXXXX")
+trap 'rm -rf -- "$tmpdir"' EXIT
 cmdfile="${tmpdir}/timestamp.cmd"
 
 cat > "$cmdfile" <<'EOF_CMD'
 0.000 drawtext@dvdate reinit text=2003-09-20
-0.000 drawtext@dvtime reinit text=12\:34\:56
+0.000 drawtext@dvtime reinit text=12\\:34\\:56
 EOF_CMD
 
 vf=$(build_burnin_filtergraph "single" "$cmdfile" "$fontfile" "off")
@@ -52,11 +58,8 @@ if (( line_count <= 1 )); then
   exit 1
 fi
 
-last_char=$(/usr/bin/tail -c 1 "$cmdfile_exec" 2>/dev/null || /bin/tail -c 1 "$cmdfile_exec" 2>/dev/null || true)
-if [[ "$last_char" != $'\n' ]]; then
-  echo "[ERROR] sendcmd exec file missing trailing newline: $cmdfile_exec" >&2
-  exit 1
-fi
+last_byte=$(/usr/bin/tail -c 1 "$cmdfile_exec" | /usr/bin/od -An -tu1 | /usr/bin/tr -d '[:space:]')
+[[ "$last_byte" == 10 ]] || { echo "[ERROR] Missing trailing newline" >&2; exit 1; }
 
 if /usr/bin/grep -qvE '^[[:space:]]*$|^[[:space:]]*#|;[[:space:]]*$' "$cmdfile_exec"; then
   echo "[ERROR] sendcmd exec file has a line without trailing semicolon: $cmdfile_exec" >&2

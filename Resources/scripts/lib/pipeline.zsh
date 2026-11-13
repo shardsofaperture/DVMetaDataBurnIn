@@ -163,14 +163,17 @@ process_file_core() {
     log_export "$source_video" "$out_audio"
     prepare_subprocess_env
     log_ffmpeg_command "audio-only" "${audio_cmd[@]}"
-    if ! run_stage "audio-extract" "${audio_cmd[@]}"; then
+    if run_stage "audio-extract" "${audio_cmd[@]}"; then
+      :
+    else
       exit_status=$?
       manifest_status="error"
       passthrough_output="$out_audio"
       last_passthrough_output_path="$passthrough_output"
       last_burn_output_path="$out_audio"
       finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
-      die "ffmpeg encode failed for: $source_video"
+      echo "ffmpeg encode failed for: $source_video" >&2
+      return 1
     fi
 
     exit_status=0
@@ -192,7 +195,9 @@ process_file_core() {
   debug_log "Detected FPS: $fps"
 
   local dv_status=0
-  if ! run_dvrescue_capture "$source_video" "$dvrescue_xml" "$dvrescue_log"; then
+  if run_dvrescue_capture "$source_video" "$dvrescue_xml" "$dvrescue_log"; then
+    :
+  else
     dv_status=$?
   fi
   last_dvrescue_status=$dv_status
@@ -217,7 +222,7 @@ process_file_core() {
     local final_out="${base}_conv.${out_ext}"
     local work_out=""
     if [[ -n "$deinterlace_vf" ]]; then
-      work_out="${run_scratch_root%/}/artifacts/$(basename "$final_out").work.${out_ext}"
+      work_out="${artifact_dir%/}/output.work.${out_ext}"
     fi
     echo "[PATH] FINAL_OUT=$final_out"
     echo "[PATH] WORK_OUT=$work_out"
@@ -246,24 +251,30 @@ process_file_core() {
     log_export "$source_video" "$transcode_target"
     prepare_subprocess_env
     log_ffmpeg_command "transcode-only" "${transcode_cmd[@]}"
-    if ! run_stage "encode" "${transcode_cmd[@]}"; then
+    if run_stage "encode" "${transcode_cmd[@]}"; then
+      :
+    else
       exit_status=$?
       manifest_status="error"
       passthrough_output="$final_out"
       last_passthrough_output_path="$passthrough_output"
       finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
-      die "ffmpeg encode failed for: $source_video"
+      echo "ffmpeg encode failed for: $source_video" >&2
+      return 1
     fi
 
     if [[ -n "$work_out" ]]; then
       log_move "$work_out" "$final_out"
-      if ! mv -f "$work_out" "$final_out"; then
+      if mv -f "$work_out" "$final_out"; then
+        :
+      else
         exit_status=$?
         manifest_status="error"
         passthrough_output="$final_out"
         last_passthrough_output_path="$passthrough_output"
         finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
-        die "Failed to move scratch output into place: $work_out -> $final_out"
+        echo "Failed to move scratch output into place: $work_out -> $final_out" >&2
+        return 1
       fi
     fi
 
@@ -321,7 +332,9 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
     fi
 
     # Build ASS subtitles from the dvrescue timeline
-    if ! make_ass_subs "$source_video" "$layout" "$ass_target" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$fps"; then
+    if make_ass_subs "$source_video" "$layout" "$ass_target" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$fps"; then
+      :
+    else
       sub_status=$?
     fi
 
@@ -344,7 +357,7 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
           local final_out="${base}_conv.${out_ext}"
           local work_out=""
           if [[ -n "$deinterlace_vf" ]]; then
-            work_out="${run_scratch_root%/}/artifacts/$(basename "$final_out").work.${out_ext}"
+            work_out="${artifact_dir%/}/output.work.${out_ext}"
           fi
           echo "[PATH] FINAL_OUT=$final_out"
           echo "[PATH] WORK_OUT=$work_out"
@@ -372,24 +385,30 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
           log_export "$source_video" "$subtitle_fallback_target"
           prepare_subprocess_env
           log_ffmpeg_command "subtitle-fallback" "${subtitle_fallback_cmd[@]}"
-          if ! run_stage "encode" "${subtitle_fallback_cmd[@]}"; then
+          if run_stage "encode" "${subtitle_fallback_cmd[@]}"; then
+            :
+          else
             exit_status=$?
             manifest_status="error"
             passthrough_output="$final_out"
             last_passthrough_output_path="$passthrough_output"
             finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
-            die "ffmpeg encode failed for: $source_video"
+            echo "ffmpeg encode failed for: $source_video" >&2
+            return 1
           fi
 
           if [[ -n "$work_out" ]]; then
             log_move "$work_out" "$final_out"
-            if ! mv -f "$work_out" "$final_out"; then
+            if mv -f "$work_out" "$final_out"; then
+              :
+            else
               exit_status=$?
               manifest_status="error"
               passthrough_output="$final_out"
               last_passthrough_output_path="$passthrough_output"
               finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
-              die "Failed to move scratch output into place: $work_out -> $final_out"
+              echo "Failed to move scratch output into place: $work_out -> $final_out" >&2
+              return 1
             fi
           fi
 
@@ -427,7 +446,7 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
     local final_out="${base}_dvsub.mkv"
     local work_out=""
     if [[ -n "$deinterlace_vf" ]]; then
-      work_out="${run_scratch_root%/}/artifacts/$(basename "$final_out").work.${out_ext}"
+      work_out="${artifact_dir%/}/output.work.${out_ext}"
     fi
     echo "[PATH] FINAL_OUT=$final_out"
     echo "[PATH] WORK_OUT=$work_out"
@@ -473,24 +492,30 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
     log_export "$source_video" "$mux_target"
     prepare_subprocess_env
     log_ffmpeg_command "subtitle-mux" "${mux_cmd[@]}"
-    if ! run_stage "encode" "${mux_cmd[@]}"; then
+    if run_stage "encode" "${mux_cmd[@]}"; then
+      :
+    else
       exit_status=$?
       manifest_status="error"
       finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" \
         "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" \
       "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
-      die "ffmpeg encode failed for: $source_video"
+      echo "ffmpeg encode failed for: $source_video" >&2
+      return 1
     fi
 
     if [[ -n "$work_out" ]]; then
       log_move "$work_out" "$final_out"
-      if ! mv -f "$work_out" "$final_out"; then
+      if mv -f "$work_out" "$final_out"; then
+        :
+      else
         exit_status=$?
         manifest_status="error"
         finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" \
           "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" \
           "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
-        die "Failed to move scratch output into place: $work_out -> $final_out"
+        echo "Failed to move scratch output into place: $work_out -> $final_out" >&2
+        return 1
       fi
     fi
 
@@ -514,14 +539,15 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
     case "$missing_meta" in
       error)
         finish_run 1 "error" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
-        die "timeline generation failed for: $source_video (see artifacts: $artifact_dir)"
+        echo "timeline generation failed for: $source_video (see artifacts: $artifact_dir)" >&2
+        return 1
         ;;
       skip_burnin_convert)
         echo "[WARN] Converting without burn-in due to missing timestamp metadata." >&2
         local final_out="${base}_conv.${out_ext}"
         local work_out=""
         if [[ -n "$deinterlace_vf" ]]; then
-          work_out="${run_scratch_root%/}/artifacts/$(basename "$final_out").work.${out_ext}"
+          work_out="${artifact_dir%/}/output.work.${out_ext}"
         fi
         echo "[PATH] FINAL_OUT=$final_out"
         echo "[PATH] WORK_OUT=$work_out"
@@ -549,23 +575,29 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
         log_export "$source_video" "$timeline_fallback_target"
         prepare_subprocess_env
         log_ffmpeg_command "timeline-fallback" "${timeline_fallback_cmd[@]}"
-        if ! run_stage "encode" "${timeline_fallback_cmd[@]}"; then
+        if run_stage "encode" "${timeline_fallback_cmd[@]}"; then
+          :
+        else
           exit_status=$?
           manifest_status="error"
           passthrough_output="$final_out"
           last_passthrough_output_path="$passthrough_output"
           finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
-          die "ffmpeg encode failed for: $source_video"
+          echo "ffmpeg encode failed for: $source_video" >&2
+          return 1
         fi
         if [[ -n "$work_out" ]]; then
           log_move "$work_out" "$final_out"
-          if ! mv -f "$work_out" "$final_out"; then
+          if mv -f "$work_out" "$final_out"; then
+            :
+          else
             exit_status=$?
             manifest_status="error"
             passthrough_output="$final_out"
             last_passthrough_output_path="$passthrough_output"
             finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
-            die "Failed to move scratch output into place: $work_out -> $final_out"
+            echo "Failed to move scratch output into place: $work_out -> $final_out" >&2
+            return 1
           fi
         fi
         exit_status=0
@@ -589,7 +621,8 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
   if ! validate_sendcmd_file "$cmdfile"; then
     echo "[ERROR] sendcmd validation failed before ffmpeg run" >&2
     finish_run 1 "error" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
-    die "sendcmd validation failed for: $source_video"
+    echo "sendcmd validation failed for: $source_video" >&2
+    return 1
   fi
 
   local vf
@@ -615,11 +648,14 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
     -f null -
   )
   log_ffmpeg_command "sendcmd-smoke" "${sendcmd_smoke_cmd[@]}"
-  if ! run_sendcmd_smoke_check "sendcmd-smoke" "${sendcmd_smoke_cmd[@]}"; then
+  if run_sendcmd_smoke_check "sendcmd-smoke" "${sendcmd_smoke_cmd[@]}"; then
+    :
+  else
     exit_status=$?
     manifest_status="error"
     finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
-    die "sendcmd smoke test failed for: $source_video"
+    echo "sendcmd smoke test failed for: $source_video" >&2
+    return 1
   fi
 
   if [[ "$format" == "mkv" && "$burn_mode" == "burnin" ]]; then
@@ -634,7 +670,7 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
   local final_out="${base}_dateburn.${out_ext}"
   local work_out=""
   if [[ -n "$deinterlace_vf" ]]; then
-    work_out="${run_scratch_root%/}/artifacts/$(basename "$final_out").work.${out_ext}"
+    work_out="${artifact_dir%/}/output.work.${out_ext}"
   fi
   echo "[PATH] FINAL_OUT=$final_out"
   echo "[PATH] WORK_OUT=$work_out"
@@ -661,24 +697,30 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
   log_export "$source_video" "$burn_target"
   prepare_subprocess_env
   log_ffmpeg_command "burn-in" "${burn_cmd[@]}"
-  if ! run_stage "encode" "${burn_cmd[@]}"; then
+  if run_stage "encode" "${burn_cmd[@]}"; then
+    :
+  else
     exit_status=$?
     manifest_status="error"
     burn_output="$final_out"
     last_burn_output_path="$burn_output"
     finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
-    die "ffmpeg encode failed for: $source_video"
+    echo "ffmpeg encode failed for: $source_video" >&2
+    return 1
   fi
 
   if [[ -n "$work_out" ]]; then
     log_move "$work_out" "$final_out"
-    if ! mv -f "$work_out" "$final_out"; then
+    if mv -f "$work_out" "$final_out"; then
+      :
+    else
       exit_status=$?
       manifest_status="error"
       burn_output="$final_out"
       last_burn_output_path="$burn_output"
       finish_run "$exit_status" "$manifest_status" "$source_video" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_debug" "$cmdfile" "$ass_target" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file" "$run_manifest"
-      die "Failed to move scratch output into place: $work_out -> $final_out"
+      echo "Failed to move scratch output into place: $work_out -> $final_out" >&2
+      return 1
     fi
   fi
 
@@ -752,11 +794,11 @@ process_file_controller() {
 }
 
 offline_smoke_test() {
-  local _xml_unused="${1:-/tmp/dvrescue.xml}"
-  local log="${2:-/tmp/dvrescue.log}"
+  local _xml_unused="${1:-${artifact_root}/dvrescue.xml}"
+  local log="${2:-${artifact_root}/dvrescue.log}"
   local fps="${3:-29.97}"
-  local cmdfile="${4:-/tmp/timestamp.cmd}"
-  local timeline="${5:-/tmp/timeline.debug.tsv}"
+  local cmdfile="${4:-${artifact_root}/timestamp.cmd}"
+  local timeline="${5:-${artifact_root}/timeline.debug.tsv}"
 
   if ! make_timestamp_cmd "offline_sample" "$cmdfile" "$log" "$log" "$timeline" "$fps"; then
     echo "[ERROR] offline_smoke_test failed to build timestamp command file" >&2
@@ -768,7 +810,7 @@ offline_smoke_test() {
 
 run_selftest() {
   local tmp_root
-  tmp_root=$(mktemp -d "${TMPDIR%/}/dvmetaburn_selftest.XXXXXX") || {
+  tmp_root=$(mktemp -d "${artifact_root%/}/dvmetaburn_selftest.XXXXXX") || {
     echo "[ERROR] Unable to create selftest temp dir" >&2
     return 1
   }
@@ -788,7 +830,7 @@ run_selftest() {
     "$input_path"
   )
   log_ffmpeg_command "selftest-generate" "${gen_cmd[@]}"
-  if ! "${gen_cmd[@]}"; then
+  if ! run_owned_command "${gen_cmd[@]}"; then
     echo "[ERROR] Selftest failed to generate lavfi input" >&2
     return 1
   fi

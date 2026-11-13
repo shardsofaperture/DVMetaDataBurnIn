@@ -8,6 +8,6 @@ lib_root="${script_root}/lib"
 
 zsh -n "$entrypoint"
 
-for lib in "${lib_root}"/*.zsh; do
+for lib in "${lib_root}"/*.zsh "${script_root}"/dev/*.zsh; do
   zsh -n "$lib"
 done

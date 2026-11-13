@@ -53,7 +53,10 @@ json_escape() {
   # Escape backslashes first, then double quotes
   raw="${raw//\\/\\\\}"
   raw="${raw//\"/\\\"}"
-  echo "$raw"
+  raw="${raw//$'\n'/\\n}"
+  raw="${raw//$'\r'/\\r}"
+  raw="${raw//$'\t'/\\t}"
+  print -r -- "$raw"
 }
 
 escape_for_single_quotes() {
@@ -76,8 +79,8 @@ log_export() {
 }
 
 log_write() {
-  local path="$1"
-  echo "[WRITE] -> $path" >&2
+  local file_path="$1"
+  echo "[WRITE] -> $file_path" >&2
 }
 
 log_move() {
@@ -109,8 +112,12 @@ run_stage() {
   log_stage_marker "$stage"
 
   set +e
-  "$@"
-  local rc=$?
+  local rc=0
+  if [[ "$1" == "${ffmpeg_bin:-}" || "$1" == "${dvrescue_bin:-}" ]]; then
+    run_owned_command "$@" || rc=$?
+  else
+    "$@" || rc=$?
+  fi
   set -e
 
   if (( rc != 0 )); then
@@ -122,18 +129,18 @@ run_stage() {
 
 log_file_excerpt() {
   local label="$1"
-  local path="$2"
+  local file_path="$2"
   local lines="${3:-10}"
 
-  if [[ ! -s "$path" ]]; then
-    debug_log "$label: no content at $path"
+  if [[ ! -s "$file_path" ]]; then
+    debug_log "$label: no content at $file_path"
     return 0
   fi
 
   debug_log "$label (first ${lines} lines):"
   local head_cmd="/usr/bin/head"
   [[ -x "$head_cmd" ]] || head_cmd="/bin/head"
-  "$head_cmd" -n "$lines" "$path" | while IFS= read -r line; do
+  "$head_cmd" -n "$lines" "$file_path" | while IFS= read -r line; do
     debug_log "$line"
   done
 
@@ -142,7 +149,7 @@ log_file_excerpt() {
 
   if command -v "$awk_cmd" >/dev/null 2>&1 && command -v "$head_cmd" >/dev/null 2>&1; then
     debug_log "$label first-field preview:"
-    "$awk_cmd" '{print $1}' "$path" | "$head_cmd" -n 5 | while IFS= read -r field; do
+    "$awk_cmd" '{print $1}' "$file_path" | "$head_cmd" -n 5 | while IFS= read -r field; do
       debug_log "$label $field"
     done
   fi
