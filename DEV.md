@@ -85,3 +85,9 @@ xcrun swiftc -module-cache-path .build/Xcode15DerivedData/ModuleCache.noindex \
 ```
 
 Use the actual Xcode path on another Mac. These checks exercise Swift allocation, ownership markers, launch-file removal, diagnostic preservation, and scratch-parent symlinks; they do not launch the GUI.
+
+## Maintenance prerelease packaging
+
+The `v1.0.7-maintenance.1` prerelease is built from the exact commit identified by its tag and `BUILD-MANIFEST.json`. Its Release app is copied into an isolated package staging directory, complete license texts and source/build identity are included, and the outer app is ad-hoc signed without replacing the bundled tools. The ZIP is created with macOS `ditto` to preserve executable permissions and metadata. It is extracted again for signature/resource checks and a CLI self-test before upload. Published assets are downloaded and checked against SHA-256. The prerelease remains separate from the stable release and from merging application changes into `main`.
+
+The handoff ZIP in Nextcloud includes the source snapshot, release assets, validation logs, Git diffs/receipts and the end-to-end summary. No credentials, private keys, unrelated project files or original footage belong in that handoff.

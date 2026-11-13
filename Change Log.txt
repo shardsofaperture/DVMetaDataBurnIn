@@ -1,6 +1,8 @@
-## Change Log 1.0.7 — Maintenance release (local build verified)
+## Change Log 1.0.7 — Maintenance Preview 1 (prerelease)
 
 ---11/12/2026
+
+* Maintenance prerelease: [v1.0.7-maintenance.1](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.1), built from `maintenance/1.0.7` for Intel macOS. Additional bug fixes and testing are continuing before merging into `main`.
 
 * Corrected final ASS event duration using source-frame-aligned media duration, with a last-numbered-frame fallback when duration is unavailable.
 * Preserved exact NTSC timing in frame-to-time conversion; fixed ASS minute/hour carry and rejected duplicate/backwards timeline rows.
@@ -11,7 +13,7 @@
 * Corrected swallowed failure status, rolling-time sendcmd escaping, quoted filter paths, JSON path escaping, missing stitch destinations and Zsh stitch-list reading.
 * Repaired existing smoke tests and added synthetic timing, workspace, cancellation and media regression tests.
 * Added VS Code tasks and native Xcode development documentation. No new application runtime dependencies.
-* Native Xcode 15.4 build verified before the version bump; version 1.0.7 Debug/Release builds and six Swift workspace checks passed. The VS Code build task selects the owner's external Xcode locally. GUI and real-footage acceptance remain pending. No release was published.
+* Native Xcode 15.4 build verified before the version bump; version 1.0.7 Debug/Release builds and six Swift workspace checks passed. The VS Code build task selects the owner's external Xcode locally. GUI and real-footage acceptance remain pending. The maintenance download is an ad-hoc signed, non-notarized prerelease; the stable release is unchanged. See `docs/releases/1.0.7-maintenance.1.md` for release notes and package verification.
 
 ##Change Log 1.0.6B
 

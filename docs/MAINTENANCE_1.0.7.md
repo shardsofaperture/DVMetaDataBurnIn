@@ -1,10 +1,10 @@
 # DVMetaDataBurnIn 1.0.7 maintenance status
 
-November 12, 2026. Implementation, synthetic regression checks, and the native Xcode build are complete. The maintenance changes first passed the native build at 1.0.6; the application was then updated to **1.0.7** and its Debug and Release builds passed. This is a locally verified build, not a published release. GUI and real-footage acceptance remain pending.
+November 12, 2026. Implementation, synthetic regression checks, and the native Xcode build are complete. The maintenance changes first passed the native build at 1.0.6; the application was then updated to **1.0.7** and its Debug and Release builds passed. Distribution is the `v1.0.7-maintenance.1` prerelease from `maintenance/1.0.7`. Additional bug fixes, GUI checks and real-footage acceptance remain pending before merging the maintenance work into `main`. See [release notes](releases/1.0.7-maintenance.1.md).
 
 ## Repository and baseline
 
-The folder was already a Git repository before VS Code setup. It had a clean working tree on `codex-refactor`, tracking `origin/codex-refactor`, with remote `https://github.com/shardsofaperture/DVMetaDataBurnIn/`. Baseline HEAD was `cfa50d5` (1.0.6B release push). Created `maintenance/1.0.7` from that exact revision. The owner subsequently authorized committing and pushing this maintenance branch to GitHub. This report accompanies that maintenance commit. The existing main branch and Git history are preserved; build products and local diagnostic evidence remain ignored.
+The folder was already a Git repository before VS Code setup. It had a clean working tree on `codex-refactor`, tracking `origin/codex-refactor`, with remote `https://github.com/shardsofaperture/DVMetaDataBurnIn/`. Baseline HEAD was `cfa50d5` (1.0.6B release push). Created `maintenance/1.0.7` from that exact revision. The owner subsequently authorized committing and pushing this maintenance branch to GitHub. This report accompanies that maintenance commit. Application changes remain on the maintenance branch. The owner later authorized the maintenance prerelease, a draft pull request, a documentation-only status notice on `main`, and a supporting handoff ZIP in Nextcloud. Build products and local diagnostic evidence remain ignored by Git.
 
 The README, development notes, developer scenarios, changelog, actual Swift launch code, active libraries, and entrypoint were inspected before editing. Baseline checks:
 
@@ -65,7 +65,7 @@ Initial discovery found no full Xcode installation in Applications or Spotlight.
 
 Local, ignored evidence is under `.maintenance/`, including `baseline-build.log`, `test-all-final.log`, `selftest-final.log`, the initial Command Line Tools `final-build.log`, `xcode15-baseline-build.log`, `xcode15-debug-1.0.7-final.log`, `xcode15-release-1.0.7-final.log`, `test-all-1.0.7-final.log`, `swift-workspace-checks.log`, `bundle-selftest-1.0.7.log`, `environment-1.0.7.log`, and retained synthetic self-test outputs.
 
-Local unsigned app bundles:
+Local unsigned build outputs (the distribution copy is separately ad-hoc signed):
 
 - `.build/Xcode15DerivedData/Build/Products/Debug/DVMetaDataBurnIn.app`
 - `.build/Xcode15DerivedData/Build/Products/Release/DVMetaDataBurnIn.app`
@@ -79,4 +79,4 @@ Local unsigned app bundles:
 5. The ownership guard intentionally preserves workspaces containing selected inputs/outputs, including generated `--selftest` outputs. SIGKILL/power loss cannot run cleanup traps. Existing final-output overwrite behavior and names are unchanged; callers running identical inputs concurrently should use distinct destinations. Direct-output encoder failures can still leave a partial final file; this maintenance change does not delete potentially preexisting user exports.
 6. Further library/UI restructuring and dormant compatibility helpers were left alone where removal would provide little benefit without broader GUI/real-footage validation. No architecture rewrite or new runtime dependency was introduced.
 
-Rebuild using [DEV.md](../DEV.md), then perform the remaining manual acceptance checks in [DEV_TESTS.md](DEV_TESTS.md). The owner authorized Git publication of `maintenance/1.0.7`; GUI and real-footage acceptance remain pending before distribution release.
+Rebuild using [DEV.md](../DEV.md), then perform the remaining manual acceptance checks in [DEV_TESTS.md](DEV_TESTS.md). The owner authorized publication of the maintenance prerelease and a draft pull request. The maintenance branch remains open for additional bug fixes before a future merge into `main`. GUI and real-footage acceptance remain pending.
