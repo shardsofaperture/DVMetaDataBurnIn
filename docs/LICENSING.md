@@ -54,14 +54,24 @@ releases. Three historical questions remain distinct from the new build:
 - **#195:** the official old DVRescue executable matches the publisher package,
   but its exact DeckLink SDK/build mapping remains unconfirmed. BSD does not
   itself impose FFmpeg's corresponding-source obligation.
-- **#196:** author statements permit use of the old fonts, but explicit app
-  redistribution and font-attachment permission evidence is still missing.
+- **#196:** the UAV redistribution concern is resolved by Nicholas Kruse’s
+  express written permission dated November 13, 2026 (see below). Only VCR OSD
+  Mono still lacks explicit app redistribution and font-attachment permission evidence.
   OFL licenses for the new fonts do not license the old ones or old sample MKVs.
 
-No permission has been fabricated and no third-party author has been contacted
-on the owner's behalf. Historical obligations are not closed by replacing
-future maintenance downloads. System/custom fonts selected by users retain
+The maintainer privately retains the UAV author permission described below.
+Historical obligations are not closed by replacing future maintenance downloads.
+System/custom fonts selected by users retain
 their own terms; the application does not grant redistribution rights for them.
+
+## UAV font permission update — November 13, 2026
+
+On November 13, 2026, Nicholas Kruse, the original author of UAV OSD Mono and UAV OSD Sans Mono, granted DVMetaDataBurnIn express written permission to use and redistribute both fonts. The correspondence is privately retained by the maintainer. This project-specific permission resolves the UAV redistribution concern in [#196](https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/196); it is not an OFL license, a public-domain dedication, or blanket permission for unrelated projects. Existing copyright attribution and source links are retained.
+
+Issue #196 remains open only for Riciery Leal’s VCR OSD Mono: explicit app
+redistribution and font-attachment/embedding permission evidence, including
+applicable attribution requirements. The dated font-origin records and original
+distribution bytes remain unchanged.
 
 ## Train footage and extracted frames
 

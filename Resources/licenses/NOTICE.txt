@@ -34,6 +34,16 @@ Historical distributions have separate dated evidence and unresolved source or
 permission questions; see docs/THIRD_PARTY_DISTRIBUTION_AUDIT.md. They are not
 covered by this replacement's build provenance or fonts' licenses.
 
+Historical UAV fonts (including stable 1.0.6 and preview 1; not bundled in
+maintenance preview 2):
+UAV OSD Mono and UAV OSD Sans Mono, by Nicholas Kruse
+Used and redistributed by DVMetaDataBurnIn with express written permission
+from Nicholas Kruse, granted November 13, 2026. The correspondence is privately
+retained by the maintainer. This permission applies to this project; it is not
+an OFL license, a public-domain dedication, or permission for unrelated projects.
+Source: https://www.dafont.com/uav-osd.font
+Author page: https://nicholaskruse.com/work/uavosd
+
 ===== FFmpeg licensing details =====
 
 # License
