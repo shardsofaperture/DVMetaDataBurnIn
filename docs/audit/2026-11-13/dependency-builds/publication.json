@@ -1,0 +1,462 @@
+{
+  "published_on": "2026-11-13",
+  "release_url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.2",
+  "prerelease": true,
+  "source_commit": "1735e101881f5fe725c2d1ed539bc3c22bbf8e52",
+  "release": {
+    "assets": [
+      {
+        "digest": "sha256:95b97c57ace8cd2b69b9a08df16e8f853bc01f948218e50be9a518243ee209de",
+        "id": 744414116,
+        "name": "BUILD-MANIFEST.json",
+        "size": 3025,
+        "updated_at": "2026-11-13T16:51:38Z"
+      },
+      {
+        "digest": "sha256:2a5b2a51376098a1cb6b4599191b6f124e2c0db4208679cc296128d1785f910f",
+        "id": 744414114,
+        "name": "dependency-sources.tar",
+        "size": 61521920,
+        "updated_at": "2026-11-13T16:52:13Z"
+      },
+      {
+        "digest": "sha256:2bc99e7ba5c88e96029772d43b9aee35341d932ff1904c39f62d7965cbc8ab88",
+        "id": 744414112,
+        "name": "DVMetaDataBurnIn-1.0.7-maintenance.2-macos-intel.zip",
+        "size": 20286765,
+        "updated_at": "2026-11-13T16:51:55Z"
+      },
+      {
+        "digest": "sha256:ea338e657f4a3675734841455f539bd43e5326b9fa1a85e2afc2a64c277c01eb",
+        "id": 744414117,
+        "name": "SHA256SUMS.txt",
+        "size": 294,
+        "updated_at": "2026-11-13T16:51:38Z"
+      }
+    ],
+    "id": 444485063,
+    "tag": "v1.0.7-maintenance.2"
+  },
+  "downloaded_assets_byte_identical": true,
+  "downloaded_app_and_source_gate": {
+    "tag": "v1.0.7-maintenance.2",
+    "version": "1.0.7",
+    "source_commit": "1735e101881f5fe725c2d1ed539bc3c22bbf8e52",
+    "archive_sha256": "2bc99e7ba5c88e96029772d43b9aee35341d932ff1904c39f62d7965cbc8ab88",
+    "result": "passed"
+  },
+  "ad_hoc_signature_verified_before_and_after_extraction": true,
+  "packaged_cli_selftest": "PASS (four outputs)",
+  "packaged_cli_selftest_log_sha256": "4078f778251e61dd0facfab0a6e170d201cf905fffc773b12a9955d971b66d6a",
+  "release_workflow": {
+    "conclusion": "success",
+    "databaseId": 43467312067,
+    "event": "release",
+    "headSha": "1735e101881f5fe725c2d1ed539bc3c22bbf8e52",
+    "status": "completed",
+    "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/actions/runs/43467312067"
+  },
+  "stable_documentation_commit": "006cb51b68c1eb19a9ec2463c8b5dc9babb8bc11",
+  "stable_changed_files": [
+    "readme.md",
+    "docs/LICENSING.md",
+    "docs/PROJECT_STATUS.md"
+  ],
+  "stable_runtime_identical_to": "da0a3b97126578d45d24e65573e85367c1f7979e",
+  "main_protection_unchanged": {
+    "locked": true,
+    "enforce_admins": false
+  },
+  "no_branch_merge_in_dependency_remediation": true,
+  "historical_releases_and_assets_verified_unchanged": [
+    {
+      "assets": [
+        {
+          "digest": "sha256:52948942abc347b5678b1db362b2f3de53606bb636cb095b91d8edc582dd6ad3",
+          "id": 742211338,
+          "name": "BUILD-MANIFEST.json",
+          "size": 1284,
+          "updated_at": "2026-11-13T04:08:40Z"
+        },
+        {
+          "digest": "sha256:66a3a458cfe02569157a8e012cb11acb3fd3deb3ba963bc351a03b03462ddd32",
+          "id": 742211409,
+          "name": "DVMetaDataBurnIn-1.0.7-maintenance.1-macos-intel.zip",
+          "size": 34211134,
+          "updated_at": "2026-11-13T04:08:57Z"
+        },
+        {
+          "digest": "sha256:a2f0c9345256d868dc9d4a80852de302bff49e61cf5b002fe3111c18f4c13e05",
+          "id": 744247940,
+          "name": "DVRESCUE-NOTICES-2026-11-13.txt",
+          "size": 15477,
+          "updated_at": "2026-11-13T16:00:23Z"
+        },
+        {
+          "digest": "sha256:e4d9e07cafc192f330fc8af1862701a27a9dcd248bbd5036b09ad6dfbb4f9dc8",
+          "id": 744248014,
+          "name": "DVRESCUE-PROVENANCE-2026-11-13.json",
+          "size": 5855,
+          "updated_at": "2026-11-13T16:00:24Z"
+        },
+        {
+          "digest": "sha256:eacdc36ec174587c1f118b6664ff42dea8a3e3151269b414e06e118fc9bc6073",
+          "id": 744248090,
+          "name": "DVRESCUE-SUPPLEMENT-SHA256SUMS-2026-11-13.txt",
+          "size": 200,
+          "updated_at": "2026-11-13T16:00:26Z"
+        },
+        {
+          "digest": "sha256:eb3483c5b22aee508c6c6a6824d11b8310d425c9f099c34dd202803ac2fa9809",
+          "id": 742212016,
+          "name": "SHA256SUMS.txt",
+          "size": 205,
+          "updated_at": "2026-11-13T04:08:57Z"
+        }
+      ],
+      "id": 443803299,
+      "tag": "v1.0.7-maintenance.1"
+    },
+    {
+      "assets": [
+        {
+          "digest": "sha256:b9551152c57d58885ae14e0fdc23a2b84543464b92d20bb5180348d9802d5509",
+          "id": 743869811,
+          "name": "manifest.json",
+          "size": 18178,
+          "updated_at": "2026-11-13T14:03:21Z"
+        },
+        {
+          "digest": "sha256:23f2e7fda00fae2afc0cf4523909899eac57e65c87382890d64c8022fa467795",
+          "id": 743881321,
+          "name": "SAMPLE-NOTES-v2.txt",
+          "size": 3354,
+          "updated_at": "2026-11-13T14:06:37Z"
+        },
+        {
+          "digest": "sha256:07ddb6ac65c304f7d05b578b25606a9941c31746a3569eadb7a6ba0298401d0a",
+          "id": 743869810,
+          "name": "SAMPLE-NOTES.txt",
+          "size": 2871,
+          "updated_at": "2026-11-13T14:03:21Z"
+        },
+        {
+          "digest": "sha256:71e4786bb076649bea4ae58d4049b0315663eced7fd72ecff8b64941a17dd725",
+          "id": 743881318,
+          "name": "SHA256SUMS-v2.txt",
+          "size": 1113,
+          "updated_at": "2026-11-13T14:06:37Z"
+        },
+        {
+          "digest": "sha256:763b0497d07565b02179c21b4fef468207558dd18a0de0a257a0564b8ef96856",
+          "id": 743869812,
+          "name": "SHA256SUMS.txt",
+          "size": 946,
+          "updated_at": "2026-11-13T14:03:21Z"
+        },
+        {
+          "digest": "sha256:4cdc98968c06c52e2baaf14443590e432ed54159f82c915b02a968b6be41a784",
+          "id": 743869806,
+          "name": "train-01-maintenance-burn-60p.mp4",
+          "size": 7360608,
+          "updated_at": "2026-11-13T14:03:53Z"
+        },
+        {
+          "digest": "sha256:8d920c9540c3d7018dfde5265d13d80da13fa5b9569335b5fcd5aede81a9c47d",
+          "id": 743869805,
+          "name": "train-01-maintenance-burn-deinterlace-off.mp4",
+          "size": 8223526,
+          "updated_at": "2026-11-13T14:03:57Z"
+        },
+        {
+          "digest": "sha256:c982b5d7d8dff7d13c1875d446abf87e0ce55dc74ff3e8176b8e69241fb75c2c",
+          "id": 743869851,
+          "name": "train-01-maintenance-dv-copy.mov",
+          "size": 30090518,
+          "updated_at": "2026-11-13T14:03:57Z"
+        },
+        {
+          "digest": "sha256:4b6f18f66f10f4e79f16129ecadf16d1d4f86909fa1e325e3324f1cdd3bafd45",
+          "id": 743869859,
+          "name": "train-01-maintenance-subtitles.mkv",
+          "size": 8338107,
+          "updated_at": "2026-11-13T14:03:33Z"
+        },
+        {
+          "digest": "sha256:7aaee5b9b1f5563db1c698dcbc409527a3f74b4044496785191c2ed82ccb7999",
+          "id": 743869869,
+          "name": "train-01-maintenance-timestamps.ass",
+          "size": 1172,
+          "updated_at": "2026-11-13T14:03:22Z"
+        },
+        {
+          "digest": "sha256:13be6af4cc481e5eea0a8ed9daee8d9ef329abd79ccc5c6620147604cefcca0a",
+          "id": 743869893,
+          "name": "train-01-original-dv.avi",
+          "size": 30105600,
+          "updated_at": "2026-11-13T14:03:58Z"
+        },
+        {
+          "digest": "sha256:901b961f3997192ad0ffa094a9bd165e403343f839acadfca2251c0761830eab",
+          "id": 743870541,
+          "name": "train-01-owner-dateburn.mp4",
+          "size": 3319029,
+          "updated_at": "2026-11-13T14:03:39Z"
+        },
+        {
+          "digest": "sha256:630289983694d8cbeed450c5c19acca1ef832c5ab2fbcd42a22eebc1a012c3ad",
+          "id": 743870792,
+          "name": "verification.json",
+          "size": 44441,
+          "updated_at": "2026-11-13T14:03:40Z"
+        }
+      ],
+      "id": 444300029,
+      "tag": "examples-train-dv-v1"
+    },
+    {
+      "assets": [
+        {
+          "digest": "sha256:f9df0efa48d7299682a8dd23e556ad560be426be16795171419845e908d6dacb",
+          "id": 331796231,
+          "name": "DVMetaDataBurnIn.1.0.6.beta.zip",
+          "size": 34291536,
+          "updated_at": "2025-12-22T16:46:06Z"
+        },
+        {
+          "digest": "sha256:a2f0c9345256d868dc9d4a80852de302bff49e61cf5b002fe3111c18f4c13e05",
+          "id": 744248270,
+          "name": "DVRESCUE-NOTICES-2026-11-13.txt",
+          "size": 15477,
+          "updated_at": "2026-11-13T16:00:29Z"
+        },
+        {
+          "digest": "sha256:e4d9e07cafc192f330fc8af1862701a27a9dcd248bbd5036b09ad6dfbb4f9dc8",
+          "id": 744248330,
+          "name": "DVRESCUE-PROVENANCE-2026-11-13.json",
+          "size": 5855,
+          "updated_at": "2026-11-13T16:00:30Z"
+        },
+        {
+          "digest": "sha256:eacdc36ec174587c1f118b6664ff42dea8a3e3151269b414e06e118fc9bc6073",
+          "id": 744248398,
+          "name": "DVRESCUE-SUPPLEMENT-SHA256SUMS-2026-11-13.txt",
+          "size": 200,
+          "updated_at": "2026-11-13T16:00:32Z"
+        }
+      ],
+      "id": 272262254,
+      "tag": "1.0.6beta"
+    },
+    {
+      "assets": [
+        {
+          "digest": "sha256:07771e5ef0de96ea09ebca1d1eb7235ba48dcee8f7dd1dcca6411862b1eae900",
+          "id": 330037928,
+          "name": "DVMetaDataBurnIn.1.0.5.beta.zip",
+          "size": 34112824,
+          "updated_at": "2025-12-18T02:13:04Z"
+        },
+        {
+          "digest": "sha256:a2f0c9345256d868dc9d4a80852de302bff49e61cf5b002fe3111c18f4c13e05",
+          "id": 744248538,
+          "name": "DVRESCUE-NOTICES-2026-11-13.txt",
+          "size": 15477,
+          "updated_at": "2026-11-13T16:00:35Z"
+        },
+        {
+          "digest": "sha256:e4d9e07cafc192f330fc8af1862701a27a9dcd248bbd5036b09ad6dfbb4f9dc8",
+          "id": 744248619,
+          "name": "DVRESCUE-PROVENANCE-2026-11-13.json",
+          "size": 5855,
+          "updated_at": "2026-11-13T16:00:36Z"
+        },
+        {
+          "digest": "sha256:eacdc36ec174587c1f118b6664ff42dea8a3e3151269b414e06e118fc9bc6073",
+          "id": 744248682,
+          "name": "DVRESCUE-SUPPLEMENT-SHA256SUMS-2026-11-13.txt",
+          "size": 200,
+          "updated_at": "2026-11-13T16:00:37Z"
+        }
+      ],
+      "id": 271283149,
+      "tag": "1.0.5beta"
+    },
+    {
+      "assets": [
+        {
+          "digest": "sha256:72c89f3312820091b5f58ee9075cc72c59abbf768020c6299d074212584f9972",
+          "id": 325054229,
+          "name": "DVMetaDataBurnIn.1.0.4.beta.zip",
+          "size": 33968360,
+          "updated_at": "2025-12-06T06:00:25Z"
+        },
+        {
+          "digest": "sha256:a2f0c9345256d868dc9d4a80852de302bff49e61cf5b002fe3111c18f4c13e05",
+          "id": 744248869,
+          "name": "DVRESCUE-NOTICES-2026-11-13.txt",
+          "size": 15477,
+          "updated_at": "2026-11-13T16:00:40Z"
+        },
+        {
+          "digest": "sha256:e4d9e07cafc192f330fc8af1862701a27a9dcd248bbd5036b09ad6dfbb4f9dc8",
+          "id": 744248936,
+          "name": "DVRESCUE-PROVENANCE-2026-11-13.json",
+          "size": 5855,
+          "updated_at": "2026-11-13T16:00:41Z"
+        },
+        {
+          "digest": "sha256:eacdc36ec174587c1f118b6664ff42dea8a3e3151269b414e06e118fc9bc6073",
+          "id": 744248992,
+          "name": "DVRESCUE-SUPPLEMENT-SHA256SUMS-2026-11-13.txt",
+          "size": 200,
+          "updated_at": "2026-11-13T16:00:42Z"
+        }
+      ],
+      "id": 267938978,
+      "tag": "1.0.4beta"
+    },
+    {
+      "assets": [
+        {
+          "digest": "sha256:fb8d9dda2043a5966f2e07b920a1dfaac2f48ea5472da679c4b4f1ff258b1a6a",
+          "id": 322785746,
+          "name": "DVMetaDataBurnIn.1.0.0.beta.zip",
+          "size": 32602142,
+          "updated_at": "2025-12-01T05:48:28Z"
+        },
+        {
+          "digest": "sha256:a2f0c9345256d868dc9d4a80852de302bff49e61cf5b002fe3111c18f4c13e05",
+          "id": 744249101,
+          "name": "DVRESCUE-NOTICES-2026-11-13.txt",
+          "size": 15477,
+          "updated_at": "2026-11-13T16:00:45Z"
+        },
+        {
+          "digest": "sha256:e4d9e07cafc192f330fc8af1862701a27a9dcd248bbd5036b09ad6dfbb4f9dc8",
+          "id": 744249143,
+          "name": "DVRESCUE-PROVENANCE-2026-11-13.json",
+          "size": 5855,
+          "updated_at": "2026-11-13T16:00:47Z"
+        },
+        {
+          "digest": "sha256:eacdc36ec174587c1f118b6664ff42dea8a3e3151269b414e06e118fc9bc6073",
+          "id": 744249231,
+          "name": "DVRESCUE-SUPPLEMENT-SHA256SUMS-2026-11-13.txt",
+          "size": 200,
+          "updated_at": "2026-11-13T16:00:48Z"
+        }
+      ],
+      "id": 266277962,
+      "tag": "1.0.0beta"
+    },
+    {
+      "assets": [
+        {
+          "digest": "sha256:659342983a4053226587c173410c2e25ff0d8f04767e2a858402e9f746f45878",
+          "id": 322623323,
+          "name": "DVMetaDataBurnIn.0.3.0.alpha.zip",
+          "size": 32599903,
+          "updated_at": "2025-11-30T21:40:50Z"
+        },
+        {
+          "digest": "sha256:a2f0c9345256d868dc9d4a80852de302bff49e61cf5b002fe3111c18f4c13e05",
+          "id": 744249314,
+          "name": "DVRESCUE-NOTICES-2026-11-13.txt",
+          "size": 15477,
+          "updated_at": "2026-11-13T16:00:51Z"
+        },
+        {
+          "digest": "sha256:e4d9e07cafc192f330fc8af1862701a27a9dcd248bbd5036b09ad6dfbb4f9dc8",
+          "id": 744249384,
+          "name": "DVRESCUE-PROVENANCE-2026-11-13.json",
+          "size": 5855,
+          "updated_at": "2026-11-13T16:00:52Z"
+        },
+        {
+          "digest": "sha256:eacdc36ec174587c1f118b6664ff42dea8a3e3151269b414e06e118fc9bc6073",
+          "id": 744249444,
+          "name": "DVRESCUE-SUPPLEMENT-SHA256SUMS-2026-11-13.txt",
+          "size": 200,
+          "updated_at": "2026-11-13T16:00:53Z"
+        }
+      ],
+      "id": 266234429,
+      "tag": "0.3.0alpha"
+    },
+    {
+      "assets": [
+        {
+          "digest": "sha256:cdbc3588c0d1be55cde32828ea0fc52006911f3c5535247b53c99cb02fd01026",
+          "id": 322113266,
+          "name": "DV.Metadata.Burn-In.Tool.v0.2.0.Alpha.zip",
+          "size": 32574625,
+          "updated_at": "2025-11-29T03:29:15Z"
+        },
+        {
+          "digest": "sha256:a2f0c9345256d868dc9d4a80852de302bff49e61cf5b002fe3111c18f4c13e05",
+          "id": 744249590,
+          "name": "DVRESCUE-NOTICES-2026-11-13.txt",
+          "size": 15477,
+          "updated_at": "2026-11-13T16:00:56Z"
+        },
+        {
+          "digest": "sha256:e4d9e07cafc192f330fc8af1862701a27a9dcd248bbd5036b09ad6dfbb4f9dc8",
+          "id": 744249649,
+          "name": "DVRESCUE-PROVENANCE-2026-11-13.json",
+          "size": 5855,
+          "updated_at": "2026-11-13T16:00:57Z"
+        },
+        {
+          "digest": "sha256:eacdc36ec174587c1f118b6664ff42dea8a3e3151269b414e06e118fc9bc6073",
+          "id": 744249689,
+          "name": "DVRESCUE-SUPPLEMENT-SHA256SUMS-2026-11-13.txt",
+          "size": 200,
+          "updated_at": "2026-11-13T16:00:59Z"
+        }
+      ],
+      "id": 266107267,
+      "tag": "0.2.0alpha"
+    },
+    {
+      "assets": [
+        {
+          "digest": "sha256:2de7a36bb08503ef20a27eec596ba4a197c53ea6a22e50ed3254efd4308fb5b3",
+          "id": 322101350,
+          "name": "DV.Metadata.Burn-In.Tool.v0.1.0.Alpha.zip",
+          "size": 32567886,
+          "updated_at": "2025-11-29T02:40:33Z"
+        },
+        {
+          "digest": "sha256:a2f0c9345256d868dc9d4a80852de302bff49e61cf5b002fe3111c18f4c13e05",
+          "id": 744249849,
+          "name": "DVRESCUE-NOTICES-2026-11-13.txt",
+          "size": 15477,
+          "updated_at": "2026-11-13T16:01:02Z"
+        },
+        {
+          "digest": "sha256:e4d9e07cafc192f330fc8af1862701a27a9dcd248bbd5036b09ad6dfbb4f9dc8",
+          "id": 744249902,
+          "name": "DVRESCUE-PROVENANCE-2026-11-13.json",
+          "size": 5855,
+          "updated_at": "2026-11-13T16:01:03Z"
+        },
+        {
+          "digest": "sha256:eacdc36ec174587c1f118b6664ff42dea8a3e3151269b414e06e118fc9bc6073",
+          "id": 744249966,
+          "name": "DVRESCUE-SUPPLEMENT-SHA256SUMS-2026-11-13.txt",
+          "size": 200,
+          "updated_at": "2026-11-13T16:01:04Z"
+        }
+      ],
+      "id": 266105149,
+      "tag": "alpha"
+    }
+  ],
+  "historical_open_issues": [
+    194,
+    195,
+    196
+  ],
+  "manual_player_acceptance_issue": 197
+}
