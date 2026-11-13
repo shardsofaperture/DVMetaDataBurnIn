@@ -1,0 +1,1420 @@
+{
+  "measurements": {
+    "schema_version": 1,
+    "method": "Read-only full decode; DV concatenated encoded payload; first audio stream decoded to native-rate/channel s16le",
+    "tools": {
+      "ffmpeg": "ffmpeg version 8.0.1-tessus  https://evermeet.cx/ffmpeg/  Copyright (c) 2000-2025 the FFmpeg developers",
+      "ffprobe": "ffprobe version 9.0.2 Copyright (c) 2007-2026 the FFmpeg developers",
+      "dvrescue": "DVRescue v.24.07 (MediaInfoLib v.24.06) by MIPoPS."
+    },
+    "files": [
+      {
+        "filename": "train-01-original-dv.avi",
+        "bytes": 30105600,
+        "sha256": "13be6af4cc481e5eea0a8ed9daee8d9ef329abd79ccc5c6620147604cefcca0a",
+        "probe": {
+          "streams": [
+            {
+              "index": 0,
+              "codec_name": "dvvideo",
+              "codec_long_name": "DV (Digital Video)",
+              "codec_type": "video",
+              "codec_tag_string": "dvsd",
+              "codec_tag": "0x64737664",
+              "width": 720,
+              "height": 480,
+              "coded_width": 720,
+              "coded_height": 480,
+              "has_b_frames": 0,
+              "sample_aspect_ratio": "8:9",
+              "display_aspect_ratio": "4:3",
+              "pix_fmt": "yuv411p",
+              "level": -99,
+              "chroma_location": "topleft",
+              "refs": 1,
+              "r_frame_rate": "2997/100",
+              "avg_frame_rate": "2997/100",
+              "time_base": "100/2997",
+              "start_pts": 0,
+              "start_time": "0.000000",
+              "duration_ts": 238,
+              "duration": "7.941275",
+              "bit_rate": "28771229",
+              "nb_frames": "238",
+              "nb_read_frames": "238",
+              "disposition": {
+                "default": 0,
+                "dub": 0,
+                "original": 0,
+                "comment": 0,
+                "lyrics": 0,
+                "karaoke": 0,
+                "forced": 0,
+                "hearing_impaired": 0,
+                "visual_impaired": 0,
+                "clean_effects": 0,
+                "attached_pic": 0,
+                "timed_thumbnails": 0,
+                "non_diegetic": 0,
+                "captions": 0,
+                "descriptions": 0,
+                "metadata": 0,
+                "dependent": 0,
+                "still_image": 0,
+                "multilayer": 0
+              },
+              "tags": {
+                "title": "Sony DV Video"
+              }
+            },
+            {
+              "index": 1,
+              "codec_name": "pcm_s16le",
+              "codec_long_name": "PCM signed 16-bit little-endian",
+              "codec_type": "audio",
+              "codec_tag_string": "[1][0][0][0]",
+              "codec_tag": "0x0001",
+              "sample_fmt": "s16",
+              "sample_rate": "48000",
+              "channels": 2,
+              "bits_per_sample": 16,
+              "initial_padding": 0,
+              "r_frame_rate": "0/0",
+              "avg_frame_rate": "0/0",
+              "time_base": "1/48000",
+              "start_pts": 0,
+              "start_time": "0.000000",
+              "bit_rate": "1536000",
+              "nb_frames": "381180",
+              "nb_read_frames": "476",
+              "disposition": {
+                "default": 0,
+                "dub": 0,
+                "original": 0,
+                "comment": 0,
+                "lyrics": 0,
+                "karaoke": 0,
+                "forced": 0,
+                "hearing_impaired": 0,
+                "visual_impaired": 0,
+                "clean_effects": 0,
+                "attached_pic": 0,
+                "timed_thumbnails": 0,
+                "non_diegetic": 0,
+                "captions": 0,
+                "descriptions": 0,
+                "metadata": 0,
+                "dependent": 0,
+                "still_image": 0,
+                "multilayer": 0
+              },
+              "tags": {
+                "title": "Sony DV Audio"
+              }
+            }
+          ],
+          "format": {
+            "nb_streams": 2,
+            "nb_programs": 0,
+            "nb_stream_groups": 0,
+            "format_name": "avi",
+            "format_long_name": "AVI (Audio Video Interleaved)",
+            "start_time": "0.000000",
+            "duration": "7.941275",
+            "size": "30105600",
+            "bit_rate": "30328228",
+            "probe_score": 100,
+            "tags": {}
+          }
+        },
+        "decode": {
+          "exit_code": 0,
+          "stderr": ""
+        },
+        "decode_ok": true,
+        "encoded_dv_payload": {
+          "bytes": 28560000,
+          "sha256": "9d1e44eaccd9d4a0e318009c2b8a8bb2b70962f109d77b561a358bc0dff7254c"
+        },
+        "decoded_audio_s16le": {
+          "bytes": 1524720,
+          "sha256": "7361915b0c317d46f4e3d4d8110255c74d175f6ca2704f0ac80661ada01ba065"
+        },
+        "decoded_field_flags": {
+          "frames": 238,
+          "interlaced": 238,
+          "top_first": 0
+        },
+        "recording_metadata": {
+          "records": 238,
+          "transitions": [
+            {
+              "frame": 0,
+              "timecode": "00:02:41;06",
+              "recording_datetime": "2025-11-11 08:29:35"
+            },
+            {
+              "frame": 24,
+              "timecode": "00:02:42;00",
+              "recording_datetime": "2025-11-11 08:29:36"
+            },
+            {
+              "frame": 54,
+              "timecode": "00:02:43;00",
+              "recording_datetime": "2025-11-11 08:29:37"
+            },
+            {
+              "frame": 84,
+              "timecode": "00:02:44;00",
+              "recording_datetime": "2025-11-11 08:29:38"
+            },
+            {
+              "frame": 114,
+              "timecode": "00:02:45;00",
+              "recording_datetime": "2025-11-11 08:29:39"
+            },
+            {
+              "frame": 144,
+              "timecode": "00:02:46;00",
+              "recording_datetime": "2025-11-11 08:29:40"
+            },
+            {
+              "frame": 174,
+              "timecode": "00:02:47;00",
+              "recording_datetime": "2025-11-11 08:29:41"
+            },
+            {
+              "frame": 204,
+              "timecode": "00:02:48;00",
+              "recording_datetime": "2025-11-11 08:29:42"
+            },
+            {
+              "frame": 234,
+              "timecode": "00:02:49;00",
+              "recording_datetime": "2025-11-11 08:29:43"
+            }
+          ],
+          "last": {
+            "frame": 237,
+            "timecode": "00:02:49;03",
+            "recording_datetime": "2025-11-11 08:29:43"
+          }
+        },
+        "packet_timing": {
+          "video": {
+            "count": 238,
+            "first_pts": 0.0,
+            "end_pts": 7.941275
+          },
+          "audio": {
+            "count": 476,
+            "first_pts": 0.0,
+            "end_pts": 7.94125
+          }
+        },
+        "input_unchanged": true,
+        "reference_dv_payload_equal": true,
+        "reference_decoded_audio_equal": true,
+        "reference_audio_layout_equal": null
+      },
+      {
+        "filename": "train-01-maintenance-dv-copy.mov",
+        "bytes": 30090518,
+        "sha256": "c982b5d7d8dff7d13c1875d446abf87e0ce55dc74ff3e8176b8e69241fb75c2c",
+        "probe": {
+          "streams": [
+            {
+              "index": 0,
+              "codec_name": "dvvideo",
+              "codec_long_name": "DV (Digital Video)",
+              "codec_type": "video",
+              "codec_tag_string": "dvc ",
+              "codec_tag": "0x20637664",
+              "width": 720,
+              "height": 480,
+              "coded_width": 720,
+              "coded_height": 480,
+              "has_b_frames": 0,
+              "sample_aspect_ratio": "8:9",
+              "display_aspect_ratio": "4:3",
+              "pix_fmt": "yuv411p",
+              "level": -99,
+              "chroma_location": "topleft",
+              "refs": 1,
+              "id": "0x1",
+              "r_frame_rate": "2997/100",
+              "avg_frame_rate": "2997/100",
+              "time_base": "1/11988",
+              "start_pts": 0,
+              "start_time": "0.000000",
+              "duration_ts": 95200,
+              "duration": "7.941275",
+              "bit_rate": "28771229",
+              "nb_frames": "238",
+              "nb_read_frames": "238",
+              "disposition": {
+                "default": 1,
+                "dub": 0,
+                "original": 0,
+                "comment": 0,
+                "lyrics": 0,
+                "karaoke": 0,
+                "forced": 0,
+                "hearing_impaired": 0,
+                "visual_impaired": 0,
+                "clean_effects": 0,
+                "attached_pic": 0,
+                "timed_thumbnails": 0,
+                "non_diegetic": 0,
+                "captions": 0,
+                "descriptions": 0,
+                "metadata": 0,
+                "dependent": 0,
+                "still_image": 0,
+                "multilayer": 0
+              },
+              "tags": {
+                "handler_name": "VideoHandler",
+                "name": "Sony DV Video"
+              }
+            },
+            {
+              "index": 1,
+              "codec_name": "pcm_s16le",
+              "codec_long_name": "PCM signed 16-bit little-endian",
+              "codec_type": "audio",
+              "codec_tag_string": "sowt",
+              "codec_tag": "0x74776f73",
+              "sample_fmt": "s16",
+              "sample_rate": "48000",
+              "channels": 2,
+              "channel_layout": "stereo",
+              "bits_per_sample": 16,
+              "initial_padding": 0,
+              "id": "0x2",
+              "r_frame_rate": "0/0",
+              "avg_frame_rate": "0/0",
+              "time_base": "1/48000",
+              "start_pts": 0,
+              "start_time": "0.000000",
+              "duration_ts": 381180,
+              "duration": "7.941250",
+              "bit_rate": "1536000",
+              "nb_frames": "381180",
+              "nb_read_frames": "476",
+              "disposition": {
+                "default": 1,
+                "dub": 0,
+                "original": 0,
+                "comment": 0,
+                "lyrics": 0,
+                "karaoke": 0,
+                "forced": 0,
+                "hearing_impaired": 0,
+                "visual_impaired": 0,
+                "clean_effects": 0,
+                "attached_pic": 0,
+                "timed_thumbnails": 0,
+                "non_diegetic": 0,
+                "captions": 0,
+                "descriptions": 0,
+                "metadata": 0,
+                "dependent": 0,
+                "still_image": 0,
+                "multilayer": 0
+              },
+              "tags": {
+                "handler_name": "SoundHandler",
+                "name": "Sony DV Audio"
+              }
+            }
+          ],
+          "format": {
+            "nb_streams": 2,
+            "nb_programs": 0,
+            "nb_stream_groups": 0,
+            "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+            "format_long_name": "QuickTime / MOV",
+            "start_time": "0.000000",
+            "duration": "7.941275",
+            "size": "30090518",
+            "bit_rate": "30313034",
+            "probe_score": 100,
+            "tags": {
+              "major_brand": "qt  ",
+              "minor_version": "512",
+              "compatible_brands": "qt  ",
+              "encoder": "Lavf62.3.100"
+            }
+          }
+        },
+        "decode": {
+          "exit_code": 0,
+          "stderr": ""
+        },
+        "decode_ok": true,
+        "encoded_dv_payload": {
+          "bytes": 28560000,
+          "sha256": "9d1e44eaccd9d4a0e318009c2b8a8bb2b70962f109d77b561a358bc0dff7254c"
+        },
+        "decoded_audio_s16le": {
+          "bytes": 1524720,
+          "sha256": "7361915b0c317d46f4e3d4d8110255c74d175f6ca2704f0ac80661ada01ba065"
+        },
+        "decoded_field_flags": {
+          "frames": 238,
+          "interlaced": 238,
+          "top_first": 0
+        },
+        "recording_metadata": {
+          "records": 238,
+          "transitions": [
+            {
+              "frame": 0,
+              "timecode": "00:02:41;06",
+              "recording_datetime": "2025-11-11 08:29:35"
+            },
+            {
+              "frame": 24,
+              "timecode": "00:02:42;00",
+              "recording_datetime": "2025-11-11 08:29:36"
+            },
+            {
+              "frame": 54,
+              "timecode": "00:02:43;00",
+              "recording_datetime": "2025-11-11 08:29:37"
+            },
+            {
+              "frame": 84,
+              "timecode": "00:02:44;00",
+              "recording_datetime": "2025-11-11 08:29:38"
+            },
+            {
+              "frame": 114,
+              "timecode": "00:02:45;00",
+              "recording_datetime": "2025-11-11 08:29:39"
+            },
+            {
+              "frame": 144,
+              "timecode": "00:02:46;00",
+              "recording_datetime": "2025-11-11 08:29:40"
+            },
+            {
+              "frame": 174,
+              "timecode": "00:02:47;00",
+              "recording_datetime": "2025-11-11 08:29:41"
+            },
+            {
+              "frame": 204,
+              "timecode": "00:02:48;00",
+              "recording_datetime": "2025-11-11 08:29:42"
+            },
+            {
+              "frame": 234,
+              "timecode": "00:02:49;00",
+              "recording_datetime": "2025-11-11 08:29:43"
+            }
+          ],
+          "last": {
+            "frame": 237,
+            "timecode": "00:02:49;03",
+            "recording_datetime": "2025-11-11 08:29:43"
+          }
+        },
+        "packet_timing": {
+          "video": {
+            "count": 238,
+            "first_pts": 0.0,
+            "end_pts": 7.941275
+          },
+          "audio": {
+            "count": 476,
+            "first_pts": 0.0,
+            "end_pts": 7.94125
+          }
+        },
+        "input_unchanged": true,
+        "reference_dv_payload_equal": true,
+        "reference_decoded_audio_equal": true,
+        "reference_audio_layout_equal": null
+      },
+      {
+        "filename": "train-01-maintenance-burn-60p.mp4",
+        "bytes": 7360608,
+        "sha256": "4cdc98968c06c52e2baaf14443590e432ed54159f82c915b02a968b6be41a784",
+        "probe": {
+          "streams": [
+            {
+              "index": 0,
+              "codec_name": "h264",
+              "codec_long_name": "H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10",
+              "profile": "High 4:2:2",
+              "codec_type": "video",
+              "codec_tag_string": "avc1",
+              "codec_tag": "0x31637661",
+              "mime_codec_string": "avc1.7a001f",
+              "width": 720,
+              "height": 480,
+              "coded_width": 720,
+              "coded_height": 480,
+              "has_b_frames": 2,
+              "sample_aspect_ratio": "8:9",
+              "display_aspect_ratio": "4:3",
+              "pix_fmt": "yuv422p",
+              "level": 31,
+              "chroma_location": "left",
+              "field_order": "progressive",
+              "refs": 5,
+              "is_avc": "true",
+              "nal_length_size": "4",
+              "id": "0x1",
+              "r_frame_rate": "60000/1001",
+              "avg_frame_rate": "60000/1001",
+              "time_base": "1/60000",
+              "start_pts": 0,
+              "start_time": "0.000000",
+              "duration_ts": 476476,
+              "duration": "7.941267",
+              "bit_rate": "7208269",
+              "bits_per_raw_sample": "8",
+              "nb_frames": "476",
+              "nb_read_frames": "476",
+              "extradata_size": 49,
+              "disposition": {
+                "default": 1,
+                "dub": 0,
+                "original": 0,
+                "comment": 0,
+                "lyrics": 0,
+                "karaoke": 0,
+                "forced": 0,
+                "hearing_impaired": 0,
+                "visual_impaired": 0,
+                "clean_effects": 0,
+                "attached_pic": 0,
+                "timed_thumbnails": 0,
+                "non_diegetic": 0,
+                "captions": 0,
+                "descriptions": 0,
+                "metadata": 0,
+                "dependent": 0,
+                "still_image": 0,
+                "multilayer": 0
+              },
+              "tags": {
+                "language": "und",
+                "handler_name": "VideoHandler",
+                "encoder": "Lavc62.11.100 libx264",
+                "name": "Sony DV Video"
+              }
+            },
+            {
+              "index": 1,
+              "codec_name": "aac",
+              "codec_long_name": "AAC (Advanced Audio Coding)",
+              "profile": "LC",
+              "codec_type": "audio",
+              "codec_tag_string": "mp4a",
+              "codec_tag": "0x6134706d",
+              "mime_codec_string": "mp4a.40.2",
+              "sample_fmt": "fltp",
+              "sample_rate": "48000",
+              "channels": 2,
+              "channel_layout": "stereo",
+              "bits_per_sample": 0,
+              "initial_padding": 1024,
+              "id": "0x2",
+              "r_frame_rate": "0/0",
+              "avg_frame_rate": "0/0",
+              "time_base": "1/48000",
+              "start_pts": 0,
+              "start_time": "0.000000",
+              "duration_ts": 381168,
+              "duration": "7.941000",
+              "bit_rate": "191984",
+              "nb_frames": "374",
+              "nb_read_frames": "373",
+              "extradata_size": 5,
+              "disposition": {
+                "default": 1,
+                "dub": 0,
+                "original": 0,
+                "comment": 0,
+                "lyrics": 0,
+                "karaoke": 0,
+                "forced": 0,
+                "hearing_impaired": 0,
+                "visual_impaired": 0,
+                "clean_effects": 0,
+                "attached_pic": 0,
+                "timed_thumbnails": 0,
+                "non_diegetic": 0,
+                "captions": 0,
+                "descriptions": 0,
+                "metadata": 0,
+                "dependent": 0,
+                "still_image": 0,
+                "multilayer": 0
+              },
+              "tags": {
+                "language": "und",
+                "handler_name": "SoundHandler",
+                "name": "Sony DV Audio"
+              }
+            }
+          ],
+          "format": {
+            "nb_streams": 2,
+            "nb_programs": 0,
+            "nb_stream_groups": 0,
+            "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+            "format_long_name": "QuickTime / MOV",
+            "start_time": "0.000000",
+            "duration": "7.941267",
+            "size": "7360608",
+            "bit_rate": "7415046",
+            "probe_score": 100,
+            "tags": {
+              "major_brand": "isom",
+              "minor_version": "512",
+              "compatible_brands": "isomiso2avc1mp41",
+              "encoder": "Lavf62.3.100"
+            }
+          }
+        },
+        "decode": {
+          "exit_code": 0,
+          "stderr": ""
+        },
+        "decode_ok": true,
+        "decoded_audio_s16le": {
+          "bytes": 1527808,
+          "sha256": "8d8991998551fca70b5655b4fc8c1f2e3ea7a120f4bb9d0f9a6fd440eb52ea15"
+        },
+        "decoded_field_flags": {
+          "frames": 476,
+          "interlaced": 0,
+          "top_first": 0
+        },
+        "packet_timing": {
+          "video": {
+            "count": 476,
+            "first_pts": 0.0,
+            "end_pts": 7.941266
+          },
+          "audio": {
+            "count": 374,
+            "first_pts": -0.021333,
+            "end_pts": 7.94125
+          }
+        },
+        "input_unchanged": true
+      },
+      {
+        "filename": "train-01-maintenance-burn-deinterlace-off.mp4",
+        "bytes": 8223526,
+        "sha256": "8d920c9540c3d7018dfde5265d13d80da13fa5b9569335b5fcd5aede81a9c47d",
+        "probe": {
+          "streams": [
+            {
+              "index": 0,
+              "codec_name": "h264",
+              "codec_long_name": "H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10",
+              "profile": "High 4:2:2",
+              "codec_type": "video",
+              "codec_tag_string": "avc1",
+              "codec_tag": "0x31637661",
+              "mime_codec_string": "avc1.7a001e",
+              "width": 720,
+              "height": 480,
+              "coded_width": 720,
+              "coded_height": 480,
+              "has_b_frames": 2,
+              "sample_aspect_ratio": "8:9",
+              "display_aspect_ratio": "4:3",
+              "pix_fmt": "yuv422p",
+              "level": 30,
+              "chroma_location": "left",
+              "field_order": "progressive",
+              "refs": 5,
+              "is_avc": "true",
+              "nal_length_size": "4",
+              "id": "0x1",
+              "r_frame_rate": "2997/100",
+              "avg_frame_rate": "2997/100",
+              "time_base": "1/11988",
+              "start_pts": 0,
+              "start_time": "0.000000",
+              "duration_ts": 95200,
+              "duration": "7.941275",
+              "bit_rate": "8081547",
+              "bits_per_raw_sample": "8",
+              "nb_frames": "238",
+              "nb_read_frames": "238",
+              "extradata_size": 49,
+              "disposition": {
+                "default": 1,
+                "dub": 0,
+                "original": 0,
+                "comment": 0,
+                "lyrics": 0,
+                "karaoke": 0,
+                "forced": 0,
+                "hearing_impaired": 0,
+                "visual_impaired": 0,
+                "clean_effects": 0,
+                "attached_pic": 0,
+                "timed_thumbnails": 0,
+                "non_diegetic": 0,
+                "captions": 0,
+                "descriptions": 0,
+                "metadata": 0,
+                "dependent": 0,
+                "still_image": 0,
+                "multilayer": 0
+              },
+              "tags": {
+                "language": "und",
+                "handler_name": "VideoHandler",
+                "encoder": "Lavc62.11.100 libx264",
+                "name": "Sony DV Video"
+              }
+            },
+            {
+              "index": 1,
+              "codec_name": "aac",
+              "codec_long_name": "AAC (Advanced Audio Coding)",
+              "profile": "LC",
+              "codec_type": "audio",
+              "codec_tag_string": "mp4a",
+              "codec_tag": "0x6134706d",
+              "mime_codec_string": "mp4a.40.2",
+              "sample_fmt": "fltp",
+              "sample_rate": "48000",
+              "channels": 2,
+              "channel_layout": "stereo",
+              "bits_per_sample": 0,
+              "initial_padding": 1024,
+              "id": "0x2",
+              "r_frame_rate": "0/0",
+              "avg_frame_rate": "0/0",
+              "time_base": "1/48000",
+              "start_pts": 0,
+              "start_time": "0.000000",
+              "duration_ts": 381168,
+              "duration": "7.941000",
+              "bit_rate": "191984",
+              "nb_frames": "374",
+              "nb_read_frames": "373",
+              "extradata_size": 5,
+              "disposition": {
+                "default": 1,
+                "dub": 0,
+                "original": 0,
+                "comment": 0,
+                "lyrics": 0,
+                "karaoke": 0,
+                "forced": 0,
+                "hearing_impaired": 0,
+                "visual_impaired": 0,
+                "clean_effects": 0,
+                "attached_pic": 0,
+                "timed_thumbnails": 0,
+                "non_diegetic": 0,
+                "captions": 0,
+                "descriptions": 0,
+                "metadata": 0,
+                "dependent": 0,
+                "still_image": 0,
+                "multilayer": 0
+              },
+              "tags": {
+                "language": "und",
+                "handler_name": "SoundHandler",
+                "name": "Sony DV Audio"
+              }
+            }
+          ],
+          "format": {
+            "nb_streams": 2,
+            "nb_programs": 0,
+            "nb_stream_groups": 0,
+            "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+            "format_long_name": "QuickTime / MOV",
+            "start_time": "0.000000",
+            "duration": "7.941275",
+            "size": "8223526",
+            "bit_rate": "8284338",
+            "probe_score": 100,
+            "tags": {
+              "major_brand": "isom",
+              "minor_version": "512",
+              "compatible_brands": "isomiso2avc1mp41",
+              "encoder": "Lavf62.3.100"
+            }
+          }
+        },
+        "decode": {
+          "exit_code": 0,
+          "stderr": ""
+        },
+        "decode_ok": true,
+        "decoded_audio_s16le": {
+          "bytes": 1527808,
+          "sha256": "8d8991998551fca70b5655b4fc8c1f2e3ea7a120f4bb9d0f9a6fd440eb52ea15"
+        },
+        "decoded_field_flags": {
+          "frames": 238,
+          "interlaced": 0,
+          "top_first": 0
+        },
+        "packet_timing": {
+          "video": {
+            "count": 238,
+            "first_pts": 0.0,
+            "end_pts": 7.941275
+          },
+          "audio": {
+            "count": 374,
+            "first_pts": -0.021333,
+            "end_pts": 7.94125
+          }
+        },
+        "input_unchanged": true
+      },
+      {
+        "filename": "train-01-owner-dateburn.mp4",
+        "bytes": 3319029,
+        "sha256": "901b961f3997192ad0ffa094a9bd165e403343f839acadfca2251c0761830eab",
+        "probe": {
+          "streams": [
+            {
+              "index": 0,
+              "codec_name": "h264",
+              "codec_long_name": "H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10",
+              "profile": "High 4:2:2",
+              "codec_type": "video",
+              "codec_tag_string": "avc1",
+              "codec_tag": "0x31637661",
+              "mime_codec_string": "avc1.7a001e",
+              "width": 720,
+              "height": 480,
+              "coded_width": 720,
+              "coded_height": 480,
+              "has_b_frames": 2,
+              "sample_aspect_ratio": "8:9",
+              "display_aspect_ratio": "4:3",
+              "pix_fmt": "yuv422p",
+              "level": 30,
+              "chroma_location": "left",
+              "field_order": "progressive",
+              "refs": 4,
+              "is_avc": "true",
+              "nal_length_size": "4",
+              "id": "0x1",
+              "r_frame_rate": "2997/100",
+              "avg_frame_rate": "2997/100",
+              "time_base": "1/11988",
+              "start_pts": 0,
+              "start_time": "0.000000",
+              "duration_ts": 95200,
+              "duration": "7.941275",
+              "bit_rate": "3140769",
+              "bits_per_raw_sample": "8",
+              "nb_frames": "238",
+              "nb_read_frames": "238",
+              "extradata_size": 49,
+              "disposition": {
+                "default": 1,
+                "dub": 0,
+                "original": 0,
+                "comment": 0,
+                "lyrics": 0,
+                "karaoke": 0,
+                "forced": 0,
+                "hearing_impaired": 0,
+                "visual_impaired": 0,
+                "clean_effects": 0,
+                "attached_pic": 0,
+                "timed_thumbnails": 0,
+                "non_diegetic": 0,
+                "captions": 0,
+                "descriptions": 0,
+                "metadata": 0,
+                "dependent": 0,
+                "still_image": 0,
+                "multilayer": 0
+              },
+              "tags": {
+                "language": "und",
+                "handler_name": "VideoHandler",
+                "encoder": "Lavc62.11.100 libx264",
+                "name": "Sony DV Video"
+              }
+            },
+            {
+              "index": 1,
+              "codec_name": "aac",
+              "codec_long_name": "AAC (Advanced Audio Coding)",
+              "profile": "LC",
+              "codec_type": "audio",
+              "codec_tag_string": "mp4a",
+              "codec_tag": "0x6134706d",
+              "mime_codec_string": "mp4a.40.2",
+              "sample_fmt": "fltp",
+              "sample_rate": "48000",
+              "channels": 2,
+              "channel_layout": "stereo",
+              "bits_per_sample": 0,
+              "initial_padding": 1024,
+              "id": "0x2",
+              "r_frame_rate": "0/0",
+              "avg_frame_rate": "0/0",
+              "time_base": "1/48000",
+              "start_pts": 0,
+              "start_time": "0.000000",
+              "duration_ts": 381168,
+              "duration": "7.941000",
+              "bit_rate": "191984",
+              "nb_frames": "374",
+              "nb_read_frames": "373",
+              "extradata_size": 5,
+              "disposition": {
+                "default": 1,
+                "dub": 0,
+                "original": 0,
+                "comment": 0,
+                "lyrics": 0,
+                "karaoke": 0,
+                "forced": 0,
+                "hearing_impaired": 0,
+                "visual_impaired": 0,
+                "clean_effects": 0,
+                "attached_pic": 0,
+                "timed_thumbnails": 0,
+                "non_diegetic": 0,
+                "captions": 0,
+                "descriptions": 0,
+                "metadata": 0,
+                "dependent": 0,
+                "still_image": 0,
+                "multilayer": 0
+              },
+              "tags": {
+                "language": "und",
+                "handler_name": "SoundHandler",
+                "name": "Sony DV Audio"
+              }
+            }
+          ],
+          "format": {
+            "nb_streams": 2,
+            "nb_programs": 0,
+            "nb_stream_groups": 0,
+            "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+            "format_long_name": "QuickTime / MOV",
+            "start_time": "0.000000",
+            "duration": "7.941275",
+            "size": "3319029",
+            "bit_rate": "3343572",
+            "probe_score": 100,
+            "tags": {
+              "major_brand": "isom",
+              "minor_version": "512",
+              "compatible_brands": "isomiso2avc1mp41",
+              "encoder": "Lavf62.3.100"
+            }
+          }
+        },
+        "decode": {
+          "exit_code": 0,
+          "stderr": ""
+        },
+        "decode_ok": true,
+        "decoded_audio_s16le": {
+          "bytes": 1527808,
+          "sha256": "8d8991998551fca70b5655b4fc8c1f2e3ea7a120f4bb9d0f9a6fd440eb52ea15"
+        },
+        "decoded_field_flags": {
+          "frames": 238,
+          "interlaced": 0,
+          "top_first": 0
+        },
+        "packet_timing": {
+          "video": {
+            "count": 238,
+            "first_pts": 0.0,
+            "end_pts": 7.941275
+          },
+          "audio": {
+            "count": 374,
+            "first_pts": -0.021333,
+            "end_pts": 7.94125
+          }
+        },
+        "input_unchanged": true
+      },
+      {
+        "filename": "train-01-maintenance-subtitles.mkv",
+        "bytes": 8338107,
+        "sha256": "4b6f18f66f10f4e79f16129ecadf16d1d4f86909fa1e325e3324f1cdd3bafd45",
+        "probe": {
+          "streams": [
+            {
+              "index": 0,
+              "codec_name": "h264",
+              "codec_long_name": "H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10",
+              "profile": "High 4:2:2",
+              "codec_type": "video",
+              "codec_tag_string": "[0][0][0][0]",
+              "codec_tag": "0x0000",
+              "mime_codec_string": "avc1.7a001e",
+              "width": 720,
+              "height": 480,
+              "coded_width": 720,
+              "coded_height": 480,
+              "has_b_frames": 2,
+              "sample_aspect_ratio": "8:9",
+              "display_aspect_ratio": "4:3",
+              "pix_fmt": "yuv422p",
+              "level": 30,
+              "color_range": "tv",
+              "chroma_location": "left",
+              "field_order": "bt",
+              "refs": 5,
+              "is_avc": "true",
+              "nal_length_size": "4",
+              "r_frame_rate": "2997/100",
+              "avg_frame_rate": "2997/100",
+              "time_base": "1/1000",
+              "start_pts": 0,
+              "start_time": "0.000000",
+              "bits_per_raw_sample": "8",
+              "nb_read_frames": "238",
+              "extradata_size": 49,
+              "disposition": {
+                "default": 0,
+                "dub": 0,
+                "original": 0,
+                "comment": 0,
+                "lyrics": 0,
+                "karaoke": 0,
+                "forced": 0,
+                "hearing_impaired": 0,
+                "visual_impaired": 0,
+                "clean_effects": 0,
+                "attached_pic": 0,
+                "timed_thumbnails": 0,
+                "non_diegetic": 0,
+                "captions": 0,
+                "descriptions": 0,
+                "metadata": 0,
+                "dependent": 0,
+                "still_image": 0,
+                "multilayer": 0
+              },
+              "tags": {
+                "title": "Sony DV Video"
+              }
+            },
+            {
+              "index": 1,
+              "codec_name": "aac",
+              "codec_long_name": "AAC (Advanced Audio Coding)",
+              "profile": "LC",
+              "codec_type": "audio",
+              "codec_tag_string": "[0][0][0][0]",
+              "codec_tag": "0x0000",
+              "mime_codec_string": "mp4a.40.2",
+              "sample_fmt": "fltp",
+              "sample_rate": "48000",
+              "channels": 2,
+              "channel_layout": "stereo",
+              "bits_per_sample": 0,
+              "initial_padding": 1024,
+              "r_frame_rate": "0/0",
+              "avg_frame_rate": "0/0",
+              "time_base": "1/1000",
+              "start_pts": 0,
+              "start_time": "0.000000",
+              "nb_read_frames": "373",
+              "extradata_size": 5,
+              "disposition": {
+                "default": 0,
+                "dub": 0,
+                "original": 0,
+                "comment": 0,
+                "lyrics": 0,
+                "karaoke": 0,
+                "forced": 0,
+                "hearing_impaired": 0,
+                "visual_impaired": 0,
+                "clean_effects": 0,
+                "attached_pic": 0,
+                "timed_thumbnails": 0,
+                "non_diegetic": 0,
+                "captions": 0,
+                "descriptions": 0,
+                "metadata": 0,
+                "dependent": 0,
+                "still_image": 0,
+                "multilayer": 0
+              },
+              "tags": {
+                "title": "Sony DV Audio"
+              }
+            },
+            {
+              "index": 2,
+              "codec_name": "ass",
+              "codec_long_name": "ASS (Advanced SSA) subtitle",
+              "codec_type": "subtitle",
+              "codec_tag_string": "[0][0][0][0]",
+              "codec_tag": "0x0000",
+              "r_frame_rate": "0/0",
+              "avg_frame_rate": "0/0",
+              "time_base": "1/1000",
+              "start_pts": 0,
+              "start_time": "0.000000",
+              "nb_read_frames": "9",
+              "extradata_size": 524,
+              "disposition": {
+                "default": 1,
+                "dub": 0,
+                "original": 0,
+                "comment": 0,
+                "lyrics": 0,
+                "karaoke": 0,
+                "forced": 0,
+                "hearing_impaired": 0,
+                "visual_impaired": 0,
+                "clean_effects": 0,
+                "attached_pic": 0,
+                "timed_thumbnails": 0,
+                "non_diegetic": 0,
+                "captions": 0,
+                "descriptions": 0,
+                "metadata": 0,
+                "dependent": 0,
+                "still_image": 0,
+                "multilayer": 0
+              },
+              "tags": {}
+            },
+            {
+              "index": 3,
+              "codec_name": "ttf",
+              "codec_long_name": "TrueType font",
+              "codec_type": "attachment",
+              "codec_tag_string": "[0][0][0][0]",
+              "codec_tag": "0x0000",
+              "r_frame_rate": "0/0",
+              "avg_frame_rate": "0/0",
+              "time_base": "1/90000",
+              "start_pts": 0,
+              "start_time": "0.000000",
+              "duration_ts": 716580,
+              "duration": "7.962000",
+              "extradata_size": 9616,
+              "disposition": {
+                "default": 0,
+                "dub": 0,
+                "original": 0,
+                "comment": 0,
+                "lyrics": 0,
+                "karaoke": 0,
+                "forced": 0,
+                "hearing_impaired": 0,
+                "visual_impaired": 0,
+                "clean_effects": 0,
+                "attached_pic": 0,
+                "timed_thumbnails": 0,
+                "non_diegetic": 0,
+                "captions": 0,
+                "descriptions": 0,
+                "metadata": 0,
+                "dependent": 0,
+                "still_image": 0,
+                "multilayer": 0
+              },
+              "tags": {}
+            }
+          ],
+          "format": {
+            "nb_streams": 4,
+            "nb_programs": 0,
+            "nb_stream_groups": 0,
+            "format_name": "matroska,webm",
+            "format_long_name": "Matroska / WebM",
+            "start_time": "0.000000",
+            "duration": "7.962000",
+            "size": "8338107",
+            "bit_rate": "8377902",
+            "probe_score": 100,
+            "tags": {}
+          }
+        },
+        "decode": {
+          "exit_code": 0,
+          "stderr": ""
+        },
+        "decode_ok": true,
+        "decoded_audio_s16le": {
+          "bytes": 1531904,
+          "sha256": "703a2d4773d6b1893a250c8cd68cde8765d53e4fca2bdff7b9c0984485c77b08"
+        },
+        "decoded_field_flags": {
+          "frames": 238,
+          "interlaced": 0,
+          "top_first": 0
+        },
+        "packet_timing": {
+          "video": {
+            "count": 238,
+            "first_pts": 0.0,
+            "end_pts": 7.941000000000001
+          },
+          "audio": {
+            "count": 374,
+            "first_pts": -0.021,
+            "end_pts": 7.957
+          },
+          "subtitle": {
+            "count": 9,
+            "first_pts": 0.0,
+            "end_pts": 7.95
+          }
+        },
+        "subtitle_intervals": [
+          [
+            0.0,
+            0.8
+          ],
+          [
+            0.8,
+            1.8
+          ],
+          [
+            1.8,
+            2.8
+          ],
+          [
+            2.8,
+            3.8
+          ],
+          [
+            3.8,
+            4.8
+          ],
+          [
+            4.8,
+            5.8
+          ],
+          [
+            5.8,
+            6.8
+          ],
+          [
+            6.8,
+            7.8
+          ],
+          [
+            7.8,
+            7.95
+          ]
+        ],
+        "subtitle_intervals_valid": true,
+        "subtitle_covers_video": true,
+        "input_unchanged": true
+      }
+    ],
+    "errors": []
+  },
+  "processing_commands": {
+    "application_commit": "5f7e13e0b9f94b98bfef32c5d828aae614265583",
+    "generated_on": "2026-11-13",
+    "placeholders": {
+      "APP_REPO": "checkout of v1.0.7-maintenance.1",
+      "WORK": "new empty output and scratch directory",
+      "SOURCE": "hash-verified train-01-original-dv.avi"
+    },
+    "argv": [
+      [
+        "zsh",
+        "${APP_REPO}/Resources/scripts/dvmetaburn.zsh",
+        "--mode=single",
+        "--layout=stacked",
+        "--format=mov",
+        "--quality=high",
+        "--burn-mode=off",
+        "--deinterlace=off",
+        "--ffmpeg=${APP_REPO}/Resources/bin/ffmpeg",
+        "--dvrescue=${APP_REPO}/Resources/bin/dvrescue",
+        "--fontfile=${APP_REPO}/Resources/fonts/UAV-OSD-Sans-Mono.ttf",
+        "--fontname=UAV OSD Sans Mono",
+        "--dest-dir=${WORK}/generated",
+        "--output-base=train-01-maintenance-dv-copy",
+        "--scratch-dir=${WORK}/scratch",
+        "--scratch-cleanup=never",
+        "${SOURCE}"
+      ],
+      [
+        "zsh",
+        "${APP_REPO}/Resources/scripts/dvmetaburn.zsh",
+        "--mode=single",
+        "--layout=stacked",
+        "--format=mp4",
+        "--quality=high",
+        "--burn-mode=burnin",
+        "--deinterlace=off",
+        "--ffmpeg=${APP_REPO}/Resources/bin/ffmpeg",
+        "--dvrescue=${APP_REPO}/Resources/bin/dvrescue",
+        "--fontfile=${APP_REPO}/Resources/fonts/UAV-OSD-Sans-Mono.ttf",
+        "--fontname=UAV OSD Sans Mono",
+        "--dest-dir=${WORK}/generated",
+        "--output-base=train-01-maintenance-burn-interlaced",
+        "--scratch-dir=${WORK}/scratch",
+        "--scratch-cleanup=never",
+        "${SOURCE}"
+      ],
+      [
+        "zsh",
+        "${APP_REPO}/Resources/scripts/dvmetaburn.zsh",
+        "--mode=single",
+        "--layout=stacked",
+        "--format=mp4",
+        "--quality=high",
+        "--burn-mode=burnin",
+        "--deinterlace=60p",
+        "--ffmpeg=${APP_REPO}/Resources/bin/ffmpeg",
+        "--dvrescue=${APP_REPO}/Resources/bin/dvrescue",
+        "--fontfile=${APP_REPO}/Resources/fonts/UAV-OSD-Sans-Mono.ttf",
+        "--fontname=UAV OSD Sans Mono",
+        "--dest-dir=${WORK}/generated",
+        "--output-base=train-01-maintenance-burn-60p",
+        "--scratch-dir=${WORK}/scratch",
+        "--scratch-cleanup=never",
+        "${SOURCE}"
+      ],
+      [
+        "zsh",
+        "${APP_REPO}/Resources/scripts/dvmetaburn.zsh",
+        "--mode=single",
+        "--layout=stacked",
+        "--format=mkv",
+        "--quality=high",
+        "--burn-mode=subtitleTrack",
+        "--deinterlace=off",
+        "--ffmpeg=${APP_REPO}/Resources/bin/ffmpeg",
+        "--dvrescue=${APP_REPO}/Resources/bin/dvrescue",
+        "--fontfile=${APP_REPO}/Resources/fonts/UAV-OSD-Sans-Mono.ttf",
+        "--fontname=UAV OSD Sans Mono",
+        "--dest-dir=${WORK}/generated",
+        "--output-base=train-01-maintenance-subtitles",
+        "--scratch-dir=${WORK}/scratch",
+        "--scratch-cleanup=never",
+        "--subtitle-mode=per-clip",
+        "${SOURCE}"
+      ]
+    ],
+    "public_asset_renames": {
+      "train-01-maintenance-dv-copy_conv.mov": "train-01-maintenance-dv-copy.mov",
+      "train-01-maintenance-burn-interlaced_dateburn.mp4": "train-01-maintenance-burn-deinterlace-off.mp4",
+      "train-01-maintenance-burn-60p_dateburn.mp4": "train-01-maintenance-burn-60p.mp4",
+      "train-01-maintenance-subtitles_dvsub.mkv": "train-01-maintenance-subtitles.mkv"
+    }
+  },
+  "recording_metadata": {
+    "records": 238,
+    "transitions": [
+      {
+        "frame": 0,
+        "timecode": "00:02:41;06",
+        "recording_datetime": "2025-11-11 08:29:35"
+      },
+      {
+        "frame": 24,
+        "timecode": "00:02:42;00",
+        "recording_datetime": "2025-11-11 08:29:36"
+      },
+      {
+        "frame": 54,
+        "timecode": "00:02:43;00",
+        "recording_datetime": "2025-11-11 08:29:37"
+      },
+      {
+        "frame": 84,
+        "timecode": "00:02:44;00",
+        "recording_datetime": "2025-11-11 08:29:38"
+      },
+      {
+        "frame": 114,
+        "timecode": "00:02:45;00",
+        "recording_datetime": "2025-11-11 08:29:39"
+      },
+      {
+        "frame": 144,
+        "timecode": "00:02:46;00",
+        "recording_datetime": "2025-11-11 08:29:40"
+      },
+      {
+        "frame": 174,
+        "timecode": "00:02:47;00",
+        "recording_datetime": "2025-11-11 08:29:41"
+      },
+      {
+        "frame": 204,
+        "timecode": "00:02:48;00",
+        "recording_datetime": "2025-11-11 08:29:42"
+      },
+      {
+        "frame": 234,
+        "timecode": "00:02:49;00",
+        "recording_datetime": "2025-11-11 08:29:43"
+      }
+    ],
+    "last": {
+      "frame": 237,
+      "timecode": "00:02:49;03",
+      "recording_datetime": "2025-11-11 08:29:43"
+    }
+  },
+  "subtitle_packet_intervals": [
+    [
+      0.0,
+      0.8
+    ],
+    [
+      0.8,
+      1.8
+    ],
+    [
+      1.8,
+      2.8
+    ],
+    [
+      2.8,
+      3.8
+    ],
+    [
+      3.8,
+      4.8
+    ],
+    [
+      4.8,
+      5.8
+    ],
+    [
+      5.8,
+      6.8
+    ],
+    [
+      6.8,
+      7.8
+    ],
+    [
+      7.8,
+      7.95
+    ]
+  ]
+}

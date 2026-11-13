@@ -1,0 +1,156 @@
+{
+  "verified_at_utc": "2026-11-13T14:06:57.857548+00:00",
+  "method": "Unauthenticated HTTPS GET through curl -q (no curlrc, cookies or authorization); complete downloaded bytes streamed into SHA-256 and size counters. Compared with pre-upload local artifacts.",
+  "release_url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/examples-train-dv-v1",
+  "release_id": 444300029,
+  "release_public": true,
+  "release_tag": "examples-train-dv-v1",
+  "latest_application_release": "1.0.6beta",
+  "latest_application_release_id": 272262254,
+  "assets": [
+    {
+      "filename": "SAMPLE-NOTES-v2.txt",
+      "download_url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/SAMPLE-NOTES-v2.txt",
+      "bytes": 3354,
+      "sha256": "23f2e7fda00fae2afc0cf4523909899eac57e65c87382890d64c8022fa467795",
+      "expected_bytes": 3354,
+      "expected_sha256": "23f2e7fda00fae2afc0cf4523909899eac57e65c87382890d64c8022fa467795",
+      "curl_exit_code": 0,
+      "matches": true,
+      "error": ""
+    },
+    {
+      "filename": "SAMPLE-NOTES.txt",
+      "download_url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/SAMPLE-NOTES.txt",
+      "bytes": 2871,
+      "sha256": "07ddb6ac65c304f7d05b578b25606a9941c31746a3569eadb7a6ba0298401d0a",
+      "expected_bytes": 2871,
+      "expected_sha256": "07ddb6ac65c304f7d05b578b25606a9941c31746a3569eadb7a6ba0298401d0a",
+      "curl_exit_code": 0,
+      "matches": true,
+      "error": ""
+    },
+    {
+      "filename": "SHA256SUMS-v2.txt",
+      "download_url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/SHA256SUMS-v2.txt",
+      "bytes": 1113,
+      "sha256": "71e4786bb076649bea4ae58d4049b0315663eced7fd72ecff8b64941a17dd725",
+      "expected_bytes": 1113,
+      "expected_sha256": "71e4786bb076649bea4ae58d4049b0315663eced7fd72ecff8b64941a17dd725",
+      "curl_exit_code": 0,
+      "matches": true,
+      "error": ""
+    },
+    {
+      "filename": "SHA256SUMS.txt",
+      "download_url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/SHA256SUMS.txt",
+      "bytes": 946,
+      "sha256": "763b0497d07565b02179c21b4fef468207558dd18a0de0a257a0564b8ef96856",
+      "expected_bytes": 946,
+      "expected_sha256": "763b0497d07565b02179c21b4fef468207558dd18a0de0a257a0564b8ef96856",
+      "curl_exit_code": 0,
+      "matches": true,
+      "error": ""
+    },
+    {
+      "filename": "manifest.json",
+      "download_url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/manifest.json",
+      "bytes": 18178,
+      "sha256": "b9551152c57d58885ae14e0fdc23a2b84543464b92d20bb5180348d9802d5509",
+      "expected_bytes": 18178,
+      "expected_sha256": "b9551152c57d58885ae14e0fdc23a2b84543464b92d20bb5180348d9802d5509",
+      "curl_exit_code": 0,
+      "matches": true,
+      "error": ""
+    },
+    {
+      "filename": "train-01-maintenance-burn-60p.mp4",
+      "download_url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/train-01-maintenance-burn-60p.mp4",
+      "bytes": 7360608,
+      "sha256": "4cdc98968c06c52e2baaf14443590e432ed54159f82c915b02a968b6be41a784",
+      "expected_bytes": 7360608,
+      "expected_sha256": "4cdc98968c06c52e2baaf14443590e432ed54159f82c915b02a968b6be41a784",
+      "curl_exit_code": 0,
+      "matches": true,
+      "error": ""
+    },
+    {
+      "filename": "train-01-maintenance-burn-deinterlace-off.mp4",
+      "download_url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/train-01-maintenance-burn-deinterlace-off.mp4",
+      "bytes": 8223526,
+      "sha256": "8d920c9540c3d7018dfde5265d13d80da13fa5b9569335b5fcd5aede81a9c47d",
+      "expected_bytes": 8223526,
+      "expected_sha256": "8d920c9540c3d7018dfde5265d13d80da13fa5b9569335b5fcd5aede81a9c47d",
+      "curl_exit_code": 0,
+      "matches": true,
+      "error": ""
+    },
+    {
+      "filename": "train-01-maintenance-dv-copy.mov",
+      "download_url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/train-01-maintenance-dv-copy.mov",
+      "bytes": 30090518,
+      "sha256": "c982b5d7d8dff7d13c1875d446abf87e0ce55dc74ff3e8176b8e69241fb75c2c",
+      "expected_bytes": 30090518,
+      "expected_sha256": "c982b5d7d8dff7d13c1875d446abf87e0ce55dc74ff3e8176b8e69241fb75c2c",
+      "curl_exit_code": 0,
+      "matches": true,
+      "error": ""
+    },
+    {
+      "filename": "train-01-maintenance-subtitles.mkv",
+      "download_url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/train-01-maintenance-subtitles.mkv",
+      "bytes": 8338107,
+      "sha256": "4b6f18f66f10f4e79f16129ecadf16d1d4f86909fa1e325e3324f1cdd3bafd45",
+      "expected_bytes": 8338107,
+      "expected_sha256": "4b6f18f66f10f4e79f16129ecadf16d1d4f86909fa1e325e3324f1cdd3bafd45",
+      "curl_exit_code": 0,
+      "matches": true,
+      "error": ""
+    },
+    {
+      "filename": "train-01-maintenance-timestamps.ass",
+      "download_url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/train-01-maintenance-timestamps.ass",
+      "bytes": 1172,
+      "sha256": "7aaee5b9b1f5563db1c698dcbc409527a3f74b4044496785191c2ed82ccb7999",
+      "expected_bytes": 1172,
+      "expected_sha256": "7aaee5b9b1f5563db1c698dcbc409527a3f74b4044496785191c2ed82ccb7999",
+      "curl_exit_code": 0,
+      "matches": true,
+      "error": ""
+    },
+    {
+      "filename": "train-01-original-dv.avi",
+      "download_url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/train-01-original-dv.avi",
+      "bytes": 30105600,
+      "sha256": "13be6af4cc481e5eea0a8ed9daee8d9ef329abd79ccc5c6620147604cefcca0a",
+      "expected_bytes": 30105600,
+      "expected_sha256": "13be6af4cc481e5eea0a8ed9daee8d9ef329abd79ccc5c6620147604cefcca0a",
+      "curl_exit_code": 0,
+      "matches": true,
+      "error": ""
+    },
+    {
+      "filename": "train-01-owner-dateburn.mp4",
+      "download_url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/train-01-owner-dateburn.mp4",
+      "bytes": 3319029,
+      "sha256": "901b961f3997192ad0ffa094a9bd165e403343f839acadfca2251c0761830eab",
+      "expected_bytes": 3319029,
+      "expected_sha256": "901b961f3997192ad0ffa094a9bd165e403343f839acadfca2251c0761830eab",
+      "curl_exit_code": 0,
+      "matches": true,
+      "error": ""
+    },
+    {
+      "filename": "verification.json",
+      "download_url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/verification.json",
+      "bytes": 44441,
+      "sha256": "630289983694d8cbeed450c5c19acca1ef832c5ab2fbcd42a22eebc1a012c3ad",
+      "expected_bytes": 44441,
+      "expected_sha256": "630289983694d8cbeed450c5c19acca1ef832c5ab2fbcd42a22eebc1a012c3ad",
+      "curl_exit_code": 0,
+      "matches": true,
+      "error": ""
+    }
+  ],
+  "all_passed": true
+}

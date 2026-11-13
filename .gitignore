@@ -4,3 +4,6 @@
 DerivedData/
 **/__pycache__/
 *.pyc
+
+# Owner-supplied train demonstration; publish via Release assets only.
+/Train Video Example/

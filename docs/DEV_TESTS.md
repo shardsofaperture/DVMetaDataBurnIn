@@ -52,7 +52,7 @@ After a successful build, inspect `.build/Xcode15DerivedData/Build/Products/Debu
 
 The owner identified full Xcode at `/Volumes/1 TB Storage/xcode-15.4/Xcode.app`. Using Xcode 15.4, the native project compiled successfully at version 1.0.6, after which the version was updated and the 1.0.7 Debug and Release builds passed. Runtime scripts, libraries, tools and fonts were read back from the built apps and compared with source. The Release app's bundled pipeline also passed its four-stage CLI self-test. The project build wrapper selects this installation locally while leaving the system-wide Command Line Tools selection unchanged.
 
-Six additional Swift checks in `tests/RunWorkspaceChecks.swift` passed when compiled alongside `DVProcessor.swift` with the Xcode toolchain. They test exclusive allocation, literal owner tokens, launch-copy cleanup with retained diagnostics, failed-launch isolation, changed-marker refusal and symlinked scratch parents. The compile/run command is in [DEV.md](../DEV.md). The regular 26-test runner remains usable without full Xcode.
+Six additional Swift checks in `Resources/scripts/dev/tests/RunWorkspaceChecks.swift` passed when compiled alongside `DVProcessor.swift` with the Xcode toolchain. They test exclusive allocation, literal owner tokens, launch-copy cleanup with retained diagnostics, failed-launch isolation, changed-marker refusal and symlinked scratch parents. The compile/run command is in [DEV.md](../DEV.md). The regular 26-test runner remains usable without full Xcode.
 
 Earlier Command Line Tools build/type-check failures are retained as baseline evidence; they do not describe the successful Xcode build. Build logs can include simulator-service and locale diagnostics even for this macOS target. Use the final build status to distinguish those from compiler failures. See [maintenance status](MAINTENANCE_1.0.7.md).
 
@@ -61,3 +61,7 @@ Earlier Command Line Tools build/type-check failures are retained as baseline ev
 Using a newly built app, check single-file processing, folder queues, all output modes, 480i motion and field order, 30p/60p motion, switching subtitles during playback, date/time readability, multiple real recording sessions, and Finder scratch/artifact access. Run two app instances concurrently with different outputs. Cancel during DVRescue, encoding, and stitching; confirm the UI waits, the next queued folder does not start, and retention matches the selected policy. Confirm low/medium/high quality and audio-only exports remain suitable.
 
 Test mixed metadata using original camera footage only when the owner chooses appropriate samples. Confirm one final stitched output and correct subtitle boundaries across clip joins. Distribution signing, native Apple Silicon operation, player-specific subtitle rendering, real camera metadata, crash/power-loss cleanup, and end-to-end GUI acceptance are not established by the synthetic suite.
+
+## Optional real-footage fixture
+
+The [train preservation demonstration](examples/TRAIN_DV_PRESERVATION.md) includes hash-pinned downloads and explicit-path verification commands. It is opt-in and is not downloaded or processed by the default tests. Its single-clip CLI evidence does not replace GUI, motion/audio, target-player, or Apple Silicon acceptance.
