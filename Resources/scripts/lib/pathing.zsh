@@ -1,34 +1,13 @@
 # pathing.zsh
 
-# Escape the option-value grammar, then the enclosing filtergraph grammar.
-# Process arguments are passed directly; there is no shell-quoting layer.
-escape_filter_value() {
-  local value="$1" escaped="" char
-  local -i i
-  for (( i=1; i<=${#value}; i++ )); do
-    char="${value[i]}"
-    [[ "$char" == [\\\':] ]] && escaped+='\'
-    escaped+="$char"
-  done
-  value="$escaped"
-  escaped=""
-  for (( i=1; i<=${#value}; i++ )); do
-    char="${value[i]}"
-    [[ "$char" == [\\\'\,\[\]\;] ]] && escaped+='\'
-    escaped+="$char"
-  done
-  print -r -- "$escaped"
-}
-
 probe_media_duration() {
-  local file_path="$1"
-  if [[ -z "$file_path" || ! -f "$file_path" ]]; then
+  local path="$1"
+  if [[ -z "$path" || ! -f "$path" ]]; then
     return 1
   fi
 
   local duration_line
-  duration_line=$("$ffmpeg_bin" -hide_banner -i "$file_path" 2>&1 || true)
-  duration_line=$(printf "%s\n" "$duration_line" | awk -F',' '/Duration:/ {gsub(/Duration: /,"",$1); print $1; exit}')
+  duration_line=$("$ffmpeg_bin" -hide_banner -i "$path" 2>&1 | awk -F',' '/Duration:/ {gsub(/Duration: /,"",$1); print $1; exit}')
 
   [[ -n "$duration_line" ]] || return 1
   echo "$duration_line"
@@ -47,7 +26,7 @@ make_temp_file() {
     return 1
   fi
 
-  print -r -- "$tmpfile"
+  echo "$tmpfile"
 }
 
 validate_and_plan_file() {
@@ -139,7 +118,7 @@ find_font() {
   local candidate
   for candidate in "${candidates[@]}"; do
     if [[ -f "$candidate" ]]; then
-      print -r -- "$candidate"
+      echo "$candidate"
       return 0
     fi
   done
