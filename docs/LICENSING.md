@@ -26,7 +26,14 @@ the historical Evermeet FFmpeg binary remain unavailable. The source bundle on
 corresponds to that preview's different FFmpeg build, not the stable binary.
 The DVRescue notice supplement accompanies the unchanged historical downloads.
 
-## Fonts in stable and earlier releases
+## Published preview 2 fonts
+
+The unchanged preview 2 archive contains VT323, Share Tech Mono and IBM Plex Mono
+under SIL OFL 1.1, with their full notices. Current maintenance restores the
+original UAV/VCR fonts; build from the branch for that correction. The preview 2
+font notices remain available in its package and tagged source.
+
+## Bundled fonts
 
 UAV OSD Mono and UAV OSD Sans Mono are by Nicholas Kruse. He granted
 DVMetaDataBurnIn express written permission to use and redistribute both fonts
@@ -35,22 +42,13 @@ This permission applies to this project; it is not an OFL license, a public-doma
 dedication, or blanket permission for unrelated projects. Copyright attribution
 and source links are retained in the notices.
 
-VCR OSD Mono is by Riciery Leal (MrManet). His own
-[February 24, 2017 comment](https://www.dafont.com/font-comment.php?file=vcr_osd_mono)
-confirms commercial use is permitted. [DaFont](https://www.dafont.com/vcr-osd-mono.font)
-classifies it as 100% Free. The maintainer also reviewed third-party catalog
-classifications permitting redistribution; these classifications are not
-independent author grants. Explicit author permission for redistribution and
-attachment/embedding remains unconfirmed.
-
-The maintainer has decided to retain VCR OSD Mono with its existing attribution
-and source references in stable and earlier distributions. Clarification has
-been requested from the author; the project will be updated if a response arrives.
-The completed documentation and maintainer decision are recorded in
-[#196](https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/196), which may
-be reopened on new author evidence. Closing the issue does not establish legal
-permission, and absence of a reply grants no additional rights. Maintenance
-preview 2's OFL fonts and their terms are unchanged.
+VCR OSD Mono is by Riciery Leal (MrManet). In his
+[February 24, 2017 comment](https://www.dafont.com/font-comment.php?file=vcr_osd_mono),
+the author states: “Yes, the font is free even for commercial purposes.”
+[DaFont](https://www.dafont.com/vcr-osd-mono.font) lists the font as 100% Free.
+The maintainer retains it with the original attribution and source reference.
+Font licensing issue [#196](https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/196)
+is closed. The maintainer will incorporate any further author clarification.
 
 ## Train footage and extracted frames
 

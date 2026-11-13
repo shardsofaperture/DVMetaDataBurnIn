@@ -8,6 +8,8 @@ A free, open-source macOS application for preserving the recording context of le
 
 **Active experimental development:** [`maintenance/1.0.7`](https://github.com/shardsofaperture/DVMetaDataBurnIn/tree/maintenance/1.0.7) · [Preview 2 download and source](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.2) · [tests and known limitations](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/maintenance/1.0.7/docs/MAINTENANCE_1.0.7.md). Preview 2 includes the output-safety and field-signaling fixes, source-built tools and OFL fonts. Stable application source remains [v1.0.6 on main](https://github.com/shardsofaperture/DVMetaDataBurnIn/tree/main).
 
+Current maintenance source restores the original UAV OSD Mono, UAV OSD Sans Mono and VCR OSD Mono fonts. This correction is not in the unchanged preview 2 download; build from the maintenance branch to use it.
+
 The train demonstration includes the complete supplied DV AVI, the owner's timestamped MP4, and separately identified maintenance-generated comparisons. Downloadable hashes, measured stream properties, genuine before/after frames, and reproduction commands make the results inspectable.
 
 ## What it does
