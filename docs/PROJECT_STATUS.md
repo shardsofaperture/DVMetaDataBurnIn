@@ -27,7 +27,7 @@ Published evidence is the separate [train example release](https://github.com/sh
 
 ## Engineering verification
 
-PR #200 integrated documentation only. Main's Swift, Xcode project, runtime scripts, tools and fonts still match the restored 1.0.6 baseline. Narrow shared documentation updates preserve that boundary.
+PR #200 integrated documentation only. Main retains the restored 1.0.6 processing code, runtime scripts, tools and fonts. The final readiness review corrects About-screen licensing text and renames the FFmpeg README resource to prevent a case-insensitive packaging collision; it does not integrate maintenance processing changes.
 
 Maintenance runtime `2802355` passes 33 synthetic regressions and three shell checks, including failed/cancelled encodes, destination collisions and extracted H.264 bitstream flags. Fresh train CLI checks preserve 238 DV frames and PCM in MOV, correctly signal 238 bottom-field-first H.264 frames in MP4/MKV, retain 476 progressive frames at 60p and nine subtitles ending at 7.95 seconds. [Machine-readable results](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/maintenance/1.0.7/docs/audit/2026-11-13/maintenance-output-verification.json) and the [maintenance report](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/maintenance/1.0.7/docs/MAINTENANCE_1.0.7.md) distinguish these checks from player/GUI acceptance. Historical table rows above describe Preview 1, not the new code.
 
