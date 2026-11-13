@@ -1,0 +1,107 @@
+name: Real-camera validation (success or problem)
+description: Report a reproducible camera-footage result, including successful tests.
+title: "[Validation] "
+body:
+  - type: markdown
+    attributes:
+      value: "Use docs/COMMUNITY_VALIDATION.md. Report only checks you performed. Samples are optional; remove personal paths, serial numbers and private metadata. Link the existing train release instead of reuploading it."
+  - type: dropdown
+    id: outcome
+    attributes:
+      label: Overall result
+      options:
+        - Successful checks
+        - Discrepancy or failure
+        - Mixed results
+    validations:
+      required: true
+  - type: input
+    id: application
+    attributes:
+      label: Application version and commit
+      description: Include package/tag and ZIP hash; commit and modified-tree status if built from source. Say unknown where necessary.
+    validations:
+      required: true
+  - type: input
+    id: mac
+    attributes:
+      label: Mac model and macOS version
+      description: Do not include a serial number or hardware UUID.
+    validations:
+      required: true
+  - type: dropdown
+    id: architecture
+    attributes:
+      label: Architecture and execution
+      options:
+        - Intel
+        - Apple Silicon with Rosetta
+        - Apple Silicon native
+        - Apple Silicon (translation unknown)
+        - Upstream utility checks only on another platform
+    validations:
+      required: true
+  - type: input
+    id: format
+    attributes:
+      label: Recording format
+      description: DV, MiniDV, Digital8, PAL/NTSC, or unknown; distinguish analog conversion.
+    validations:
+      required: true
+  - type: input
+    id: camera
+    attributes:
+      label: Camera model (if known)
+  - type: textarea
+    id: capture
+    attributes:
+      label: Capture method and input container
+      description: Hardware/software capture chain, AVI/DV/MOV/etc., and neutral sample identifier or public sample link/hash. Do not expose personal filenames.
+    validations:
+      required: true
+  - type: textarea
+    id: mode
+    attributes:
+      label: Processing mode and tools
+      description: GUI or CLI; MOV/MP4/MKV; burn-in/subtitles/off; deinterlacing; batch/stitch/cleanup settings. Include upstream tool/player versions for utility-only checks.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+      description: State pass/fail/not tested for each check. Successful reports are welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: accuracy
+    attributes:
+      label: Metadata accuracy observations
+      description: Extracted dates, transitions, final subtitle coverage; independent camera-clock reference if any. Tool agreement alone is not historical accuracy.
+    validations:
+      required: true
+  - type: textarea
+    id: playback
+    attributes:
+      label: Playback, motion and audio observations
+      description: Player/version, subtitle toggling, field order/cadence, audio/sync, or not tested.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Settings/commands and sanitized logs or measurements; identify checks not performed.
+    validations:
+      required: true
+  - type: textarea
+    id: samples
+    attributes:
+      label: Optional sample files
+      description: Public links or small authorized samples only. Sharing is optional. Check embedded dates, identities and private metadata; describe any redaction.

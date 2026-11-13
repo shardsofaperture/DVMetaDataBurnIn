@@ -22,7 +22,7 @@ Direct tape capture is **planned**, not available in this application. DV/Digita
 
 ## Platform and maintenance status
 
-The application and bundled tools are built for **Intel macOS**; the current project targets macOS 12 or later. Native build evidence is from Intel macOS 14 with Xcode 15.4. Apple Silicon operation, including any translation requirements, has not been validated.
+The stable 1.0.6 package contains an **Intel/Apple Silicon app executable**, but bundled FFmpeg and DVRescue are **Intel-only**. The 1.0.7 preview package is Intel-only throughout. The project/package minimum is macOS 12; native build evidence is Intel macOS 14 with Xcode 15.4. Apple Silicon operation and translation of the bundled tools remain unvalidated; an arm64 app slice alone does not establish compatibility.
 
 The separate [1.0.7 maintenance preview](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.1) improves subtitle-tail timing, temporary workspace isolation, batch error handling, and cancellation cleanup. **`main` retains the 1.0.6 application code.** The 1.0.7 changes are held on [`maintenance/1.0.7`](https://github.com/shardsofaperture/DVMetaDataBurnIn/tree/maintenance/1.0.7) for owner testing before any future integration. A premature source merge was reversed; the documentation and license updates remain. The train examples exercise that preview's CLI, not its GUI.
 
@@ -41,6 +41,8 @@ DEVELOPER_DIR="/path/to/Xcode.app/Contents/Developer" xcodebuild -project DVMeta
 See [development notes](DEV.md) and [developer test scenarios](docs/DEV_TESTS.md). On the maintenance branch, [the test runner](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/maintenance/1.0.7/Resources/scripts/dev/test_all.zsh) runs with `zsh Resources/scripts/dev/test_all.zsh`; that runner is not present on `main`. VS Code and Xcode can use the same checkout; no separate project architecture is needed.
 
 The [optional real-footage verifier](scripts/verify_train_demo.py) accepts explicit file paths and existing FFmpeg/ffprobe/DVRescue tools. It does not download videos or add them to default tests. Instructions and hash-pinned downloads are in the [train demonstration](docs/examples/TRAIN_DV_PRESERVATION.md).
+
+Report a successful test or discrepancy using the [community validation guide](docs/COMMUNITY_VALIDATION.md). The [verified project status](docs/PROJECT_STATUS.md) summarizes evidence, platform limits and open acceptance checks.
 
 ## Screenshots
 
