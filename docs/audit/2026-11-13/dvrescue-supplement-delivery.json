@@ -1,0 +1,202 @@
+[
+  {
+    "tag": "v1.0.7-maintenance.1",
+    "original_assets_unchanged": true,
+    "release_body_readback_matches": true,
+    "supplements": [
+      {
+        "name": "DVRESCUE-NOTICES-2026-11-13.txt",
+        "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/v1.0.7-maintenance.1/DVRESCUE-NOTICES-2026-11-13.txt",
+        "sha256": "a2f0c9345256d868dc9d4a80852de302bff49e61cf5b002fe3111c18f4c13e05",
+        "public_readback_matches": true
+      },
+      {
+        "name": "DVRESCUE-PROVENANCE-2026-11-13.json",
+        "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/v1.0.7-maintenance.1/DVRESCUE-PROVENANCE-2026-11-13.json",
+        "sha256": "e4d9e07cafc192f330fc8af1862701a27a9dcd248bbd5036b09ad6dfbb4f9dc8",
+        "public_readback_matches": true
+      },
+      {
+        "name": "DVRESCUE-SUPPLEMENT-SHA256SUMS-2026-11-13.txt",
+        "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/v1.0.7-maintenance.1/DVRESCUE-SUPPLEMENT-SHA256SUMS-2026-11-13.txt",
+        "sha256": "eacdc36ec174587c1f118b6664ff42dea8a3e3151269b414e06e118fc9bc6073",
+        "public_readback_matches": true
+      }
+    ]
+  },
+  {
+    "tag": "1.0.6beta",
+    "original_assets_unchanged": true,
+    "release_body_readback_matches": true,
+    "supplements": [
+      {
+        "name": "DVRESCUE-NOTICES-2026-11-13.txt",
+        "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/1.0.6beta/DVRESCUE-NOTICES-2026-11-13.txt",
+        "sha256": "a2f0c9345256d868dc9d4a80852de302bff49e61cf5b002fe3111c18f4c13e05",
+        "public_readback_matches": true
+      },
+      {
+        "name": "DVRESCUE-PROVENANCE-2026-11-13.json",
+        "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/1.0.6beta/DVRESCUE-PROVENANCE-2026-11-13.json",
+        "sha256": "e4d9e07cafc192f330fc8af1862701a27a9dcd248bbd5036b09ad6dfbb4f9dc8",
+        "public_readback_matches": true
+      },
+      {
+        "name": "DVRESCUE-SUPPLEMENT-SHA256SUMS-2026-11-13.txt",
+        "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/1.0.6beta/DVRESCUE-SUPPLEMENT-SHA256SUMS-2026-11-13.txt",
+        "sha256": "eacdc36ec174587c1f118b6664ff42dea8a3e3151269b414e06e118fc9bc6073",
+        "public_readback_matches": true
+      }
+    ]
+  },
+  {
+    "tag": "1.0.5beta",
+    "original_assets_unchanged": true,
+    "release_body_readback_matches": true,
+    "supplements": [
+      {
+        "name": "DVRESCUE-NOTICES-2026-11-13.txt",
+        "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/1.0.5beta/DVRESCUE-NOTICES-2026-11-13.txt",
+        "sha256": "a2f0c9345256d868dc9d4a80852de302bff49e61cf5b002fe3111c18f4c13e05",
+        "public_readback_matches": true
+      },
+      {
+        "name": "DVRESCUE-PROVENANCE-2026-11-13.json",
+        "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/1.0.5beta/DVRESCUE-PROVENANCE-2026-11-13.json",
+        "sha256": "e4d9e07cafc192f330fc8af1862701a27a9dcd248bbd5036b09ad6dfbb4f9dc8",
+        "public_readback_matches": true
+      },
+      {
+        "name": "DVRESCUE-SUPPLEMENT-SHA256SUMS-2026-11-13.txt",
+        "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/1.0.5beta/DVRESCUE-SUPPLEMENT-SHA256SUMS-2026-11-13.txt",
+        "sha256": "eacdc36ec174587c1f118b6664ff42dea8a3e3151269b414e06e118fc9bc6073",
+        "public_readback_matches": true
+      }
+    ]
+  },
+  {
+    "tag": "1.0.4beta",
+    "original_assets_unchanged": true,
+    "release_body_readback_matches": true,
+    "supplements": [
+      {
+        "name": "DVRESCUE-NOTICES-2026-11-13.txt",
+        "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/1.0.4beta/DVRESCUE-NOTICES-2026-11-13.txt",
+        "sha256": "a2f0c9345256d868dc9d4a80852de302bff49e61cf5b002fe3111c18f4c13e05",
+        "public_readback_matches": true
+      },
+      {
+        "name": "DVRESCUE-PROVENANCE-2026-11-13.json",
+        "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/1.0.4beta/DVRESCUE-PROVENANCE-2026-11-13.json",
+        "sha256": "e4d9e07cafc192f330fc8af1862701a27a9dcd248bbd5036b09ad6dfbb4f9dc8",
+        "public_readback_matches": true
+      },
+      {
+        "name": "DVRESCUE-SUPPLEMENT-SHA256SUMS-2026-11-13.txt",
+        "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/1.0.4beta/DVRESCUE-SUPPLEMENT-SHA256SUMS-2026-11-13.txt",
+        "sha256": "eacdc36ec174587c1f118b6664ff42dea8a3e3151269b414e06e118fc9bc6073",
+        "public_readback_matches": true
+      }
+    ]
+  },
+  {
+    "tag": "1.0.0beta",
+    "original_assets_unchanged": true,
+    "release_body_readback_matches": true,
+    "supplements": [
+      {
+        "name": "DVRESCUE-NOTICES-2026-11-13.txt",
+        "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/1.0.0beta/DVRESCUE-NOTICES-2026-11-13.txt",
+        "sha256": "a2f0c9345256d868dc9d4a80852de302bff49e61cf5b002fe3111c18f4c13e05",
+        "public_readback_matches": true
+      },
+      {
+        "name": "DVRESCUE-PROVENANCE-2026-11-13.json",
+        "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/1.0.0beta/DVRESCUE-PROVENANCE-2026-11-13.json",
+        "sha256": "e4d9e07cafc192f330fc8af1862701a27a9dcd248bbd5036b09ad6dfbb4f9dc8",
+        "public_readback_matches": true
+      },
+      {
+        "name": "DVRESCUE-SUPPLEMENT-SHA256SUMS-2026-11-13.txt",
+        "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/1.0.0beta/DVRESCUE-SUPPLEMENT-SHA256SUMS-2026-11-13.txt",
+        "sha256": "eacdc36ec174587c1f118b6664ff42dea8a3e3151269b414e06e118fc9bc6073",
+        "public_readback_matches": true
+      }
+    ]
+  },
+  {
+    "tag": "0.3.0alpha",
+    "original_assets_unchanged": true,
+    "release_body_readback_matches": true,
+    "supplements": [
+      {
+        "name": "DVRESCUE-NOTICES-2026-11-13.txt",
+        "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/0.3.0alpha/DVRESCUE-NOTICES-2026-11-13.txt",
+        "sha256": "a2f0c9345256d868dc9d4a80852de302bff49e61cf5b002fe3111c18f4c13e05",
+        "public_readback_matches": true
+      },
+      {
+        "name": "DVRESCUE-PROVENANCE-2026-11-13.json",
+        "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/0.3.0alpha/DVRESCUE-PROVENANCE-2026-11-13.json",
+        "sha256": "e4d9e07cafc192f330fc8af1862701a27a9dcd248bbd5036b09ad6dfbb4f9dc8",
+        "public_readback_matches": true
+      },
+      {
+        "name": "DVRESCUE-SUPPLEMENT-SHA256SUMS-2026-11-13.txt",
+        "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/0.3.0alpha/DVRESCUE-SUPPLEMENT-SHA256SUMS-2026-11-13.txt",
+        "sha256": "eacdc36ec174587c1f118b6664ff42dea8a3e3151269b414e06e118fc9bc6073",
+        "public_readback_matches": true
+      }
+    ]
+  },
+  {
+    "tag": "0.2.0alpha",
+    "original_assets_unchanged": true,
+    "release_body_readback_matches": true,
+    "supplements": [
+      {
+        "name": "DVRESCUE-NOTICES-2026-11-13.txt",
+        "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/0.2.0alpha/DVRESCUE-NOTICES-2026-11-13.txt",
+        "sha256": "a2f0c9345256d868dc9d4a80852de302bff49e61cf5b002fe3111c18f4c13e05",
+        "public_readback_matches": true
+      },
+      {
+        "name": "DVRESCUE-PROVENANCE-2026-11-13.json",
+        "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/0.2.0alpha/DVRESCUE-PROVENANCE-2026-11-13.json",
+        "sha256": "e4d9e07cafc192f330fc8af1862701a27a9dcd248bbd5036b09ad6dfbb4f9dc8",
+        "public_readback_matches": true
+      },
+      {
+        "name": "DVRESCUE-SUPPLEMENT-SHA256SUMS-2026-11-13.txt",
+        "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/0.2.0alpha/DVRESCUE-SUPPLEMENT-SHA256SUMS-2026-11-13.txt",
+        "sha256": "eacdc36ec174587c1f118b6664ff42dea8a3e3151269b414e06e118fc9bc6073",
+        "public_readback_matches": true
+      }
+    ]
+  },
+  {
+    "tag": "alpha",
+    "original_assets_unchanged": true,
+    "release_body_readback_matches": true,
+    "supplements": [
+      {
+        "name": "DVRESCUE-NOTICES-2026-11-13.txt",
+        "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/alpha/DVRESCUE-NOTICES-2026-11-13.txt",
+        "sha256": "a2f0c9345256d868dc9d4a80852de302bff49e61cf5b002fe3111c18f4c13e05",
+        "public_readback_matches": true
+      },
+      {
+        "name": "DVRESCUE-PROVENANCE-2026-11-13.json",
+        "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/alpha/DVRESCUE-PROVENANCE-2026-11-13.json",
+        "sha256": "e4d9e07cafc192f330fc8af1862701a27a9dcd248bbd5036b09ad6dfbb4f9dc8",
+        "public_readback_matches": true
+      },
+      {
+        "name": "DVRESCUE-SUPPLEMENT-SHA256SUMS-2026-11-13.txt",
+        "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/alpha/DVRESCUE-SUPPLEMENT-SHA256SUMS-2026-11-13.txt",
+        "sha256": "eacdc36ec174587c1f118b6664ff42dea8a3e3151269b414e06e118fc9bc6073",
+        "public_readback_matches": true
+      }
+    ]
+  }
+]

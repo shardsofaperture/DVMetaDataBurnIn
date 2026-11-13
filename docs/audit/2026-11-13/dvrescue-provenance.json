@@ -1,0 +1,112 @@
+{
+  "verified_on": "2026-11-13",
+  "binary_sha256": "396f26f02b6ad16fa406b890964df20ddc16424a0c99314892ec12859283ad4f",
+  "official_package": {
+    "url": "https://mediaarea.net/download/binary/dvrescue/24.07/dvrescue_CLI_24.07_Mac.dmg",
+    "sha256": "6cda2ec5f951ebe5984da2fd5a1cbe574831bb2aa7d21de0da8218625aa12484",
+    "pkg_sha256": "4975e65c4fcc8f1974971fb5ecdca908c7118f3ca42c4e076dd0e364942b4483",
+    "extracted_binary_path": "Payload/usr/local/bin/dvrescue",
+    "extracted_binary_sha256": "396f26f02b6ad16fa406b890964df20ddc16424a0c99314892ec12859283ad4f",
+    "matches_all_eight_audited_application_releases": true
+  },
+  "source_package": {
+    "url": "https://mediaarea.net/download/binary/dvrescue/24.07/dvrescue_CLI_24.07_GNU_FromSource.tar.gz",
+    "sha256": "e3089cf62757bb2a87bb38c353acf37c03195bcc8bcbf17565f7cb9b8ee51a72",
+    "MediaInfoLib_version_in_source": "24.06",
+    "ZenLib_version_in_source": "0.4.41",
+    "relationship": "Official same-release source bundle, not a reproduced or certified exact build."
+  },
+  "original_notice_matches_source": true,
+  "supplement_sha256": "a2f0c9345256d868dc9d4a80852de302bff49e61cf5b002fe3111c18f4c13e05",
+  "notice_sources": [
+    {
+      "component": "DVRescue original publisher notice",
+      "source_path": "dvrescue/LICENSE.txt",
+      "source_file_sha256": "1f5d32d4ce23eb17c41ff1e78fb12860d9d04dfa2dd2a73f6f6deecde6b0fe55",
+      "notice_extraction": "complete file"
+    },
+    {
+      "component": "MediaInfoLib 24.06",
+      "source_path": "MediaInfoLib/LICENSE",
+      "source_file_sha256": "0da6dfefb15805c2b3ce678ee79e77ab17ceb72c0f5c05b7fde7a4bcd72e10b2",
+      "notice_extraction": "complete file"
+    },
+    {
+      "component": "ZenLib (source bundle 0.4.41; binary version unconfirmed)",
+      "source_path": "ZenLib/License.txt",
+      "source_file_sha256": "054f4c5881d8906df8b1255fdbb2eaa78f7422829cfa1c67eb1c9e252493bdde",
+      "notice_extraction": "complete file"
+    },
+    {
+      "component": "Serial",
+      "source_path": "dvrescue/Source/ThirdParty/serial/LICENSE",
+      "source_file_sha256": "bb12b3c857da4804ccd00816a1daae298e75d314012346bb1a8995a496e2f9d0",
+      "notice_extraction": "complete file"
+    },
+    {
+      "component": "CCDecoder",
+      "source_path": "dvrescue/Source/ThirdParty/ccdecoder/ccdecoder.h",
+      "source_file_sha256": "1059632148829e62e1dbfe0cff17dd1bbe176d663310f00614f64fb14983d1b9",
+      "notice_extraction": "first complete block comment"
+    },
+    {
+      "component": "TinyXML2",
+      "source_path": "MediaInfoLib/Source/ThirdParty/tinyxml2/tinyxml2.h",
+      "source_file_sha256": "5818b3ac3d93901fe1e3cb3b629acc1dd60fc3a5b4bf5b300d85d105e4f30761",
+      "notice_extraction": "first complete block comment"
+    },
+    {
+      "component": "tfsxml",
+      "source_path": "MediaInfoLib/Source/ThirdParty/tfsxml/tfsxml.h",
+      "source_file_sha256": "05010af214bdb43aef3c101848e24dec8ccd13e8106a2185830a937cd18ef924",
+      "notice_extraction": "first complete block comment"
+    },
+    {
+      "component": "AES",
+      "source_path": "MediaInfoLib/Source/ThirdParty/aes-gladman/aes.h",
+      "source_file_sha256": "d3e9d50fd725d383e347b6dabd1f628e2b161eae686f7b0fdd90e459b7d0aa5f",
+      "notice_extraction": "first complete block comment"
+    },
+    {
+      "component": "SHA1",
+      "source_path": "MediaInfoLib/Source/ThirdParty/sha1-gladman/sha1.h",
+      "source_file_sha256": "29afe2942fe194d6363519bcfe71059534805c6b515bdfcf34eff674838453da",
+      "notice_extraction": "first complete block comment"
+    },
+    {
+      "component": "SHA2",
+      "source_path": "MediaInfoLib/Source/ThirdParty/sha2-gladman/sha2.h",
+      "source_file_sha256": "24666d80313c8340eb67da183a78c9a227d7969fd3b541a001b23f9ed2546379",
+      "notice_extraction": "first complete block comment"
+    },
+    {
+      "component": "HMAC",
+      "source_path": "MediaInfoLib/Source/ThirdParty/hmac-gladman/hmac.h",
+      "source_file_sha256": "bd31fff867c6a12d935843735e780abf92ab1855c714ae848d22a62fde07c976",
+      "notice_extraction": "first complete block comment"
+    },
+    {
+      "component": "MD5",
+      "source_path": "MediaInfoLib/Source/ThirdParty/md5/md5.c",
+      "source_file_sha256": "4326950bed41acf6aa7180dadea2c49fb27a84d0d16754b1e65434e337ee1cf5",
+      "notice_extraction": "first complete block comment"
+    }
+  ],
+  "unresolved": [
+    "DeckLink SDK revision and redistribution notice mapping: source bundle omits DeckLinkAPI.h despite binary DeckLink type information.",
+    "Publisher build manifest confirming all static component revisions and modifications."
+  ],
+  "dynamic_dependencies": [
+    "\t/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit (compatibility version 1.0.0, current version 275.0.0)",
+    "\t/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation (compatibility version 300.0.0, current version 1858.112.0)",
+    "\t/System/Library/Frameworks/AVFoundation.framework/Versions/A/AVFoundation (compatibility version 1.0.0, current version 2.0.0)",
+    "\t/System/Library/Frameworks/CoreMedia.framework/Versions/A/CoreMedia (compatibility version 1.0.0, current version 1.0.0)",
+    "\t/usr/lib/libz.1.dylib (compatibility version 1.0.0, current version 1.2.11)",
+    "\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1311.100.3)",
+    "\t/usr/lib/libc++.1.dylib (compatibility version 1.0.0, current version 1300.23.0)",
+    "\t/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation (compatibility version 150.0.0, current version 1858.112.0)",
+    "\t/usr/lib/libobjc.A.dylib (compatibility version 1.0.0, current version 228.0.0)"
+  ],
+  "supplement_repository_path": "docs/audit/2026-11-13/DVRESCUE-NOTICES.txt",
+  "bundled_notice": "Resources/licenses/NOTICE.txt (original text retained; supplement appended)"
+}
