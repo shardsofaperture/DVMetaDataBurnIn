@@ -3,7 +3,7 @@ Bundled Components and Licenses
 This application bundles the following third-party tools and assets:
 
 FFmpeg, © The FFmpeg Developers
-Licensed under LGPL/GPL.
+This bundled 8.0.1-tessus build is licensed under GPL version 3 or later.
 See the included LICENSE and COPYING.* files, or visit:
 https://ffmpeg.org/
 
