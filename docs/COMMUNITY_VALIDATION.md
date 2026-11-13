@@ -6,7 +6,7 @@ Successful tests and discrepancies are both useful. This guide separates applica
 
 Download [1.0.6 beta](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/1.0.6beta) for the retained application, or [1.0.7 Maintenance Preview 2](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.2) to test the current field-signaling and output-safety corrections. Keep them separately identified. The preview release includes a manifest and SHA256SUMS; verify the ZIP before extracting. Preview 2’s source is `1735e101881f5fe725c2d1ed539bc3c22bbf8e52`. The original Preview 1 and published train derivatives remain historical comparisons and do not include the correction. Report the package/tag and archive hash; if building locally, also report `git rev-parse HEAD` and whether the tree was modified.
 
-Current packages declare macOS 12 minimum. Stable 1.0.6 has an Intel/Apple Silicon app executable with Intel-only bundled tools; maintenance previews are Intel-only throughout. Apple Silicon/native or Rosetta acceptance is still open. The preview is ad-hoc signed and not notarized. Use macOS's normal controls for opening software you trust. [Distribution evidence gaps](THIRD_PARTY_DISTRIBUTION_AUDIT.md) remain public.
+Current packages declare macOS 12 minimum. Stable 1.0.6 has an Intel/Apple Silicon app executable with Intel-only bundled tools; maintenance previews are Intel-only throughout. Apple Silicon/native or Rosetta acceptance is still open. The preview is ad-hoc signed and not notarized. Use macOS's normal controls for opening software you trust.
 
 Record Mac model, macOS version, Intel/Apple Silicon and any translation used. Do not include serial numbers, hardware UUIDs, usernames or full personal paths.
 

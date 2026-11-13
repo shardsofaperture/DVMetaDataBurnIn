@@ -2,7 +2,7 @@
 
 **Current owner decision — November 13, 2026:** Keep `main` on the stable 1.0.6 application code while sharing the approved videos, README, licensing, and roadmap updates. Keep all 1.0.7 application work on `maintenance/1.0.7` as unconfirmed preview work until the owner has tested and explicitly approved it. The earlier integration below was a misunderstanding and was reversed on `main` by [corrective PR #193](https://github.com/shardsofaperture/DVMetaDataBurnIn/pull/193); the maintenance code and its test evidence remain intact. Closed PRs do not establish stable acceptance.
 
-See the [verified project status](PROJECT_STATUS.md) for the definitive current summary, [distribution audit](THIRD_PARTY_DISTRIBUTION_AUDIT.md) for dependency gaps, and [community guide](COMMUNITY_VALIDATION.md) for independent testing.
+See the [verified project status](PROJECT_STATUS.md) for the definitive current summary, [component licenses](LICENSING.md), and [community guide](COMMUNITY_VALIDATION.md) for independent testing.
 
 ## Current maintenance fixes after Preview 1
 
@@ -14,13 +14,12 @@ Runtime commit `2802355` is exclusive to maintenance; stable main remains 1.0.6.
 - **33 synthetic regressions and three shell checks pass**, including raw H.264 decoded flags, BFF/TFF/progressive inputs, partial/invalid encoders, cancellation, existing exports and simultaneous writers. The Intel Xcode 15.4 Release build passes; this is not GUI or Apple Silicon acceptance.
 - Fresh [train results](audit/2026-11-13/maintenance-output-verification.json): original SHA-256 unchanged; 238 DV frames and decoded PCM preserved in MOV; 238 bottom-field-first H.264 frames in both MP4/MKV; 476 progressive frames at 60p; nine subtitle events covering the last frame. These are new CLI checks, separate from the historical public videos.
 
-Issue #198's publication defect is fixed with focused evidence. #197 remains open only for moving-picture/player acceptance before stable 1.0.7 promotion. The technical correction and automated verification are complete; this acceptance gate does not block maintenance commits, experimental prereleases, documentation or unrelated licensing work. GUI Stop/queues, subjective audio/motion, broader footage, native Apple Silicon and Rosetta remain unverified. Licensing evidence dependencies are separate; see [current status](PROJECT_STATUS.md).
+Issue #198's publication defect is fixed with focused evidence. #197 remains open only for moving-picture/player acceptance before stable 1.0.7 promotion. The technical correction and automated verification are complete; this acceptance gate does not block maintenance commits, experimental prereleases, documentation or unrelated licensing work. GUI Stop/queues, subjective audio/motion, broader footage, native Apple Silicon and Rosetta remain unverified.
 
-## Preview 2 dependency remediation — November 13, 2026
+## Preview 2 bundled components
 
 [Preview 2](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.2)
-packages the maintenance fixes above and replaces the untraceable supplier-build
-inputs for future maintenance distribution. FFmpeg 8.0.1-dvmetadata1 is built
+packages the maintenance fixes above. FFmpeg 8.0.1-dvmetadata1 is built
 from pinned source with x264, FreeType and HarfBuzz. DVRescue 24.07-dvmetadata1
 uses MediaInfoLib 24.06 and ZenLib 0.4.41 with capture/DeckLink/serial control and
 simulation disabled. A disclosed patch corrects upstream conditional compilation;
@@ -41,9 +40,8 @@ events. DVRescue's 238 extracted recording-date rows match the original binary;
 XML differs only in the declared modified version. These outputs are local test
 artifacts, not replacements for the published example videos.
 
-Stable `main` remains 1.0.6. No branch merge is part of this remediation.
-The historical issues and remaining manual acceptance are distinguished in
-[licensing](LICENSING.md) and [project status](PROJECT_STATUS.md).
+Stable `main` remains 1.0.6. See [component licenses](LICENSING.md) and
+[release acceptance](PROJECT_STATUS.md).
 
 ## Historical preview validation — November 12, 2026
 
