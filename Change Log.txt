@@ -2,7 +2,7 @@
 
 ---11/12/2026
 
-* Maintenance prerelease: [v1.0.7-maintenance.1](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.1), built from `maintenance/1.0.7` for Intel macOS. Source integration is authorized through PRs #192 and #191; GUI/player acceptance and application-release promotion remain separate.
+* Maintenance prerelease: [v1.0.7-maintenance.1](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.1), built from `maintenance/1.0.7` for Intel macOS. Stable main retains 1.0.6 application code; 1.0.7 stays on the maintenance branch for owner testing. Only the shared videos, documentation, licensing and roadmap are approved for stable main.
 
 * Corrected final ASS event duration using source-frame-aligned media duration, with a last-numbered-frame fallback when duration is unavailable.
 * Preserved exact NTSC timing in frame-to-time conversion; fixed ASS minute/hour carry and rejected duplicate/backwards timeline rows.
