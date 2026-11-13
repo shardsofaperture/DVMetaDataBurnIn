@@ -1,0 +1,914 @@
+{
+  "audited_on": "2026-11-13",
+  "method": "Unauthenticated download; SHA-256 matched GitHub asset digest; ZIP entry inspection; cpu_type 16777223 means x86_64; no application rebuilt.",
+  "releases": [
+    {
+      "tag": "v1.0.7-maintenance.1",
+      "archive": "DVMetaDataBurnIn-1.0.7-maintenance.1-macos-intel.zip",
+      "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/v1.0.7-maintenance.1/DVMetaDataBurnIn-1.0.7-maintenance.1-macos-intel.zip",
+      "sha256": "66a3a458cfe02569157a8e012cb11acb3fd3deb3ba963bc351a03b03462ddd32",
+      "resources": [
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/LICENSE.md",
+          "bytes": 4346,
+          "sha256": "2e1d16c72fd74e12063776371da757322f8b77589386532f4fd8634bde7de1af"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/ffmpeg",
+          "bytes": 80083328,
+          "sha256": "430d60fbf419dab28daee9b679e7929a31ee9bae53f6e42e8ae26b725584290f"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/dvrescue",
+          "bytes": 8044880,
+          "sha256": "396f26f02b6ad16fa406b890964df20ddc16424a0c99314892ec12859283ad4f"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/licenses/LICENSE.md",
+          "bytes": 4346,
+          "sha256": "2e1d16c72fd74e12063776371da757322f8b77589386532f4fd8634bde7de1af"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/licenses/COPYING.LGPLv2.1",
+          "bytes": 26517,
+          "sha256": "246041b6ecf9bc32d718a62c57877c78b5eb397b6467e74ed7ae2626ab189c30"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/licenses/dvrescue_LICENSE.txt",
+          "bytes": 1816,
+          "sha256": "508cd82b05f9e713ae96cb7f05e3e2af9c44098e13875998aa520c04f703b2e0"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/licenses/APP_LICENSE.txt",
+          "bytes": 1071,
+          "sha256": "d8bc72450a4cec80c2be1aa74537f68744ac92a4f3e730849f4f0306022dc406"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/licenses/README.md",
+          "bytes": 1810,
+          "sha256": "05ba4b92c96605434b1aaae3eedf5a2c280c9607bf78ffca9a5b536d9af2dc6a"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/licenses/NOTICE.txt",
+          "bytes": 782,
+          "sha256": "b1ab403e4969b121bb79ab6e0e0380e1a12803f70a0260feb1ef02625bbc5e80"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/licenses/COPYING.GPLv2",
+          "bytes": 18092,
+          "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/licenses/COPYING.GPLv3",
+          "bytes": 35147,
+          "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/licenses/COPYING.LGPLv3",
+          "bytes": 7651,
+          "sha256": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/COPYING.LGPLv2.1",
+          "bytes": 26517,
+          "sha256": "246041b6ecf9bc32d718a62c57877c78b5eb397b6467e74ed7ae2626ab189c30"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/dvrescue_LICENSE.txt",
+          "bytes": 1816,
+          "sha256": "508cd82b05f9e713ae96cb7f05e3e2af9c44098e13875998aa520c04f703b2e0"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/APP_LICENSE.txt",
+          "bytes": 1071,
+          "sha256": "d8bc72450a4cec80c2be1aa74537f68744ac92a4f3e730849f4f0306022dc406"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/NOTICE.txt",
+          "bytes": 782,
+          "sha256": "b1ab403e4969b121bb79ab6e0e0380e1a12803f70a0260feb1ef02625bbc5e80"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/COPYING.GPLv2",
+          "bytes": 18092,
+          "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/COPYING.GPLv3",
+          "bytes": 35147,
+          "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/COPYING.LGPLv3",
+          "bytes": 7651,
+          "sha256": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/UAV-OSD-Mono.ttf",
+          "bytes": 12636,
+          "sha256": "dc007ad0136f00f68bd5ee312f69b884721f323df01e5510ee17506585e4f2af"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/VCR_OSD_MONO.ttf",
+          "bytes": 75864,
+          "sha256": "01918d86cb163a715dcb97165b997256734dfcc9f550beeb7c142fa4a064cf1c"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/UAV-OSD-Sans-Mono.ttf",
+          "bytes": 9616,
+          "sha256": "cdc111fe43093abaf2adb931dbca13ffa0c078be24c2cae894d01666a102f5d6"
+        }
+      ],
+      "plist": [
+        {
+          "CFBundleShortVersionString": "1.0.7",
+          "CFBundleVersion": "1",
+          "LSMinimumSystemVersion": "12.0"
+        }
+      ],
+      "entry_count": 75,
+      "executables": [
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/MacOS/DVMetaDataBurnIn",
+          "sha256": "5af119af11b8de085d728a1e0e0d4796959ccfe5e2e09803612615adf36bf13b",
+          "cpu_type": 16777223,
+          "architectures": [
+            "x86_64"
+          ]
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/ffmpeg",
+          "sha256": "430d60fbf419dab28daee9b679e7929a31ee9bae53f6e42e8ae26b725584290f",
+          "cpu_type": 16777223,
+          "architectures": [
+            "x86_64"
+          ]
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/dvrescue",
+          "sha256": "396f26f02b6ad16fa406b890964df20ddc16424a0c99314892ec12859283ad4f",
+          "cpu_type": 16777223,
+          "architectures": [
+            "x86_64"
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "1.0.6beta",
+      "archive": "DVMetaDataBurnIn.1.0.6.beta.zip",
+      "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/1.0.6beta/DVMetaDataBurnIn.1.0.6.beta.zip",
+      "sha256": "f9df0efa48d7299682a8dd23e556ad560be426be16795171419845e908d6dacb",
+      "resources": [
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/LICENSE.md",
+          "bytes": 4346,
+          "sha256": "2e1d16c72fd74e12063776371da757322f8b77589386532f4fd8634bde7de1af"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/ffmpeg",
+          "bytes": 80083328,
+          "sha256": "430d60fbf419dab28daee9b679e7929a31ee9bae53f6e42e8ae26b725584290f"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/dvrescue",
+          "bytes": 8044880,
+          "sha256": "396f26f02b6ad16fa406b890964df20ddc16424a0c99314892ec12859283ad4f"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/COPYING.LGPLv2.1",
+          "bytes": 26517,
+          "sha256": "246041b6ecf9bc32d718a62c57877c78b5eb397b6467e74ed7ae2626ab189c30"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/dvrescue_LICENSE.txt",
+          "bytes": 1816,
+          "sha256": "508cd82b05f9e713ae96cb7f05e3e2af9c44098e13875998aa520c04f703b2e0"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/APP_LICENSE.txt",
+          "bytes": 1071,
+          "sha256": "d8bc72450a4cec80c2be1aa74537f68744ac92a4f3e730849f4f0306022dc406"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/NOTICE.txt",
+          "bytes": 782,
+          "sha256": "b1ab403e4969b121bb79ab6e0e0380e1a12803f70a0260feb1ef02625bbc5e80"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/COPYING.GPLv2",
+          "bytes": 18092,
+          "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/COPYING.GPLv3",
+          "bytes": 35147,
+          "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/COPYING.LGPLv3",
+          "bytes": 7651,
+          "sha256": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/UAV-OSD-Mono.ttf",
+          "bytes": 12636,
+          "sha256": "dc007ad0136f00f68bd5ee312f69b884721f323df01e5510ee17506585e4f2af"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/VCR_OSD_MONO.ttf",
+          "bytes": 75864,
+          "sha256": "01918d86cb163a715dcb97165b997256734dfcc9f550beeb7c142fa4a064cf1c"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/UAV-OSD-Sans-Mono.ttf",
+          "bytes": 9616,
+          "sha256": "cdc111fe43093abaf2adb931dbca13ffa0c078be24c2cae894d01666a102f5d6"
+        }
+      ],
+      "plist": [
+        {
+          "CFBundleShortVersionString": "1.0.6",
+          "CFBundleVersion": "1",
+          "LSMinimumSystemVersion": "12.0"
+        }
+      ],
+      "entry_count": 54,
+      "executables": [
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/MacOS/DVMetaDataBurnIn",
+          "sha256": "2e3dbd746177fef9015e0cf1bbf59b35216c2853c2ea677c177303814756772a",
+          "cpu_type": "fat",
+          "architectures": [
+            "x86_64",
+            "arm64"
+          ]
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/ffmpeg",
+          "sha256": "430d60fbf419dab28daee9b679e7929a31ee9bae53f6e42e8ae26b725584290f",
+          "cpu_type": 16777223,
+          "architectures": [
+            "x86_64"
+          ]
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/dvrescue",
+          "sha256": "396f26f02b6ad16fa406b890964df20ddc16424a0c99314892ec12859283ad4f",
+          "cpu_type": 16777223,
+          "architectures": [
+            "x86_64"
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "1.0.5beta",
+      "archive": "DVMetaDataBurnIn.1.0.5.beta.zip",
+      "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/1.0.5beta/DVMetaDataBurnIn.1.0.5.beta.zip",
+      "sha256": "07771e5ef0de96ea09ebca1d1eb7235ba48dcee8f7dd1dcca6411862b1eae900",
+      "resources": [
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/LICENSE.md",
+          "bytes": 4346,
+          "sha256": "2e1d16c72fd74e12063776371da757322f8b77589386532f4fd8634bde7de1af"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/ffmpeg",
+          "bytes": 80083328,
+          "sha256": "430d60fbf419dab28daee9b679e7929a31ee9bae53f6e42e8ae26b725584290f"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/dvrescue",
+          "bytes": 8044880,
+          "sha256": "396f26f02b6ad16fa406b890964df20ddc16424a0c99314892ec12859283ad4f"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/COPYING.LGPLv2.1",
+          "bytes": 26517,
+          "sha256": "246041b6ecf9bc32d718a62c57877c78b5eb397b6467e74ed7ae2626ab189c30"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/dvrescue_LICENSE.txt",
+          "bytes": 1816,
+          "sha256": "508cd82b05f9e713ae96cb7f05e3e2af9c44098e13875998aa520c04f703b2e0"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/APP_LICENSE.txt",
+          "bytes": 1071,
+          "sha256": "d8bc72450a4cec80c2be1aa74537f68744ac92a4f3e730849f4f0306022dc406"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/NOTICE.txt",
+          "bytes": 782,
+          "sha256": "b1ab403e4969b121bb79ab6e0e0380e1a12803f70a0260feb1ef02625bbc5e80"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/COPYING.GPLv2",
+          "bytes": 18092,
+          "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/COPYING.GPLv3",
+          "bytes": 35147,
+          "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/COPYING.LGPLv3",
+          "bytes": 7651,
+          "sha256": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/UAV-OSD-Mono.ttf",
+          "bytes": 12636,
+          "sha256": "dc007ad0136f00f68bd5ee312f69b884721f323df01e5510ee17506585e4f2af"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/VCR_OSD_MONO.ttf",
+          "bytes": 75864,
+          "sha256": "01918d86cb163a715dcb97165b997256734dfcc9f550beeb7c142fa4a064cf1c"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/UAV-OSD-Sans-Mono.ttf",
+          "bytes": 9616,
+          "sha256": "cdc111fe43093abaf2adb931dbca13ffa0c078be24c2cae894d01666a102f5d6"
+        }
+      ],
+      "plist": [
+        {
+          "CFBundleShortVersionString": "1.0.5",
+          "CFBundleVersion": "1",
+          "LSMinimumSystemVersion": "12.0"
+        }
+      ],
+      "entry_count": 32,
+      "executables": [
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/MacOS/DVMetaDataBurnIn",
+          "sha256": "15f0998422a46393e6e61782eb6f46764bc661f6ff9a5cbd1efcbd9033eeca81",
+          "cpu_type": "fat",
+          "architectures": [
+            "x86_64",
+            "arm64"
+          ]
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/ffmpeg",
+          "sha256": "430d60fbf419dab28daee9b679e7929a31ee9bae53f6e42e8ae26b725584290f",
+          "cpu_type": 16777223,
+          "architectures": [
+            "x86_64"
+          ]
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/dvrescue",
+          "sha256": "396f26f02b6ad16fa406b890964df20ddc16424a0c99314892ec12859283ad4f",
+          "cpu_type": 16777223,
+          "architectures": [
+            "x86_64"
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "1.0.4beta",
+      "archive": "DVMetaDataBurnIn.1.0.4.beta.zip",
+      "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/1.0.4beta/DVMetaDataBurnIn.1.0.4.beta.zip",
+      "sha256": "72c89f3312820091b5f58ee9075cc72c59abbf768020c6299d074212584f9972",
+      "resources": [
+        {
+          "path": "DVMetaDataBurnIn.1.0.4.beta/DVMetaDataBurnIn.app/Contents/Resources/LICENSE.md",
+          "bytes": 4346,
+          "sha256": "2e1d16c72fd74e12063776371da757322f8b77589386532f4fd8634bde7de1af"
+        },
+        {
+          "path": "DVMetaDataBurnIn.1.0.4.beta/DVMetaDataBurnIn.app/Contents/Resources/ffmpeg",
+          "bytes": 80083328,
+          "sha256": "430d60fbf419dab28daee9b679e7929a31ee9bae53f6e42e8ae26b725584290f"
+        },
+        {
+          "path": "DVMetaDataBurnIn.1.0.4.beta/DVMetaDataBurnIn.app/Contents/Resources/dvrescue",
+          "bytes": 8044880,
+          "sha256": "396f26f02b6ad16fa406b890964df20ddc16424a0c99314892ec12859283ad4f"
+        },
+        {
+          "path": "DVMetaDataBurnIn.1.0.4.beta/DVMetaDataBurnIn.app/Contents/Resources/COPYING.LGPLv2.1",
+          "bytes": 26517,
+          "sha256": "246041b6ecf9bc32d718a62c57877c78b5eb397b6467e74ed7ae2626ab189c30"
+        },
+        {
+          "path": "DVMetaDataBurnIn.1.0.4.beta/DVMetaDataBurnIn.app/Contents/Resources/dvrescue_LICENSE.txt",
+          "bytes": 1816,
+          "sha256": "508cd82b05f9e713ae96cb7f05e3e2af9c44098e13875998aa520c04f703b2e0"
+        },
+        {
+          "path": "DVMetaDataBurnIn.1.0.4.beta/DVMetaDataBurnIn.app/Contents/Resources/APP_LICENSE.txt",
+          "bytes": 1071,
+          "sha256": "d8bc72450a4cec80c2be1aa74537f68744ac92a4f3e730849f4f0306022dc406"
+        },
+        {
+          "path": "DVMetaDataBurnIn.1.0.4.beta/DVMetaDataBurnIn.app/Contents/Resources/NOTICE.txt",
+          "bytes": 782,
+          "sha256": "b1ab403e4969b121bb79ab6e0e0380e1a12803f70a0260feb1ef02625bbc5e80"
+        },
+        {
+          "path": "DVMetaDataBurnIn.1.0.4.beta/DVMetaDataBurnIn.app/Contents/Resources/COPYING.GPLv2",
+          "bytes": 18092,
+          "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+        },
+        {
+          "path": "DVMetaDataBurnIn.1.0.4.beta/DVMetaDataBurnIn.app/Contents/Resources/COPYING.GPLv3",
+          "bytes": 35147,
+          "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+        },
+        {
+          "path": "DVMetaDataBurnIn.1.0.4.beta/DVMetaDataBurnIn.app/Contents/Resources/COPYING.LGPLv3",
+          "bytes": 7651,
+          "sha256": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768"
+        },
+        {
+          "path": "DVMetaDataBurnIn.1.0.4.beta/DVMetaDataBurnIn.app/Contents/Resources/UAV-OSD-Mono.ttf",
+          "bytes": 12636,
+          "sha256": "dc007ad0136f00f68bd5ee312f69b884721f323df01e5510ee17506585e4f2af"
+        },
+        {
+          "path": "DVMetaDataBurnIn.1.0.4.beta/DVMetaDataBurnIn.app/Contents/Resources/VCR_OSD_MONO.ttf",
+          "bytes": 75864,
+          "sha256": "01918d86cb163a715dcb97165b997256734dfcc9f550beeb7c142fa4a064cf1c"
+        },
+        {
+          "path": "DVMetaDataBurnIn.1.0.4.beta/DVMetaDataBurnIn.app/Contents/Resources/UAV-OSD-Sans-Mono.ttf",
+          "bytes": 9616,
+          "sha256": "cdc111fe43093abaf2adb931dbca13ffa0c078be24c2cae894d01666a102f5d6"
+        }
+      ],
+      "plist": [
+        {
+          "CFBundleShortVersionString": "1.0.3",
+          "CFBundleVersion": "1",
+          "LSMinimumSystemVersion": "12.0"
+        }
+      ],
+      "entry_count": 33,
+      "executables": [
+        {
+          "path": "DVMetaDataBurnIn.1.0.4.beta/DVMetaDataBurnIn.app/Contents/MacOS/DVMetaDataBurnIn",
+          "sha256": "6535cee71af9b1412d3adfb72fd36b7e851ae6128de8e610b41738ba68066c17",
+          "cpu_type": "fat",
+          "architectures": [
+            "x86_64",
+            "arm64"
+          ]
+        },
+        {
+          "path": "DVMetaDataBurnIn.1.0.4.beta/DVMetaDataBurnIn.app/Contents/Resources/ffmpeg",
+          "sha256": "430d60fbf419dab28daee9b679e7929a31ee9bae53f6e42e8ae26b725584290f",
+          "cpu_type": 16777223,
+          "architectures": [
+            "x86_64"
+          ]
+        },
+        {
+          "path": "DVMetaDataBurnIn.1.0.4.beta/DVMetaDataBurnIn.app/Contents/Resources/dvrescue",
+          "sha256": "396f26f02b6ad16fa406b890964df20ddc16424a0c99314892ec12859283ad4f",
+          "cpu_type": 16777223,
+          "architectures": [
+            "x86_64"
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "1.0.0beta",
+      "archive": "DVMetaDataBurnIn.1.0.0.beta.zip",
+      "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/1.0.0beta/DVMetaDataBurnIn.1.0.0.beta.zip",
+      "sha256": "fb8d9dda2043a5966f2e07b920a1dfaac2f48ea5472da679c4b4f1ff258b1a6a",
+      "resources": [
+        {
+          "path": "DVMetaDataBurnIn 1.0.0 beta/DVMetaDataBurnIn.app/Contents/Resources/LICENSE.md",
+          "bytes": 4346,
+          "sha256": "2e1d16c72fd74e12063776371da757322f8b77589386532f4fd8634bde7de1af"
+        },
+        {
+          "path": "DVMetaDataBurnIn 1.0.0 beta/DVMetaDataBurnIn.app/Contents/Resources/ffmpeg",
+          "bytes": 80083328,
+          "sha256": "430d60fbf419dab28daee9b679e7929a31ee9bae53f6e42e8ae26b725584290f"
+        },
+        {
+          "path": "DVMetaDataBurnIn 1.0.0 beta/DVMetaDataBurnIn.app/Contents/Resources/dvrescue",
+          "bytes": 8044880,
+          "sha256": "396f26f02b6ad16fa406b890964df20ddc16424a0c99314892ec12859283ad4f"
+        },
+        {
+          "path": "DVMetaDataBurnIn 1.0.0 beta/DVMetaDataBurnIn.app/Contents/Resources/COPYING.LGPLv2.1",
+          "bytes": 26517,
+          "sha256": "246041b6ecf9bc32d718a62c57877c78b5eb397b6467e74ed7ae2626ab189c30"
+        },
+        {
+          "path": "DVMetaDataBurnIn 1.0.0 beta/DVMetaDataBurnIn.app/Contents/Resources/dvrescue_LICENSE.txt",
+          "bytes": 1816,
+          "sha256": "508cd82b05f9e713ae96cb7f05e3e2af9c44098e13875998aa520c04f703b2e0"
+        },
+        {
+          "path": "DVMetaDataBurnIn 1.0.0 beta/DVMetaDataBurnIn.app/Contents/Resources/APP_LICENSE.txt",
+          "bytes": 1071,
+          "sha256": "d8bc72450a4cec80c2be1aa74537f68744ac92a4f3e730849f4f0306022dc406"
+        },
+        {
+          "path": "DVMetaDataBurnIn 1.0.0 beta/DVMetaDataBurnIn.app/Contents/Resources/NOTICE.txt",
+          "bytes": 782,
+          "sha256": "b1ab403e4969b121bb79ab6e0e0380e1a12803f70a0260feb1ef02625bbc5e80"
+        },
+        {
+          "path": "DVMetaDataBurnIn 1.0.0 beta/DVMetaDataBurnIn.app/Contents/Resources/COPYING.GPLv2",
+          "bytes": 18092,
+          "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+        },
+        {
+          "path": "DVMetaDataBurnIn 1.0.0 beta/DVMetaDataBurnIn.app/Contents/Resources/COPYING.GPLv3",
+          "bytes": 35147,
+          "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+        },
+        {
+          "path": "DVMetaDataBurnIn 1.0.0 beta/DVMetaDataBurnIn.app/Contents/Resources/COPYING.LGPLv3",
+          "bytes": 7651,
+          "sha256": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768"
+        },
+        {
+          "path": "DVMetaDataBurnIn 1.0.0 beta/DVMetaDataBurnIn.app/Contents/Resources/VCR_OSD_MONO_1.001.ttf",
+          "bytes": 75864,
+          "sha256": "01918d86cb163a715dcb97165b997256734dfcc9f550beeb7c142fa4a064cf1c"
+        },
+        {
+          "path": "DVMetaDataBurnIn 1.0.0 beta/DVMetaDataBurnIn.app/Contents/Resources/UAV-OSD-Mono.ttf",
+          "bytes": 12636,
+          "sha256": "dc007ad0136f00f68bd5ee312f69b884721f323df01e5510ee17506585e4f2af"
+        },
+        {
+          "path": "DVMetaDataBurnIn 1.0.0 beta/DVMetaDataBurnIn.app/Contents/Resources/UAV-OSD-Sans-Mono.ttf",
+          "bytes": 9616,
+          "sha256": "cdc111fe43093abaf2adb931dbca13ffa0c078be24c2cae894d01666a102f5d6"
+        }
+      ],
+      "plist": [
+        {
+          "CFBundleShortVersionString": "1.0.0",
+          "CFBundleVersion": "1",
+          "LSMinimumSystemVersion": "12.0"
+        }
+      ],
+      "entry_count": 27,
+      "executables": [
+        {
+          "path": "DVMetaDataBurnIn 1.0.0 beta/DVMetaDataBurnIn.app/Contents/MacOS/DVMetaDataBurnIn",
+          "sha256": "e83582ba7809f0812ff92f99246d7a4ff8a2016adef0d8708d94f57110f4df85",
+          "cpu_type": "fat",
+          "architectures": [
+            "x86_64",
+            "arm64"
+          ]
+        },
+        {
+          "path": "DVMetaDataBurnIn 1.0.0 beta/DVMetaDataBurnIn.app/Contents/Resources/ffmpeg",
+          "sha256": "430d60fbf419dab28daee9b679e7929a31ee9bae53f6e42e8ae26b725584290f",
+          "cpu_type": 16777223,
+          "architectures": [
+            "x86_64"
+          ]
+        },
+        {
+          "path": "DVMetaDataBurnIn 1.0.0 beta/DVMetaDataBurnIn.app/Contents/Resources/dvrescue",
+          "sha256": "396f26f02b6ad16fa406b890964df20ddc16424a0c99314892ec12859283ad4f",
+          "cpu_type": 16777223,
+          "architectures": [
+            "x86_64"
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "0.3.0alpha",
+      "archive": "DVMetaDataBurnIn.0.3.0.alpha.zip",
+      "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/0.3.0alpha/DVMetaDataBurnIn.0.3.0.alpha.zip",
+      "sha256": "659342983a4053226587c173410c2e25ff0d8f04767e2a858402e9f746f45878",
+      "resources": [
+        {
+          "path": "DVMetaDataBurnIn 0.3.0/DVMetaDataBurnIn.app/Contents/Resources/LICENSE.md",
+          "bytes": 4346,
+          "sha256": "2e1d16c72fd74e12063776371da757322f8b77589386532f4fd8634bde7de1af"
+        },
+        {
+          "path": "DVMetaDataBurnIn 0.3.0/DVMetaDataBurnIn.app/Contents/Resources/ffmpeg",
+          "bytes": 80083328,
+          "sha256": "430d60fbf419dab28daee9b679e7929a31ee9bae53f6e42e8ae26b725584290f"
+        },
+        {
+          "path": "DVMetaDataBurnIn 0.3.0/DVMetaDataBurnIn.app/Contents/Resources/dvrescue",
+          "bytes": 8044880,
+          "sha256": "396f26f02b6ad16fa406b890964df20ddc16424a0c99314892ec12859283ad4f"
+        },
+        {
+          "path": "DVMetaDataBurnIn 0.3.0/DVMetaDataBurnIn.app/Contents/Resources/COPYING.LGPLv2.1",
+          "bytes": 26517,
+          "sha256": "246041b6ecf9bc32d718a62c57877c78b5eb397b6467e74ed7ae2626ab189c30"
+        },
+        {
+          "path": "DVMetaDataBurnIn 0.3.0/DVMetaDataBurnIn.app/Contents/Resources/dvrescue_LICENSE.txt",
+          "bytes": 1816,
+          "sha256": "508cd82b05f9e713ae96cb7f05e3e2af9c44098e13875998aa520c04f703b2e0"
+        },
+        {
+          "path": "DVMetaDataBurnIn 0.3.0/DVMetaDataBurnIn.app/Contents/Resources/APP_LICENSE.txt",
+          "bytes": 1071,
+          "sha256": "d8bc72450a4cec80c2be1aa74537f68744ac92a4f3e730849f4f0306022dc406"
+        },
+        {
+          "path": "DVMetaDataBurnIn 0.3.0/DVMetaDataBurnIn.app/Contents/Resources/NOTICE.txt",
+          "bytes": 782,
+          "sha256": "b1ab403e4969b121bb79ab6e0e0380e1a12803f70a0260feb1ef02625bbc5e80"
+        },
+        {
+          "path": "DVMetaDataBurnIn 0.3.0/DVMetaDataBurnIn.app/Contents/Resources/COPYING.GPLv2",
+          "bytes": 18092,
+          "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+        },
+        {
+          "path": "DVMetaDataBurnIn 0.3.0/DVMetaDataBurnIn.app/Contents/Resources/COPYING.GPLv3",
+          "bytes": 35147,
+          "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+        },
+        {
+          "path": "DVMetaDataBurnIn 0.3.0/DVMetaDataBurnIn.app/Contents/Resources/COPYING.LGPLv3",
+          "bytes": 7651,
+          "sha256": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768"
+        },
+        {
+          "path": "DVMetaDataBurnIn 0.3.0/DVMetaDataBurnIn.app/Contents/Resources/VCR_OSD_MONO_1.001.ttf",
+          "bytes": 75864,
+          "sha256": "01918d86cb163a715dcb97165b997256734dfcc9f550beeb7c142fa4a064cf1c"
+        },
+        {
+          "path": "DVMetaDataBurnIn 0.3.0/DVMetaDataBurnIn.app/Contents/Resources/UAV-OSD-Mono.ttf",
+          "bytes": 12636,
+          "sha256": "dc007ad0136f00f68bd5ee312f69b884721f323df01e5510ee17506585e4f2af"
+        },
+        {
+          "path": "DVMetaDataBurnIn 0.3.0/DVMetaDataBurnIn.app/Contents/Resources/UAV-OSD-Sans-Mono.ttf",
+          "bytes": 9616,
+          "sha256": "cdc111fe43093abaf2adb931dbca13ffa0c078be24c2cae894d01666a102f5d6"
+        }
+      ],
+      "plist": [
+        {
+          "CFBundleShortVersionString": "0.3.0",
+          "CFBundleVersion": "1",
+          "LSMinimumSystemVersion": "12.0"
+        }
+      ],
+      "entry_count": 29,
+      "executables": [
+        {
+          "path": "DVMetaDataBurnIn 0.3.0/DVMetaDataBurnIn.app/Contents/MacOS/DVMetaDataBurnIn",
+          "sha256": "46f29774c739c6db6c41d932e652b3b4c3b27234a1019f1880b7079a897666c5",
+          "cpu_type": "fat",
+          "architectures": [
+            "x86_64",
+            "arm64"
+          ]
+        },
+        {
+          "path": "DVMetaDataBurnIn 0.3.0/DVMetaDataBurnIn.app/Contents/Resources/ffmpeg",
+          "sha256": "430d60fbf419dab28daee9b679e7929a31ee9bae53f6e42e8ae26b725584290f",
+          "cpu_type": 16777223,
+          "architectures": [
+            "x86_64"
+          ]
+        },
+        {
+          "path": "DVMetaDataBurnIn 0.3.0/DVMetaDataBurnIn.app/Contents/Resources/dvrescue",
+          "sha256": "396f26f02b6ad16fa406b890964df20ddc16424a0c99314892ec12859283ad4f",
+          "cpu_type": 16777223,
+          "architectures": [
+            "x86_64"
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "0.2.0alpha",
+      "archive": "DV.Metadata.Burn-In.Tool.v0.2.0.Alpha.zip",
+      "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/0.2.0alpha/DV.Metadata.Burn-In.Tool.v0.2.0.Alpha.zip",
+      "sha256": "cdbc3588c0d1be55cde32828ea0fc52006911f3c5535247b53c99cb02fd01026",
+      "resources": [
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/LICENSE.md",
+          "bytes": 4346,
+          "sha256": "2e1d16c72fd74e12063776371da757322f8b77589386532f4fd8634bde7de1af"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/ffmpeg",
+          "bytes": 80083328,
+          "sha256": "430d60fbf419dab28daee9b679e7929a31ee9bae53f6e42e8ae26b725584290f"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/dvrescue",
+          "bytes": 8044880,
+          "sha256": "396f26f02b6ad16fa406b890964df20ddc16424a0c99314892ec12859283ad4f"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/COPYING.LGPLv2.1",
+          "bytes": 26517,
+          "sha256": "246041b6ecf9bc32d718a62c57877c78b5eb397b6467e74ed7ae2626ab189c30"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/dvrescue_LICENSE.txt",
+          "bytes": 1816,
+          "sha256": "508cd82b05f9e713ae96cb7f05e3e2af9c44098e13875998aa520c04f703b2e0"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/APP_LICENSE.txt",
+          "bytes": 1071,
+          "sha256": "d8bc72450a4cec80c2be1aa74537f68744ac92a4f3e730849f4f0306022dc406"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/NOTICE.txt",
+          "bytes": 782,
+          "sha256": "b1ab403e4969b121bb79ab6e0e0380e1a12803f70a0260feb1ef02625bbc5e80"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/COPYING.GPLv2",
+          "bytes": 18092,
+          "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/COPYING.GPLv3",
+          "bytes": 35147,
+          "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/COPYING.LGPLv3",
+          "bytes": 7651,
+          "sha256": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/VCR_OSD_MONO_1.001.ttf",
+          "bytes": 75864,
+          "sha256": "01918d86cb163a715dcb97165b997256734dfcc9f550beeb7c142fa4a064cf1c"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/UAV-OSD-Mono.ttf",
+          "bytes": 12636,
+          "sha256": "dc007ad0136f00f68bd5ee312f69b884721f323df01e5510ee17506585e4f2af"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/UAV-OSD-Sans-Mono.ttf",
+          "bytes": 9616,
+          "sha256": "cdc111fe43093abaf2adb931dbca13ffa0c078be24c2cae894d01666a102f5d6"
+        }
+      ],
+      "plist": [
+        {
+          "CFBundleShortVersionString": "0.2.0",
+          "CFBundleVersion": "1",
+          "LSMinimumSystemVersion": "12.0"
+        }
+      ],
+      "entry_count": 26,
+      "executables": [
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/MacOS/DVMetaDataBurnIn",
+          "sha256": "f1304362e3dd016efc3e850d20a3a6b06f4b85b4717f278a19619ddd0394a63e",
+          "cpu_type": "fat",
+          "architectures": [
+            "x86_64",
+            "arm64"
+          ]
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/ffmpeg",
+          "sha256": "430d60fbf419dab28daee9b679e7929a31ee9bae53f6e42e8ae26b725584290f",
+          "cpu_type": 16777223,
+          "architectures": [
+            "x86_64"
+          ]
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/dvrescue",
+          "sha256": "396f26f02b6ad16fa406b890964df20ddc16424a0c99314892ec12859283ad4f",
+          "cpu_type": 16777223,
+          "architectures": [
+            "x86_64"
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "alpha",
+      "archive": "DV.Metadata.Burn-In.Tool.v0.1.0.Alpha.zip",
+      "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/alpha/DV.Metadata.Burn-In.Tool.v0.1.0.Alpha.zip",
+      "sha256": "2de7a36bb08503ef20a27eec596ba4a197c53ea6a22e50ed3254efd4308fb5b3",
+      "resources": [
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/LICENSE.md",
+          "bytes": 4346,
+          "sha256": "2e1d16c72fd74e12063776371da757322f8b77589386532f4fd8634bde7de1af"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/ffmpeg",
+          "bytes": 80083328,
+          "sha256": "430d60fbf419dab28daee9b679e7929a31ee9bae53f6e42e8ae26b725584290f"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/dvrescue",
+          "bytes": 8044880,
+          "sha256": "396f26f02b6ad16fa406b890964df20ddc16424a0c99314892ec12859283ad4f"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/COPYING.LGPLv2.1",
+          "bytes": 26517,
+          "sha256": "246041b6ecf9bc32d718a62c57877c78b5eb397b6467e74ed7ae2626ab189c30"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/dvrescue_LICENSE.txt",
+          "bytes": 1816,
+          "sha256": "508cd82b05f9e713ae96cb7f05e3e2af9c44098e13875998aa520c04f703b2e0"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/APP_LICENSE.txt",
+          "bytes": 1071,
+          "sha256": "d8bc72450a4cec80c2be1aa74537f68744ac92a4f3e730849f4f0306022dc406"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/NOTICE.txt",
+          "bytes": 782,
+          "sha256": "b1ab403e4969b121bb79ab6e0e0380e1a12803f70a0260feb1ef02625bbc5e80"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/COPYING.GPLv2",
+          "bytes": 18092,
+          "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/COPYING.GPLv3",
+          "bytes": 35147,
+          "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/COPYING.LGPLv3",
+          "bytes": 7651,
+          "sha256": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/VCR_OSD_MONO_1.001.ttf",
+          "bytes": 75864,
+          "sha256": "01918d86cb163a715dcb97165b997256734dfcc9f550beeb7c142fa4a064cf1c"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/UAV-OSD-Mono.ttf",
+          "bytes": 12636,
+          "sha256": "dc007ad0136f00f68bd5ee312f69b884721f323df01e5510ee17506585e4f2af"
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/UAV-OSD-Sans-Mono.ttf",
+          "bytes": 9616,
+          "sha256": "cdc111fe43093abaf2adb931dbca13ffa0c078be24c2cae894d01666a102f5d6"
+        }
+      ],
+      "plist": [
+        {
+          "CFBundleShortVersionString": "0.1.0",
+          "CFBundleVersion": "1",
+          "LSMinimumSystemVersion": "12.0"
+        }
+      ],
+      "entry_count": 26,
+      "executables": [
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/MacOS/DVMetaDataBurnIn",
+          "sha256": "7c6af23a5ff88a6d90ba73ac888e1b47c3a4014bcbee0078d3556d24a13796df",
+          "cpu_type": "fat",
+          "architectures": [
+            "x86_64",
+            "arm64"
+          ]
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/ffmpeg",
+          "sha256": "430d60fbf419dab28daee9b679e7929a31ee9bae53f6e42e8ae26b725584290f",
+          "cpu_type": 16777223,
+          "architectures": [
+            "x86_64"
+          ]
+        },
+        {
+          "path": "DVMetaDataBurnIn.app/Contents/Resources/dvrescue",
+          "sha256": "396f26f02b6ad16fa406b890964df20ddc16424a0c99314892ec12859283ad4f",
+          "cpu_type": 16777223,
+          "architectures": [
+            "x86_64"
+          ]
+        }
+      ]
+    }
+  ]
+}

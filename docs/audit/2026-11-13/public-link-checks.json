@@ -1,0 +1,106 @@
+{
+  "checked_on": "2026-11-13",
+  "method": "Unauthenticated HEAD following redirects; curl bounded to 20 seconds per URL; byte verification recorded separately",
+  "results": [
+    {
+      "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.1",
+      "http_status": "200",
+      "exit_code": 0
+    },
+    {
+      "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/v1.0.7-maintenance.1/BUILD-MANIFEST.json",
+      "http_status": "200",
+      "exit_code": 0
+    },
+    {
+      "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/v1.0.7-maintenance.1/DVMetaDataBurnIn-1.0.7-maintenance.1-macos-intel.zip",
+      "http_status": "200",
+      "exit_code": 0
+    },
+    {
+      "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/v1.0.7-maintenance.1/SHA256SUMS.txt",
+      "http_status": "200",
+      "exit_code": 0
+    },
+    {
+      "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/examples-train-dv-v1",
+      "http_status": "200",
+      "exit_code": 0
+    },
+    {
+      "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/manifest.json",
+      "http_status": "200",
+      "exit_code": 0
+    },
+    {
+      "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/SAMPLE-NOTES-v2.txt",
+      "http_status": "200",
+      "exit_code": 0
+    },
+    {
+      "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/SAMPLE-NOTES.txt",
+      "http_status": "200",
+      "exit_code": 0
+    },
+    {
+      "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/SHA256SUMS-v2.txt",
+      "http_status": "200",
+      "exit_code": 0
+    },
+    {
+      "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/SHA256SUMS.txt",
+      "http_status": "200",
+      "exit_code": 0
+    },
+    {
+      "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/train-01-maintenance-burn-60p.mp4",
+      "http_status": "200",
+      "exit_code": 0
+    },
+    {
+      "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/train-01-maintenance-burn-deinterlace-off.mp4",
+      "http_status": "200",
+      "exit_code": 0
+    },
+    {
+      "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/train-01-maintenance-dv-copy.mov",
+      "http_status": "200",
+      "exit_code": 0
+    },
+    {
+      "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/train-01-maintenance-subtitles.mkv",
+      "http_status": "200",
+      "exit_code": 0
+    },
+    {
+      "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/train-01-maintenance-timestamps.ass",
+      "http_status": "200",
+      "exit_code": 0
+    },
+    {
+      "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/train-01-original-dv.avi",
+      "http_status": "200",
+      "exit_code": 0
+    },
+    {
+      "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/train-01-owner-dateburn.mp4",
+      "http_status": "200",
+      "exit_code": 0
+    },
+    {
+      "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/verification.json",
+      "http_status": "200",
+      "exit_code": 0
+    },
+    {
+      "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/1.0.6beta",
+      "http_status": "200",
+      "exit_code": 0
+    },
+    {
+      "url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/1.0.6beta/DVMetaDataBurnIn.1.0.6.beta.zip",
+      "http_status": "200",
+      "exit_code": 0
+    }
+  ]
+}

@@ -1,0 +1,495 @@
+{
+  "audited_on": "2026-11-13",
+  "supplier_metadata_url": "https://evermeet.cx/ffmpeg/info/ffmpeg/8.0.1",
+  "scope": "Supplier version leads, not a verified linked-component or license inventory",
+  "configure_flags": [
+    "--cc=/usr/bin/clang",
+    "--prefix=/opt/ffmpeg",
+    "--extra-version=tessus",
+    "--enable-avisynth",
+    "--enable-fontconfig",
+    "--enable-gpl",
+    "--enable-libaom",
+    "--enable-libass",
+    "--enable-libbluray",
+    "--enable-libdav1d",
+    "--enable-libfreetype",
+    "--enable-libgsm",
+    "--enable-libharfbuzz",
+    "--enable-libmodplug",
+    "--enable-libmp3lame",
+    "--enable-libmysofa",
+    "--enable-libopencore-amrnb",
+    "--enable-libopencore-amrwb",
+    "--enable-libopenh264",
+    "--enable-libopenjpeg",
+    "--enable-libopus",
+    "--enable-librubberband",
+    "--enable-libshine",
+    "--enable-libsnappy",
+    "--enable-libsoxr",
+    "--enable-libspeex",
+    "--enable-libtheora",
+    "--enable-libtwolame",
+    "--enable-libvidstab",
+    "--enable-libvmaf",
+    "--enable-libvo-amrwbenc",
+    "--enable-libvorbis",
+    "--enable-libvpx",
+    "--enable-libwebp",
+    "--enable-libx264",
+    "--enable-libx265",
+    "--enable-libxavs",
+    "--enable-libxml2",
+    "--enable-libxvid",
+    "--enable-libzimg",
+    "--enable-libzmq",
+    "--enable-libzvbi",
+    "--enable-version3",
+    "--pkg-config-flags=--static",
+    "--disable-ffplay"
+  ],
+  "components": [
+    {
+      "name": "aom",
+      "version": "20220112-402e264b94 3gpp-2021-10-15-268",
+      "url": "https://aomedia.googlesource.com/aom",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "ass",
+      "version": "0.17.3",
+      "url": "https://github.com/libass/libass",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "bluray",
+      "version": "1.3.4",
+      "url": "https://www.videolan.org/developers/libbluray.html",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "bzip2",
+      "version": "1.0.8",
+      "url": "https://sourceware.org/bzip2/",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "dav1d",
+      "version": "20251112-e7c280e 1.5.2-8",
+      "url": "https://code.videolan.org/videolan/dav1d",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "expat",
+      "version": "2.6.3",
+      "url": "https://github.com/libexpat/libexpat",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "faac",
+      "version": "1.30",
+      "url": "https://sourceforge.net/projects/faac/",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "faad2",
+      "version": "2.8.8",
+      "url": "https://sourceforge.net/projects/faac/",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "flac",
+      "version": "1.3.3",
+      "url": "https://xiph.org/flac/",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "fontconfig",
+      "version": "2.14.2",
+      "url": "https://www.fontconfig.org",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "freetype",
+      "version": "2.13.3",
+      "url": "https://www.freetype.org",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "fribidi",
+      "version": "1.0.15",
+      "url": "https://github.com/fribidi/fribidi",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "gsm",
+      "version": "1.0.22",
+      "url": "http://www.quut.com/gsm/",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "harfbuzz",
+      "version": "9.0.0",
+      "url": "https://github.com/harfbuzz/harfbuzz",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "iconv",
+      "version": "1.17",
+      "url": "https://www.gnu.org/software/libiconv/",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "lame",
+      "version": "3.100",
+      "url": "http://lame.sourceforge.net",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "modplug",
+      "version": "0.8.8.5",
+      "url": "http://modplug-xmms.sourceforge.net",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "mysofa",
+      "version": "20220516-9c419b6 1.2.1-18",
+      "url": "https://github.com/hoene/libmysofa",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "ogg",
+      "version": "1.3.5",
+      "url": "https://www.xiph.org/downloads/",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "openal-soft",
+      "version": "1.20.0",
+      "url": "https://openal-soft.org",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "opencore-amr",
+      "version": "0.1.5",
+      "url": "https://sourceforge.net/projects/opencore-amr/",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "openh264",
+      "version": "20251028-cf568c83 2.6.0-8",
+      "url": "http://www.openh264.org",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "openjpeg",
+      "version": "20250928-0f4cb485 2.5.4-31",
+      "url": "https://github.com/uclouvain/openjpeg",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "opus",
+      "version": "1.5.2",
+      "url": "http://www.opus-codec.org",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "orc",
+      "version": "0.4.32",
+      "url": "https://gstreamer.freedesktop.org/src/orc/",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "rubberband",
+      "version": "3.3.0",
+      "url": "https://breakfastquay.com/rubberband/",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "shine",
+      "version": "3.1.1",
+      "url": "https://github.com/toots/shine",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "snappy",
+      "version": "20251020-cbea40d 1.2.2-25",
+      "url": "https://github.com/google/snappy",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "soxr",
+      "version": "0.1.3",
+      "url": "https://sourceforge.net/projects/soxr/files/",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "speex",
+      "version": "1.2.0",
+      "url": "https://www.speex.org",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "theora",
+      "version": "1.1.1",
+      "url": "https://www.theora.org",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "twolame",
+      "version": "0.4.0",
+      "url": "http://twolame.org",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "uuid",
+      "version": "1.6.2",
+      "url": "http://www.ossp.org/pkg/lib/uuid/",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "vid.stab",
+      "version": "20250821-4bd81e3 1.1.1-20",
+      "url": "https://github.com/georgmartius/vid.stab",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "vmaf",
+      "version": "20251112-e0d9b82d 3.0.0-122",
+      "url": "https://github.com/Netflix/vmaf",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "vo-aacenc",
+      "version": "0.1.3",
+      "url": "https://sourceforge.net/projects/opencore-amr/",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "vo-amrwbenc",
+      "version": "0.1.3",
+      "url": "https://sourceforge.net/projects/opencore-amr/",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "vorbis",
+      "version": "1.3.7",
+      "url": "https://xiph.org/vorbis/",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "vpx",
+      "version": "20211108-888bafc78 1.11.0-30",
+      "url": "https://github.com/webmproject/libvpx",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "webp",
+      "version": "20211105-8ea81561 1.2.1-31",
+      "url": "https://github.com/webmproject/libwebp",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "x264",
+      "version": "20250910-0480cb05 0.165.3223",
+      "url": "https://www.videolan.org/developers/x264.html",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "x265",
+      "version": "20251114-9e551a994 4.1+211-9e551a994",
+      "url": "https://bitbucket.org/multicoreware/x265_git/wiki/Home",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "xavs",
+      "version": "20110821-r55",
+      "url": "http://xavs.sourceforge.net/",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "xvidcore",
+      "version": "1.3.7",
+      "url": "https://labs.xvid.com/source/",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "z.lib (zimg)",
+      "version": "3.0.5",
+      "url": "https://github.com/sekrit-twc/zimg",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "zeromq",
+      "version": "4.3.5",
+      "url": "http://zeromq.org",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "zlib",
+      "version": "1.2.13",
+      "url": "http://zlib.net",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "zvbi",
+      "version": "0.2.35",
+      "url": "http://zapping.sourceforge.net/ZVBI/",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "required_materials": "Confirm inclusion and exact source/patches; establish license and preserve required copyright/notices; include in corresponding source where applicable",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    },
+    {
+      "name": "libxml2",
+      "version": null,
+      "url": "https://gitlab.gnome.org/GNOME/libxml2",
+      "status": "Unresolved",
+      "applicable_license": "Not verified for exact linked source/build",
+      "evidence": "--enable-libxml2; absent from supplier API list",
+      "issue": "https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194"
+    }
+  ]
+}

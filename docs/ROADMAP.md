@@ -1,6 +1,6 @@
 # Preservation roadmap
 
-The goal is accurate, accessible preservation of legacy digital recordings and their original recording context. This is a direction and acceptance checklist, not a delivery schedule. [The train demonstration](examples/TRAIN_DV_PRESERVATION.md) records what has actually been measured.
+The goal is accurate, accessible preservation of legacy digital recordings and their original recording context. This is a direction and acceptance checklist, not a delivery schedule. [The train demonstration](examples/TRAIN_DV_PRESERVATION.md) records what has actually been measured. See the [current evidence summary](PROJECT_STATUS.md) and [community validation guide](COMMUNITY_VALIDATION.md).
 
 ## Completed and available
 
@@ -10,7 +10,7 @@ The goal is accurate, accessible preservation of legacy digital recordings and t
 
 ## In progress: complete the 1.0.7 maintenance release
 
-**Branch policy:** `main` retains the 1.0.6 application code; `maintenance/1.0.7` retains the 1.0.7 preview for owner testing. The premature merge of PR #191 is reversed by a corrective PR restoring the stable application code, without deleting the maintenance branch or rewriting history. No further maintenance integration or release promotion is authorized until the owner approves it after testing. Subtitle-tail timing, scratch isolation, cancellation cleanup, and failure propagation have synthetic/CLI evidence. The train clip adds bounded real-footage evidence, including a field-flag mismatch in deinterlacing-off H.264 output.
+**Branch policy:** `main` retains the 1.0.6 application code; `maintenance/1.0.7` retains the 1.0.7 preview for owner testing. The premature merge of PR #191 was reversed by [PR #193](https://github.com/shardsofaperture/DVMetaDataBurnIn/pull/193), restoring the stable application code, without deleting the maintenance branch or rewriting history. No further maintenance integration or release promotion is authorized until the owner approves it after testing. Subtitle-tail timing, scratch isolation, cancellation cleanup, and failure propagation have synthetic/CLI evidence. The train clip adds bounded real-footage evidence, including a field-flag mismatch in deinterlacing-off H.264 output.
 
 Acceptance: match extracted recording dates to overlays/subtitle events across real fixtures; verify safe folder queues and Stop at every processing stage; demonstrate independent concurrent workspaces; reject failed or partial final outputs without overwriting valid owner exports; show useful progress and actionable errors. Confirm these through GUI and player checks, not only shell tests. Retain current-plus-rollback builds. See the [maintenance report](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/maintenance/1.0.7/docs/MAINTENANCE_1.0.7.md).
 
@@ -18,7 +18,7 @@ Acceptance: match extracted recording dates to overlays/subtitle events across r
 
 Prerequisites: owner-authorized real-camera fixtures with original hashes, camera/format provenance, and independently confirmed facts where possible. Add genuine recording breaks, day changes, and damaged-input examples only when such material exists.
 
-Acceptance: reproducible metadata reports; container-independent DV payload comparison; separate audio, duration, frame, and subtitle checks; safe publication of final outputs; documented player review and Intel/Apple Silicon validation as separate gates. Resolve metadata-versus-decoded-field discrepancies and verify motion visually. Preserve each untouched capture even when a derivative passes selected checks. Close component-source and font-notice gaps recorded in [licensing notes](LICENSING.md).
+Acceptance: reproducible metadata reports; container-independent DV payload comparison; separate audio, duration, frame, and subtitle checks; safe publication of final outputs; documented player review and Intel/Apple Silicon validation as separate gates. Resolve metadata-versus-decoded-field discrepancies and verify motion visually. Preserve each untouched capture even when a derivative passes selected checks. Resolve [FFmpeg source/notices #194](https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194), [DVRescue dependency evidence #195](https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/195), and [font terms #196](https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/196), as detailed in the [distribution audit](THIRD_PARTY_DISTRIBUTION_AUDIT.md). Track [field signaling #197](https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/197) and [safe final-output publication #198](https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/198) before claiming those behaviors verified.
 
 ## Planned: direct DV/Digital8 capture
 
