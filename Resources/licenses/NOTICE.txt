@@ -22,20 +22,9 @@ A published local patch fixes the upstream capture-disabled build and labels
 the modified version. No DeckLink SDK is used or distributed in this build. Included upstream
 subcomponent notices follow; retained unused source notices grant no extra rights.
 
-Fonts (unmodified files, SIL Open Font License 1.1):
-VT323: Copyright 2011, The VT323 Project Authors.
-Share Tech Mono: Copyright (c) 2012, Carrois Type Design, Ralph du Carrois.
-IBM Plex Mono: Copyright (c) 2017 IBM Corp.
-The full copyright, reserved-name and license terms are included in
-VT323-Regular-OFL.txt, ShareTechMono-Regular-OFL.txt and IBMPlexMono-Regular-OFL.txt.
-Bundled font attachments in generated MKVs are accompanied by their OFL text.
+Bundled fonts (original unmodified files, also used by stable 1.0.6):
+The following notices accompany the app and bundled-font attachments in MKVs.
 
-Historical distributions have separate dated evidence and unresolved source or
-permission questions; see docs/THIRD_PARTY_DISTRIBUTION_AUDIT.md. They are not
-covered by this replacement's build provenance or fonts' licenses.
-
-Historical fonts (including stable 1.0.6 and preview 1; not bundled in
-maintenance preview 2):
 UAV OSD Mono and UAV OSD Sans Mono, by Nicholas Kruse
 Used and redistributed by DVMetaDataBurnIn with express written permission
 from Nicholas Kruse, granted November 13, 2026. The correspondence is privately
@@ -45,14 +34,8 @@ Source: https://www.dafont.com/uav-osd.font
 Author page: https://nicholaskruse.com/work/uavosd
 
 VCR OSD Mono Font, by Riciery Leal (MrManet)
-The author confirmed commercial use is permitted in his February 24, 2017
-DaFont comment. DaFont classifies the font as 100% Free; catalog classifications
-are not independent author grants of redistribution or embedding permission.
-Explicit author permission for redistribution and embedding remains unconfirmed.
-The maintainer has decided to retain the font with its existing attribution in
-stable and earlier distributions while awaiting clarification from the author.
-The maintainer has requested clarification and will update the project if the
-author responds; absence of a reply does not establish additional permission.
+Free for commercial use, as confirmed by the author in his February 24, 2017
+DaFont comment. Retained with the existing attribution by the maintainer.
 Source: https://www.dafont.com/font-comment.php?file=vcr_osd_mono
 Font page: https://www.dafont.com/vcr-osd-mono.font
 

@@ -8,6 +8,8 @@ A free, open-source macOS application for preserving the recording context of le
 
 **Active experimental development:** [`maintenance/1.0.7`](https://github.com/shardsofaperture/DVMetaDataBurnIn/tree/maintenance/1.0.7) · [Preview 2 download and corresponding source](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.2) · [tests and known limitations](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/maintenance/1.0.7/docs/MAINTENANCE_1.0.7.md). Preview 2 includes the output-safety and field-signaling fixes, traceable source-built tools, and OFL fonts. Stable application source remains [v1.0.6 on main](https://github.com/shardsofaperture/DVMetaDataBurnIn/tree/main).
 
+Current maintenance source restores the original UAV OSD Mono, UAV OSD Sans Mono and VCR OSD Mono fonts. This correction is not in the unchanged preview 2 download; build from the maintenance branch to use it.
+
 The train demonstration includes the complete supplied DV AVI, the owner's timestamped MP4, and separately identified maintenance-generated comparisons. Downloadable hashes, measured stream properties, genuine before/after frames, and reproduction commands make the results inspectable.
 
 ## What it does
@@ -48,7 +50,7 @@ Report a successful test or discrepancy using the [community validation guide](d
 
 ## Screenshots
 
-Historical UI examples below predate the preview 2 font replacement. The current bundled choices are VT323, Share Tech Mono and IBM Plex Mono.
+The bundled choices are UAV OSD Mono, UAV OSD Sans Mono and VCR OSD Mono.
 
 ![Main application window](Resources/Screenshots/Main_Window.png)
 
@@ -59,6 +61,6 @@ Historical UI examples below predate the preview 2 font replacement. The current
 - Application and UI: **Zach Zarzycki / ThePolish**.
 - [DVRescue](https://mediaarea.net/DVRescue): embedded DV metadata analysis; by MIPoPS and MediaArea contributors.
 - [FFmpeg](https://ffmpeg.org/): decoding, filtering, encoding, and container handling.
-- Bundled OFL fonts: **The VT323 Project Authors**, **Carrois Type Design / Ralph du Carrois**, and **IBM Corp.** Full licenses are in [the bundled notices](Resources/licenses/NOTICE.txt). Historical UAV/VCR credits remain in the [licensing record](docs/LICENSING.md).
+- UAV OSD Mono and UAV OSD Sans Mono: **Nicholas Kruse**, used and redistributed with express permission. VCR OSD Mono: **Riciery Leal (MrManet)**. See [the bundled notices](Resources/licenses/NOTICE.txt).
 
 The application uses the **[MIT License](LICENSE)**, identical to its [existing bundled application notice](Resources/licenses/APP_LICENSE.txt), with the original copyright holder and year retained. This does not relicense FFmpeg, DVRescue, fonts, other dependencies, or sample footage. See [third-party licenses and source materials](docs/LICENSING.md). Train videos and extracted frames are attributed to Zach Zarzycki and published with permission; no new media license is granted.

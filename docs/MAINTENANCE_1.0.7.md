@@ -16,6 +16,20 @@ Runtime commit `2802355` is exclusive to maintenance; stable main remains 1.0.6.
 
 Issue #198's publication defect is fixed with focused evidence. #197 remains open only for moving-picture/player acceptance before stable 1.0.7 promotion. The technical correction and automated verification are complete; this acceptance gate does not block maintenance commits, experimental prereleases, documentation or unrelated licensing work. GUI Stop/queues, subjective audio/motion, broader footage, native Apple Silicon and Rosetta remain unverified.
 
+## Current maintenance fonts
+
+Current maintenance restores the original UAV OSD Mono, UAV OSD Sans Mono and
+VCR OSD Mono files, default selection and camcorder previews. Font hashes match
+stable 1.0.6. Subtitle family-name resolution and accompanying MKV notices are
+retained. The published preview 2 archive below keeps its original OFL fonts;
+build current maintenance source for the restored fonts.
+
+Font restoration checks on Intel macOS passed: 35 regressions, three shell
+smoke checks, 11 release-integrity tests and the native Release build. All three
+fonts render in burn-in tests; MKVs preserve their exact bytes, family names
+and accompanying notices. The built app contains only the three original fonts,
+matching stable hashes. GUI/player acceptance remains outstanding.
+
 ## Preview 2 bundled components
 
 [Preview 2](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.2)
@@ -25,7 +39,7 @@ uses MediaInfoLib 24.06 and ZenLib 0.4.41 with capture/DeckLink/serial control a
 simulation disabled. A disclosed patch corrects upstream conditional compilation;
 no capture SDK is used. Direct tape capture remains a future application goal.
 
-The bundled fonts are now VT323, Share Tech Mono and IBM Plex Mono under SIL
+The published preview 2 fonts are VT323, Share Tech Mono and IBM Plex Mono under SIL
 OFL 1.1. Their unmodified bytes and full terms are pinned, included in the app,
 and attached together in generated MKVs. Font selection passes the actual
 family name to ASS, and the live UI preview registers the default font.

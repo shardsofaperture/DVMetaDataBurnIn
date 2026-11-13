@@ -61,9 +61,10 @@ This is a pinned, repeatable build procedure with recorded actual inputs, not a
 claim of byte-for-byte reproducibility across SDKs, tool versions or build paths.
 Native Apple Silicon builds have not been validated.
 
-The three unmodified font binaries and full OFL texts are pinned separately in
-`fonts.lock.json`. The application and repository distribute those texts; MKV
-exports attach the corresponding license with bundled font bytes. Users must
+The original unmodified UAV/VCR font binaries are pinned separately in
+`fonts.lock.json`, matching stable 1.0.6. Their attribution and permission notices
+are in `Resources/licenses/NOTICE.txt`; MKV exports attach that notice with the
+bundled font bytes. Published preview 2 retains its different OFL font set. Users must
 check their own rights when choosing other system/custom fonts for attachment.
 
 After replacing tools, run `zsh Resources/scripts/dev/test_all.zsh`, the native

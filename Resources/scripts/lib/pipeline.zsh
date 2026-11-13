@@ -278,12 +278,12 @@ process_file_core() {
 
 # Default if UI didn't pass a name
 if [[ -z "$subtitle_font_name" ]]; then
-  local matching_license
-  matching_license=$(bundled_font_license "$font" 2>/dev/null) || matching_license=""
-  case "${matching_license:t}" in
-    VT323-Regular-OFL.txt) subtitle_font_name="VT323" ;;
-    ShareTechMono-Regular-OFL.txt) subtitle_font_name="Share Tech Mono" ;;
-    IBMPlexMono-Regular-OFL.txt) subtitle_font_name="IBM Plex Mono" ;;
+  local matching_font
+  matching_font=$(bundled_font_name "$font") || matching_font=""
+  case "$matching_font" in
+    UAV-OSD-Mono) subtitle_font_name="UAV OSD Mono" ;;
+    UAV-OSD-Sans-Mono) subtitle_font_name="UAV OSD Sans Mono" ;;
+    VCR_OSD_MONO) subtitle_font_name="VCR OSD Mono" ;;
     *) subtitle_font_name="${font:t:r}" ;;
   esac
 fi

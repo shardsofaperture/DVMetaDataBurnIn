@@ -7,7 +7,9 @@ Bundled components retain their own licenses and attribution in
 
 ## Maintenance 1.0.7
 
-This page covers [experimental preview 2](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.2).
+This page covers the current experimental maintenance branch. The published
+[preview 2](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.2)
+uses the same tool binaries but has a different font set, described below.
 [Main remains stable 1.0.6](https://github.com/shardsofaperture/DVMetaDataBurnIn/tree/main),
 with [its own bundled-component terms](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/main/docs/LICENSING.md).
 
@@ -18,7 +20,7 @@ with [its own bundled-component terms](https://github.com/shardsofaperture/DVMet
 | FreeType 2.13.3 | GPL-2.0-or-later alternative selected; included BDF/PCF and HarfBuzz notices retained. |
 | HarfBuzz 10.4.0 | Permissive licenses reproduced from upstream COPYING. |
 | DVRescue 24.07-dvmetadata1 | BSD-3-Clause; built from MediaArea's official all-in-one source with MediaInfoLib 24.06 (BSD-2-Clause) and ZenLib 0.4.41 (zlib). DeckLink and other capture/control integrations are disabled; no SDK is used. |
-| VT323, Share Tech Mono, IBM Plex Mono | Unmodified font bytes from a pinned Google Fonts revision. Full author/copyright/reserved-name terms and SIL OFL 1.1 texts accompany the app. MKV attachments include the corresponding OFL text. |
+| UAV OSD Mono, UAV OSD Sans Mono, VCR OSD Mono | Original unmodified fonts, with attribution and permissions below. MKV attachments include the bundled notices. |
 
 ## Corresponding source
 
@@ -41,7 +43,14 @@ Corresponding-source/build materials and the complete dependency notice set for
 that historical binary remain unavailable. The DVRescue notice supplement is
 provided beside the historical downloads.
 
-## Fonts in stable and earlier releases
+## Published preview 2 fonts
+
+The unchanged preview 2 archive contains VT323, Share Tech Mono and IBM Plex Mono
+under SIL OFL 1.1, with their full notices. Current maintenance restores the
+original UAV/VCR fonts; build from the branch for that correction. The preview 2
+font notices remain available in its package and tagged source.
+
+## Bundled fonts
 
 UAV OSD Mono and UAV OSD Sans Mono are by Nicholas Kruse. He granted
 DVMetaDataBurnIn express written permission to use and redistribute both fonts
@@ -50,22 +59,13 @@ This permission applies to this project; it is not an OFL license, a public-doma
 dedication, or blanket permission for unrelated projects. Copyright attribution
 and source links are retained in the notices.
 
-VCR OSD Mono is by Riciery Leal (MrManet). His own
-[February 24, 2017 comment](https://www.dafont.com/font-comment.php?file=vcr_osd_mono)
-confirms commercial use is permitted. [DaFont](https://www.dafont.com/vcr-osd-mono.font)
-classifies it as 100% Free. The maintainer also reviewed third-party catalog
-classifications permitting redistribution; these classifications are not
-independent author grants. Explicit author permission for redistribution and
-attachment/embedding remains unconfirmed.
-
-The maintainer has decided to retain VCR OSD Mono with its existing attribution
-and source references in stable and earlier distributions. Clarification has
-been requested from the author; the project will be updated if a response arrives.
-The completed documentation and maintainer decision are recorded in
-[#196](https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/196), which may
-be reopened on new author evidence. Closing the issue does not establish legal
-permission, and absence of a reply grants no additional rights. Maintenance
-preview 2's OFL fonts and their terms are unchanged.
+VCR OSD Mono is by Riciery Leal (MrManet). In his
+[February 24, 2017 comment](https://www.dafont.com/font-comment.php?file=vcr_osd_mono),
+the author states: “Yes, the font is free even for commercial purposes.”
+[DaFont](https://www.dafont.com/vcr-osd-mono.font) lists the font as 100% Free.
+The maintainer retains it with the original attribution and source reference.
+Font licensing issue [#196](https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/196)
+is closed. The maintainer will incorporate any further author clarification.
 
 ## Train footage and extracted frames
 

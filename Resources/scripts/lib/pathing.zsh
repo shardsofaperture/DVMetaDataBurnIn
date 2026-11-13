@@ -87,24 +87,31 @@ validate_and_plan_file() {
   return 0
 }
 
-bundled_font_license() {
-  local selected="$1" name font_dir license
-  # Match bytes even when a user copied/renamed one of the bundled fonts.
-  for name in VT323-Regular ShareTechMono-Regular IBMPlexMono-Regular; do
-   for font_dir in "$script_root/fonts" "$script_root/../fonts" "$script_root/.."; do
-    [[ -f "$font_dir/$name.ttf" ]] || continue
-    cmp -s "$selected" "$font_dir/$name.ttf" || continue
-    for license in "$script_root/../licenses/$name-OFL.txt" "$script_root/../$name-OFL.txt"; do
-      if [[ -f "$license" ]]; then
-        print -r -- "$license"
-        return 0
-      fi
+bundled_font_name() {
+  local selected="$1" name font_dir
+  # Identify original bundled bytes even when a user copied/renamed the font.
+  for name in UAV-OSD-Mono UAV-OSD-Sans-Mono VCR_OSD_MONO; do
+    for font_dir in "$script_root/fonts" "$script_root/../fonts" "$script_root/.."; do
+      [[ -f "$font_dir/$name.ttf" ]] || continue
+      cmp -s "$selected" "$font_dir/$name.ttf" || continue
+      print -r -- "$name"
+      return 0
     done
-    echo "[ERROR] Missing license for bundled font: $name" >&2
-    return 2
-   done
   done
   return 1
+}
+
+bundled_font_license() {
+  local name license
+  name=$(bundled_font_name "$1") || return 1
+  for license in "$script_root/../licenses/NOTICE.txt" "$script_root/../NOTICE.txt"; do
+    if [[ -f "$license" ]]; then
+      print -r -- "$license"
+      return 0
+    fi
+  done
+  echo "[ERROR] Missing notice for bundled font: $name" >&2
+  return 2
 }
 
 find_font() {
@@ -123,9 +130,9 @@ find_font() {
   # 3) Bundled fonts next
   local script_dir="${script_root%/}"
   local -a font_names=(
-    "VT323-Regular.ttf"
-    "ShareTechMono-Regular.ttf"
-    "IBMPlexMono-Regular.ttf"
+    "UAV-OSD-Mono.ttf"
+    "UAV-OSD-Sans-Mono.ttf"
+    "VCR_OSD_MONO.ttf"
   )
 
   local resource_fonts_dirs=(

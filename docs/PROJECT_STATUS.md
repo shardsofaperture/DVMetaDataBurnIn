@@ -37,6 +37,20 @@ The [release integrity gate](../scripts/verify_release.py) rejects mismatched ta
 
 Before promoting 1.0.7, complete GUI queues/Stop, player subtitle/motion/audio review, broader real-camera cases and platform acceptance. #197 remains open only as a moving-picture/player acceptance gate before stable 1.0.7 promotion; the technical correction and automated verification are complete. It does not block maintenance commits, experimental prereleases, documentation or unrelated licensing work. #198 concerns publication safety, with GUI acceptance tracked separately. Use the [community validation guide](COMMUNITY_VALIDATION.md). Direct DV/Digital8 and HDV capture remain [planned](ROADMAP.md).
 
+## Current maintenance fonts
+
+Current maintenance restores the original UAV OSD Mono, UAV OSD Sans Mono and
+VCR OSD Mono files, default selection and camcorder previews. Font hashes match
+stable 1.0.6. Subtitle family-name resolution and accompanying MKV notices are
+retained. The published preview 2 archive below keeps its original OFL fonts;
+build current maintenance source for the restored fonts.
+
+Font restoration checks on Intel macOS passed: 35 regressions, three shell
+smoke checks, 11 release-integrity tests and the native Release build. All three
+fonts render in burn-in tests; MKVs preserve their exact bytes, family names
+and accompanying notices. The built app contains only the three original fonts,
+matching stable hashes. GUI/player acceptance remains outstanding.
+
 ## Maintenance preview 2
 
 The replacement FFmpeg build pins FFmpeg 8.0.1, x264, FreeType and HarfBuzz;
