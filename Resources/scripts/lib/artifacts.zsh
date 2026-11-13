@@ -4,31 +4,38 @@ prepare_artifact_dir() {
   local input_path="$1"
   local base_name ts artifact_dir
 
-  base_name="${2:-${input_path:t:r}}"
+  base_name="${input_path:t:r}"
   ts=$(date '+%Y%m%d_%H%M%S')
 
-  local root="${artifact_root:-${HOME}/Library/Logs/DVMeta}"
-  mkdir -p -- "$root" || return 1
-  artifact_dir=$(mktemp -d "${root%/}/${base_name}_${ts}.XXXXXXXX") || return 1
+  if [[ -z "$artifact_root" ]]; then
+    artifact_dir="${HOME}/Library/Logs/DVMeta/${base_name}_${ts}"
+  else
+    artifact_dir="${artifact_root%/}/${base_name}_${ts}"
+  fi
 
-  print -r -- "$artifact_dir"
+  if ! mkdir -p "$artifact_dir"; then
+    echo "[ERROR] Unable to create artifact directory: $artifact_dir" >&2
+    return 1
+  fi
+
+  echo "$artifact_dir"
   return 0
 }
 
 stat_size_bytes() {
-  local file_path="$1"
-  if [[ ! -e "$file_path" ]]; then
+  local path="$1"
+  if [[ ! -e "$path" ]]; then
     echo "0"
     return 0
   fi
 
-  if stat -f '%z' "$file_path" >/dev/null 2>&1; then
-    stat -f '%z' "$file_path"
+  if stat -f '%z' "$path" >/dev/null 2>&1; then
+    stat -f '%z' "$path"
     return 0
   fi
 
-  if stat -c '%s' "$file_path" >/dev/null 2>&1; then
-    stat -c '%s' "$file_path"
+  if stat -c '%s' "$path" >/dev/null 2>&1; then
+    stat -c '%s' "$path"
     return 0
   fi
 
@@ -37,11 +44,11 @@ stat_size_bytes() {
 
 log_artifact_path_and_size() {
   local label="$1"
-  local file_path="$2"
+  local path="$2"
   local size
 
-  size=$(stat_size_bytes "$file_path")
-  echo "[INFO] ${label}: $file_path (${size} bytes)" >&2
+  size=$(stat_size_bytes "$path")
+  echo "[INFO] ${label}: $path (${size} bytes)" >&2
 }
 
 create_artifact_scaffold() {
@@ -68,7 +75,7 @@ create_artifact_scaffold() {
     echo "[INFO] Artifact directory (override): $artifact_dir" >&2
     debug_log "Artifacts will be stored in override dir $artifact_dir"
   else
-    if ! artifact_dir="$(prepare_artifact_dir "$in" "$base_name")"; then
+    if ! artifact_dir="$(prepare_artifact_dir "$in")"; then
       return 1
     fi
   fi
@@ -92,7 +99,7 @@ create_artifact_scaffold() {
   log_write "$ass_artifact"
   : > "$ass_artifact"
   log_write "$run_manifest"
-  printf '{"status":"pending","input":"%s"}\n' "$(json_escape "$in")" > "$run_manifest"
+  printf '{"status":"pending","input":"%s"}\n' "$in" > "$run_manifest"
   log_write "$versions_file"
   : > "$versions_file"
 
@@ -107,9 +114,9 @@ create_artifact_scaffold() {
 }
 
 write_versions_file() {
-  local file_path="$1"
+  local path="$1"
 
-  log_write "$file_path"
+  log_write "$path"
   {
     if command -v "$ffmpeg_bin" >/dev/null 2>&1; then
       "$ffmpeg_bin" -version 2>/dev/null | head -n 1
@@ -127,9 +134,9 @@ write_versions_file() {
     echo "dvrescue_status: $last_dvrescue_status"
     echo "frame_source: $last_parse_frame_source"
     echo "parse_stats: raw=${last_parse_raw_rows}, valid=${last_parse_valid_rows}, skipped=${last_parse_skipped_rows}, timeline=${last_parse_timeline_entries}"
-  } > "$file_path" 2>/dev/null || true
+  } > "$path" 2>/dev/null || true
 
-  echo "[INFO] Versions file recorded at: $file_path" >&2
+  echo "[INFO] Versions file recorded at: $path" >&2
 }
 
 write_run_manifest() {
@@ -164,56 +171,56 @@ write_run_manifest() {
   log_write "$manifest_path"
   cat > "$manifest_path" <<EOF_MANIFEST
 {
-  "status": "$(json_escape "$status_label")",
-  "input": "$(json_escape "$input_path")",
-  "input_original": "$(json_escape "$primary_input_path")",
-  "artifact_dir": "$(json_escape "$artifact_dir")",
-  "output_mode": "$(json_escape "$output_mode")",
-  "burn_mode": "$(json_escape "$burn_mode")",
-  "subtitle_mode": "$(json_escape "$subtitle_mode")",
-  "layout": "$(json_escape "$layout")",
-  "format": "$(json_escape "$effective_format")",
-  "encode_quality": "$(json_escape "$effective_encode_quality")",
+  "status": "$status_label",
+  "input": "$input_path",
+  "input_original": "$primary_input_path",
+  "artifact_dir": "$artifact_dir",
+  "output_mode": "$output_mode",
+  "burn_mode": "$burn_mode",
+  "subtitle_mode": "$subtitle_mode",
+  "layout": "$layout",
+  "format": "$effective_format",
+  "encode_quality": "$effective_encode_quality",
   "cleanup_stage_completed": $([[ $cleanup_stage_done -eq 1 ]] && echo true || echo false),
   "decisions": {
-    "requested_format": "$(json_escape "$requested_format")",
-    "requested_output_mode": "$(json_escape "$output_mode")",
-    "effective_format": "$(json_escape "$effective_format")",
+    "requested_format": "$requested_format",
+    "requested_output_mode": "$output_mode",
+    "effective_format": "$effective_format",
     "format_coerced": $([[ $format_coerced -eq 1 ]] && echo true || echo false),
-    "coercion_reason": "$(json_escape "$format_coercion_reason")",
-    "requested_encode_quality": "$(json_escape "$requested_encode_quality")",
-    "effective_encode_quality": "$(json_escape "$effective_encode_quality")",
-    "burn_mode": "$(json_escape "$burn_mode")",
-    "subtitle_mode": "$(json_escape "$subtitle_mode")"
+    "coercion_reason": "$format_coercion_reason",
+    "requested_encode_quality": "$requested_encode_quality",
+    "effective_encode_quality": "$effective_encode_quality",
+    "burn_mode": "$burn_mode",
+    "subtitle_mode": "$subtitle_mode"
   },
   "artifacts": {
-    "dvrescue_xml": "$(json_escape "$xml_path")",
-    "dvrescue_log": "$(json_escape "$log_path")",
-    "timeline_debug": "$(json_escape "$timeline_path")",
-    "sendcmd_file": "$(json_escape "$sendcmd_path")",
-    "ass_file": "$(json_escape "$ass_path")",
-    "versions_file": "$(json_escape "$versions_path")",
-    "run_manifest": "$(json_escape "$manifest_path")"
+    "dvrescue_xml": "$xml_path",
+    "dvrescue_log": "$log_path",
+    "timeline_debug": "$timeline_path",
+    "sendcmd_file": "$sendcmd_path",
+    "ass_file": "$ass_path",
+    "versions_file": "$versions_path",
+    "run_manifest": "$manifest_path"
   },
   "outputs": {
-    "burnin": "$(json_escape "$burn_output")",
-    "subtitle": "$(json_escape "$subtitle_output")",
-    "passthrough": "$(json_escape "$passthrough_output")"
+    "burnin": "$burn_output",
+    "subtitle": "$subtitle_output",
+    "passthrough": "$passthrough_output"
   },
   "stitch": {
     "enabled": $stitch_enabled,
-    "inputs_manifest": "$(json_escape "$stitch_inputs_resolved")",
-    "stitched_source": "$(json_escape "$stitched_source")"
+    "inputs_manifest": "$stitch_inputs_resolved",
+    "stitched_source": "$stitched_source"
   },
   "parse": {
-    "frame_source": "$(json_escape "$last_parse_frame_source")",
+    "frame_source": "$last_parse_frame_source",
     "raw_rows": $last_parse_raw_rows,
     "valid_rows": $last_parse_valid_rows,
     "skipped_rows": $last_parse_skipped_rows,
     "timeline_entries": $last_parse_timeline_entries,
-    "timeline_granularity": "$(json_escape "$burn_granularity")",
+    "timeline_granularity": "$burn_granularity",
     "dvrescue_status": $last_dvrescue_status,
-    "fps": "$(json_escape "$last_detected_fps")"
+    "fps": "${last_detected_fps}"
   },
   "run_notes": [
 ${notes_json}
@@ -261,8 +268,7 @@ finish_run() {
     debug_log "Final output path: $final_output"
   fi
 
-  [[ "$status_label" != "error" ]] || run_had_failure=1
-  # The EXIT trap cleans the workspace once, after every batch/stitch step.
+  cleanup_run_scratch_root "$status_label" || warn "[cleanup] Scratch cleanup failed (non-fatal)"
 
   return "$exit_code"
 }

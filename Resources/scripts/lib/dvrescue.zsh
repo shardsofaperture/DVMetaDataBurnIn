@@ -1,56 +1,5 @@
 # dvrescue.zsh
 
-# FFmpeg's human-readable banner rounds NTSC rates to two decimals. Restore
-# the exact DV rate before converting frame indices to elapsed seconds.
-normalize_fps() {
-  LC_NUMERIC=C awk -v rate="$1" 'BEGIN {
-    if (rate == "29.97") rate = 30000/1001;
-    else if (rate == "59.94") rate = 60000/1001;
-    else if (rate == "23.98" || rate == "23.976") rate = 24000/1001;
-    else if (rate ~ /^[0-9]+\/[0-9]+$/) {
-      split(rate, fraction, "/");
-      if (fraction[2] == 0) exit 1;
-      rate = fraction[1]/fraction[2];
-    } else if (rate !~ /^[0-9]+([.][0-9]+)?$/) exit 1;
-    if (rate <= 0) exit 1;
-    printf "%.12f\n", rate;
-  }'
-}
-
-# DV is constant-frame-rate. Align the banner's centisecond duration to the
-# nearest source frame, without adding an ffprobe runtime dependency. If the
-# duration is unavailable, use the last numbered DVRescue row, even when that
-# row has no recording date/time. A single-frame tail is the last resort.
-subtitle_media_end() {
-  local source_video="$1" dv_log="$2" fps="$3"
-  local duration="" probe=""
-  if [[ -f "$source_video" ]]; then
-    probe=$("$ffmpeg_bin" -hide_banner -i "$source_video" 2>&1 || true)
-    duration=$(printf '%s\n' "$probe" | awk '
-      /Duration:/ {
-        for (i=1; i<NF; i++) if ($i == "Duration:") {
-          value=$(i+1); sub(/,$/, "", value);
-          if (value ~ /^[0-9]+:[0-9]+:[0-9]+([.][0-9]+)?$/) {
-            split(value, p, ":"); printf "%.9f\n", p[1]*3600+p[2]*60+p[3]; exit;
-          }
-        }
-      }')
-  fi
-  if [[ -n "$duration" ]] && awk -v d="$duration" 'BEGIN {exit !(d>0)}'; then
-    awk -v d="$duration" -v fps="$fps" 'BEGIN {
-      frames=int(d*fps+0.5); if (frames<1) frames=1;
-      printf "%.9f\n", frames/fps;
-    }'
-    return 0
-  fi
-  warn "[subtitle] Media duration unavailable; using the last numbered DVRescue frame."
-  tr '\r' '\n' < "$dv_log" | awk -v fps="$fps" '
-    $1 ~ /^[0-9]+$/ && (NF==1 || $2 ~ /^[0-9][0-9]:/) {
-      if ($1>last_frame) last_frame=$1;
-    }
-    END {if (last_frame>0) printf "%.9f\n", last_frame/fps; else exit 1}'
-}
-
 detect_fps() {
   local src="$1"
 
@@ -60,7 +9,7 @@ detect_fps() {
   fi
 
   local probe_output fps
-  probe_output=$("$ffmpeg_bin" -hide_banner -i "$src" 2>&1 || true)
+  probe_output=$("$ffmpeg_bin" -hide_banner -i "$src" 2>&1)
   fps=$(printf "%s\n" "$probe_output" | awk -F', ' '/Video:/ {for (i=1;i<=NF;i++) if ($i ~ /fps$/) {sub(/ fps/,"",$i); print $i; exit}}')
 
   if [[ -z "$fps" ]]; then
@@ -73,7 +22,6 @@ detect_fps() {
     return 1
   fi
 
-  fps=$(normalize_fps "$fps") || return 1
   last_detected_fps="$fps"
   echo "$fps"
 }
@@ -192,7 +140,7 @@ generate_selftest_dvrescue_log() {
   local -i seconds=0
   for (( i=1; i<=entries; i++ )); do
     printf "%d 00:00:00 %s %s\n" "$i" "$start_date" "$(printf '00:00:%02d' $seconds)" >> "$out_log"
-    (( ++seconds ))
+    (( seconds++ ))
   done
 }
 
@@ -215,7 +163,8 @@ run_dvrescue_capture() {
   prepare_subprocess_env
   log_write "$xml_out"
   log_write "$log_out"
-  run_owned_command "$dvrescue_bin" "$source_video" --xml-output "$xml_out" >"$log_out" 2>&1 || dv_status=$?
+  "$dvrescue_bin" "$source_video" --xml-output "$xml_out" >"$log_out" 2>&1
+  dv_status=$?
   last_dvrescue_status=$dv_status
   log_artifact_path_and_size "dvrescue XML" "$xml_out"
   log_artifact_path_and_size "dvrescue log" "$log_out"
