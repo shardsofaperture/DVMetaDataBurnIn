@@ -2,14 +2,16 @@
 
 The root [LICENSE](../LICENSE) is a byte-for-byte copy of the existing [APP_LICENSE.txt](../Resources/licenses/APP_LICENSE.txt): MIT, **Copyright (c) 2025 Zach Zarzycki**. Adding it makes the existing terms discoverable; it does not change ownership or grant different terms. The bundled notice remains intact.
 
+See the [distribution audit](THIRD_PARTY_DISTRIBUTION_AUDIT.md) for all eight published application ZIPs, exact binary/font hashes, supplier matches, source-delivery findings and actionable issues. This page is the short rights overview.
+
 ## Bundled components inspected on November 13, 2026
 
 | Component | Observed version and notice | Scope and remaining evidence |
 | --- | --- | --- |
-| FFmpeg | Bundled x86_64 `8.0.1-tessus`; `-buildconf` includes `--enable-gpl --enable-version3`; `-L` states GPL version 3 or later. [GPLv3 text](../Resources/licenses/COPYING.GPLv3), [existing FFmpeg notice](../Resources/licenses/LICENSE.md). | This specific binary reports GPL-3.0-or-later. Other FFmpeg configurations can have different terms. Exact corresponding source/build provenance and the complete inventory for enabled external libraries remain to be established. |
+| FFmpeg | Bundled x86_64 `8.0.1-tessus`; `-buildconf` includes `--enable-gpl --enable-version3`; `-L` states GPL version 3 or later. [GPLv3 text](../Resources/licenses/COPYING.GPLv3), [existing FFmpeg notice](../Resources/licenses/LICENSE.md). | This specific binary reports GPL-3.0-or-later. Other FFmpeg configurations can have different terms. The executable now matches the supplier download by SHA-256. Exact corresponding source/build materials and complete external-library notices remain unresolved in issue #194. |
 | DVRescue | Bundled x86_64 24.07, reporting MediaInfoLib 24.06. [BSD-3-Clause notice](../Resources/licenses/dvrescue_LICENSE.txt), copyright 2019–2025 MIPoPS. | Preserve its notice. The bundled notice does not fully inventory dependency licensing; this is not a complete distribution audit. |
-| UAV OSD fonts | UAV-OSD-Mono and UAV-OSD-Sans-Mono; attribution to Nicholas Kruse. | Existing notice references free personal/commercial use and author pages; a standalone preserved permission text was not found. |
-| VCR OSD Mono | Attribution to Riciery Leal (mrmanet). | Existing notice relies on author comments for permission; a standalone preserved permission text was not found. |
+| UAV OSD fonts | UAV-OSD-Mono and UAV-OSD-Sans-Mono; attribution to Nicholas Kruse. | Existing notice references free personal/commercial use and author pages; author-linked font bytes and use permission are verified, while explicit redistribution/embedding terms remain unresolved in issue #196. |
+| VCR OSD Mono | Attribution to Riciery Leal (mrmanet). | Existing notice relies on author comments for permission; author-linked font bytes and use permission are verified, while explicit redistribution/embedding terms remain unresolved in issue #196. |
 
 All existing third-party texts and [attributions](../Resources/licenses/NOTICE.txt) are retained, including the LGPL and GPL copies. Verify tool evidence locally without changing the binaries:
 

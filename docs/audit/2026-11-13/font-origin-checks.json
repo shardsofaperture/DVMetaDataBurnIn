@@ -1,0 +1,36 @@
+{
+  "audited_on": "2026-11-13",
+  "packages": [
+    {
+      "download_url": "https://dl.dafont.com/dl/?f=uav_osd",
+      "archive_sha256": "27a360b4b6114c6c0decb04352f7425cfd1c256496255f3f8222d08c2483975c",
+      "entries": [
+        {
+          "filename": "UAV-OSD-Mono.ttf",
+          "sha256": "dc007ad0136f00f68bd5ee312f69b884721f323df01e5510ee17506585e4f2af",
+          "matches_distributed_font": true,
+          "name_table_version": "Version 1.0"
+        },
+        {
+          "filename": "UAV-OSD-Sans-Mono.ttf",
+          "sha256": "cdc111fe43093abaf2adb931dbca13ffa0c078be24c2cae894d01666a102f5d6",
+          "matches_distributed_font": true,
+          "name_table_version": "Version 1.0"
+        }
+      ]
+    },
+    {
+      "download_url": "https://dl.dafont.com/dl/?f=vcr_osd_mono",
+      "archive_sha256": "b1811c21bb32c89f0268fdbc267f86682a9bfbf0afc8755c9794d9b88062ee89",
+      "entries": [
+        {
+          "filename": "VCR_OSD_MONO_1.001.ttf",
+          "sha256": "01918d86cb163a715dcb97165b997256734dfcc9f550beeb7c142fa4a064cf1c",
+          "matches_distributed_font": true,
+          "name_table_version": "1.001 March 31, 2015"
+        }
+      ]
+    }
+  ],
+  "permission_scope": "Author-linked downloads; personal/commercial use statements verified. Explicit redistribution/embedding conditions unresolved; no separate license file or name-table license found."
+}

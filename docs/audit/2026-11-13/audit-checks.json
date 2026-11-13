@@ -1,0 +1,56 @@
+[
+  {
+    "branch_worktree": "dvmetadata-readiness-main",
+    "files": [
+      "docs/LICENSING.md",
+      "docs/ROADMAP.md",
+      "readme.md",
+      ".github/ISSUE_TEMPLATE/real-camera-validation.yml",
+      "docs/COMMUNITY_VALIDATION.md",
+      "docs/PROJECT_STATUS.md",
+      "docs/THIRD_PARTY_DISTRIBUTION_AUDIT.md",
+      "docs/audit/2026-11-13/audit-checks.json",
+      "docs/audit/2026-11-13/binary-readouts.json",
+      "docs/audit/2026-11-13/evermeet-8.0.1.json",
+      "docs/audit/2026-11-13/ffmpeg-dependency-leads.json",
+      "docs/audit/2026-11-13/font-origin-checks.json",
+      "docs/audit/2026-11-13/public-link-checks.json",
+      "docs/audit/2026-11-13/release-inventory.json"
+    ],
+    "markdown_relative_links": 50,
+    "shell_fences_syntax_checked": 6,
+    "json_yaml_parse": "passed",
+    "root_mit_matches_bundled": true,
+    "all_release_dependency_bytes_match_checkout": true,
+    "no_runtime_changes": true,
+    "private_path_secret_pattern_scan": "passed"
+  },
+  {
+    "branch_worktree": "dvmetadata-readiness-maintenance",
+    "files": [
+      "docs/LICENSING.md",
+      "docs/MAINTENANCE_1.0.7.md",
+      "docs/ROADMAP.md",
+      "docs/releases/1.0.7-maintenance.1.md",
+      "readme.md",
+      ".github/ISSUE_TEMPLATE/real-camera-validation.yml",
+      "docs/COMMUNITY_VALIDATION.md",
+      "docs/PROJECT_STATUS.md",
+      "docs/THIRD_PARTY_DISTRIBUTION_AUDIT.md",
+      "docs/audit/2026-11-13/audit-checks.json",
+      "docs/audit/2026-11-13/binary-readouts.json",
+      "docs/audit/2026-11-13/evermeet-8.0.1.json",
+      "docs/audit/2026-11-13/ffmpeg-dependency-leads.json",
+      "docs/audit/2026-11-13/font-origin-checks.json",
+      "docs/audit/2026-11-13/public-link-checks.json",
+      "docs/audit/2026-11-13/release-inventory.json"
+    ],
+    "markdown_relative_links": 64,
+    "shell_fences_syntax_checked": 6,
+    "json_yaml_parse": "passed",
+    "root_mit_matches_bundled": true,
+    "all_release_dependency_bytes_match_checkout": true,
+    "no_runtime_changes": true,
+    "private_path_secret_pattern_scan": "passed"
+  }
+]
