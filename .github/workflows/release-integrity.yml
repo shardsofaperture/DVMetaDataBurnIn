@@ -1,11 +1,8 @@
 name: Application release integrity
 on:
+  push:
+    branches: [main, maintenance/1.0.7]
   pull_request:
-    paths:
-      - scripts/verify_release.py
-      - scripts/tests/**
-      - scripts/dependencies/**
-      - .github/workflows/release-integrity.yml
   release:
     types: [published]
   workflow_dispatch:
@@ -21,6 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - run: python3 scripts/check_docs.py
       - run: python3 -m unittest discover -s scripts/tests -v
   verify:
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'release' && !startsWith(github.event.release.tag_name, 'examples-'))

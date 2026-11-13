@@ -1,0 +1,99 @@
+{
+  "published_dependency_build_inputs_match_current": [
+    "build.py",
+    "sources.lock.json",
+    "dvrescue-disable-capture.patch",
+    "prepare_dvrescue_source.py",
+    "package_sources.py"
+  ],
+  "maintenance": {
+    "built_version": "1.0.7",
+    "bundled_resource_byte_matches": [
+      "APP_LICENSE.txt",
+      "COPYING.GPLv2",
+      "COPYING.GPLv3",
+      "COPYING.LGPLv2.1",
+      "COPYING.LGPLv3",
+      "FFmpeg-README.md",
+      "LICENSE.md",
+      "NOTICE.txt",
+      "UAV-OSD-Mono.ttf",
+      "UAV-OSD-Sans-Mono.ttf",
+      "VCR_OSD_MONO.ttf",
+      "dvrescue",
+      "dvrescue_LICENSE.txt",
+      "ffmpeg"
+    ],
+    "tracked_bundled_scripts_matched": 20,
+    "mit_license_copy_matches": true
+  },
+  "main": {
+    "built_version": "1.0.6",
+    "bundled_resource_byte_matches": [
+      "APP_LICENSE.txt",
+      "COPYING.GPLv2",
+      "COPYING.GPLv3",
+      "COPYING.LGPLv2.1",
+      "COPYING.LGPLv3",
+      "FFmpeg-README.md",
+      "LICENSE.md",
+      "NOTICE.txt",
+      "UAV-OSD-Mono.ttf",
+      "UAV-OSD-Sans-Mono.ttf",
+      "VCR_OSD_MONO.ttf",
+      "dvrescue",
+      "dvrescue_LICENSE.txt",
+      "ffmpeg"
+    ],
+    "tracked_bundled_scripts_matched": 15,
+    "mit_license_copy_matches": true
+  },
+  "preview2_published_checksum_file": "passed",
+  "historical_archive_digests_match_existing_inventory": 8,
+  "reviewed_on": "2026-11-13",
+  "scope": "Local final-readiness checks before branch publication; no manual playback or GUI acceptance",
+  "base_commits": {
+    "main": "14adfc4",
+    "maintenance/1.0.7": "23dac05"
+  },
+  "checks": {
+    "maintenance_regressions": {
+      "passed": 35,
+      "skipped": 0
+    },
+    "shell_smoke_checks": {
+      "passed": 3
+    },
+    "swift_workspace_checks": {
+      "passed": 6
+    },
+    "release_integrity_unit_tests": {
+      "passed_per_branch": 11
+    },
+    "native_release_builds": {
+      "main": "passed; 1.0.6",
+      "maintenance/1.0.7": "passed; 1.0.7",
+      "toolchain": "Xcode 15.4; Intel macOS"
+    },
+    "markdown_file_links": {
+      "main": 69,
+      "maintenance/1.0.7": 98,
+      "missing": 0
+    },
+    "fresh_preview2_download": "tag/project/manifest/tool/resource/source hashes and published checksums passed",
+    "historical_supplier_download": "executable matched 430d60fbf419dab28daee9b679e7929a31ee9bae53f6e42e8ae26b725584290f",
+    "gplv3_license": "bundled text matches fresh official GNU text"
+  },
+  "issue_disposition": {
+    "194": "open: corresponding source/build materials and complete dependency notices for historical tessus binary not obtained",
+    "197": "open: manual playback/player acceptance before stable 1.0.7 promotion; technical correction complete"
+  },
+  "changes": {
+    "application_processing": "unchanged on both branches",
+    "tools_and_fonts": "unchanged",
+    "about": "branch-specific tool versions, GPLv3-or-later and corrected bundled-notice path",
+    "main_packaging": "rename FFmpeg README resource to prevent case-insensitive collision with project readme",
+    "historical_assets_and_tags": "preserved"
+  },
+  "manual_acceptance_performed": false
+}

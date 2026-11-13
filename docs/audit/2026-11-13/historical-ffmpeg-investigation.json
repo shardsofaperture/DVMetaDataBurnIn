@@ -1,0 +1,184 @@
+{
+  "reviewed_on": "2026-11-13",
+  "result": "Corresponding source/build materials not obtained; #194 remains open",
+  "scope": "Bounded official-channel and archive search; failures and capped results do not establish absence",
+  "binary_sha256": "430d60fbf419dab28daee9b679e7929a31ee9bae53f6e42e8ae26b725584290f",
+  "supplier_zip_members": [
+    "ffmpeg"
+  ],
+  "archive_index_rows": 500,
+  "supplier_contacted": false,
+  "retrievals": [
+    {
+      "name": "evermeet-page",
+      "url": "https://evermeet.cx/ffmpeg/",
+      "result": "200 https://evermeet.cx/ffmpeg/",
+      "error": "",
+      "exit_code": 0,
+      "bytes": 78592,
+      "sha256": "36dbf7e9a784397880ef9061d136aa86f65a13b9f82b36334421583e9921cf36"
+    },
+    {
+      "name": "evermeet-info",
+      "url": "https://evermeet.cx/ffmpeg/info/ffmpeg/8.0.1",
+      "result": "200 https://evermeet.cx/ffmpeg/info/ffmpeg/8.0.1",
+      "error": "",
+      "exit_code": 0,
+      "bytes": 4764,
+      "sha256": "5332fd425ffc1a1800d9bb965a66ac16cd5ce44a50ac7b4fc450e8a3c1921d89"
+    },
+    {
+      "name": "evermeet-pub",
+      "url": "https://evermeet.cx/pub/",
+      "result": "200 https://evermeet.cx/pub/",
+      "error": "",
+      "exit_code": 0,
+      "bytes": 3824,
+      "sha256": "21cb67f2ff859a47efa3f6f8593dbc914127b94b091962929776b423594497c6"
+    },
+    {
+      "name": "evermeet-ffmpeg",
+      "url": "https://evermeet.cx/pub/ffmpeg/",
+      "result": "200 https://e.deolaha.ca:4242/pub/ffmpeg/",
+      "error": "",
+      "exit_code": 0,
+      "bytes": 13186,
+      "sha256": "ecd8a31c9312ceb3874186799bac1f0964df747f508d27a4b8f4231536a8adc3"
+    },
+    {
+      "name": "evermeet-release",
+      "url": "https://evermeet.cx/pub/ffmpeg/release/",
+      "result": "403 https://e.deolaha.ca:4242/pub/ffmpeg/release/",
+      "error": "",
+      "exit_code": 0,
+      "bytes": 572,
+      "sha256": "fd3b0d488d28db95c0fe0c924edec537c69d00a684d65003df7a190844ccd42f"
+    },
+    {
+      "name": "evermeet-sources",
+      "url": "https://evermeet.cx/pub/ffmpeg/sources/",
+      "result": "403 https://e.deolaha.ca:4242/pub/ffmpeg/sources/",
+      "error": "",
+      "exit_code": 0,
+      "bytes": 572,
+      "sha256": "fd3b0d488d28db95c0fe0c924edec537c69d00a684d65003df7a190844ccd42f"
+    },
+    {
+      "name": "evermeet-source",
+      "url": "https://evermeet.cx/ffmpeg/source/",
+      "result": "404 https://evermeet.cx/ffmpeg/source/",
+      "error": "",
+      "exit_code": 0,
+      "bytes": 1244,
+      "sha256": "598b903d77f713b830d75e6649794f0056cf0751a458d791ca84efd04770cb10"
+    },
+    {
+      "name": "wayback-available",
+      "url": "https://archive.org/wayback/available?url=evermeet.cx/ffmpeg/&timestamp=20251121",
+      "result": "200 https://archive.org/wayback/available?url=evermeet.cx/ffmpeg/&timestamp=20251121",
+      "error": "",
+      "exit_code": 0,
+      "bytes": 239,
+      "sha256": "f1e78a829ac33ba2e42abaa6285c6f366f2951185f5c537ca4ac2b3330e71dd1"
+    },
+    {
+      "name": "gpl3",
+      "url": "https://www.gnu.org/licenses/gpl-3.0.txt",
+      "result": "200 https://www.gnu.org/licenses/gpl-3.0.txt",
+      "error": "",
+      "exit_code": 0,
+      "bytes": 35149,
+      "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+    },
+    {
+      "name": "evermeet-macosx",
+      "url": "https://evermeet.cx/pub/macosx/",
+      "result": "200 https://evermeet.cx/pub/macosx/",
+      "error": "",
+      "exit_code": 0,
+      "bytes": 2189,
+      "sha256": "b82c29bd8e48b8bb85ce9a1cc3c6ae14a2068509302946dbb57a244082beb58e"
+    },
+    {
+      "name": "evermeet-patches",
+      "url": "https://evermeet.cx/pub/patches/",
+      "result": "200 https://evermeet.cx/pub/patches/",
+      "error": "",
+      "exit_code": 0,
+      "bytes": 696,
+      "sha256": "03ac24d757a7e602d502f6488f4b00f220f9589c9d862913a697a1493e874254"
+    },
+    {
+      "name": "evermeet-scripts",
+      "url": "https://evermeet.cx/pub/scripts/",
+      "result": "200 https://evermeet.cx/pub/scripts/",
+      "error": "",
+      "exit_code": 0,
+      "bytes": 863,
+      "sha256": "2d6ef29f0203efc3ecdb9f0defb5a69d10b793f12d97a4625bddf9c7e14ce501"
+    },
+    {
+      "name": "evermeet-repo",
+      "url": "https://evermeet.cx/pub/repo/",
+      "result": "200 https://evermeet.cx/pub/repo/",
+      "error": "",
+      "exit_code": 0,
+      "bytes": 605,
+      "sha256": "7ef9fc4741c62cb758e37c0f30967d54dfd9d69fc2c242dd39edde9241f7443c"
+    },
+    {
+      "name": "wayback-cdx-fixed",
+      "url": "https://web.archive.org/cdx/search/cdx?url=evermeet.cx/*&output=json&filter=statuscode:200&filter=urlkey:.*(ffmpeg|source|build).*&collapse=urlkey&limit=500",
+      "result": "200 https://web.archive.org/cdx/search/cdx?url=evermeet.cx/*&output=json&filter=statuscode:200&filter=urlkey:.*(ffmpeg|source|build).*&collapse=urlkey&limit=500",
+      "error": "",
+      "exit_code": 0,
+      "bytes": 99753,
+      "sha256": "dd1a38338e44c2c70c541f95ffcc06618a2cb2ad7726092ed8ff15405dbdbfb0"
+    },
+    {
+      "name": "evermeet-original-zip",
+      "url": "https://evermeet.cx/ffmpeg/ffmpeg-8.0.1.zip",
+      "result": "200 https://e.deolaha.ca:4242/pub/ffmpeg/ffmpeg-8.0.1.zip",
+      "error": "",
+      "exit_code": 0,
+      "bytes": 25809598,
+      "sha256": "470e482f6e290eac92984ac12b2d67bad425b1e5269fd75fb6a3536c16e824e4"
+    },
+    {
+      "name": "evermeet-ff",
+      "url": "https://evermeet.cx/pub/macosx/ff/",
+      "result": "200 https://evermeet.cx/pub/macosx/ff/",
+      "error": "",
+      "exit_code": 0,
+      "bytes": 1387,
+      "sha256": "ba0fe4675a42b689139b42cd782980e12ed100a8670cb9835187aa28ddeb830d"
+    },
+    {
+      "name": "wayback-confirmed-snapshot",
+      "url": "https://web.archive.org/web/20251116013333id_/https://evermeet.cx/ffmpeg/",
+      "result": "200 https://web.archive.org/web/20251116013333id_/https://evermeet.cx/ffmpeg/",
+      "error": "",
+      "exit_code": 0,
+      "bytes": 77023,
+      "sha256": "aaf75a101c0a428efa7a77f3f7af7788b949609c9f725c7e40d1ace2830a819e"
+    },
+    {
+      "name": "wayback-source-paths",
+      "url": "https://web.archive.org/cdx/search/cdx?url=evermeet.cx/*&output=json&filter=statuscode:200&filter=urlkey:.*(source|build|patch|src).*&collapse=urlkey&limit=1000",
+      "result": "000 https://web.archive.org/cdx/search/cdx?url=evermeet.cx/*&output=json&filter=statuscode:200&filter=urlkey:.*(source|build|patch|src).*&collapse=urlkey&limit=1000",
+      "error": "curl: (28) Operation timed out after 35000 milliseconds with 0 bytes received",
+      "exit_code": 28,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "wayback-pub-ffmpeg",
+      "url": "https://web.archive.org/cdx/search/cdx?url=evermeet.cx/pub/ffmpeg/*&output=json&filter=statuscode:200&filter=!mimetype:application/.*&collapse=urlkey&limit=1000",
+      "result": "503 https://web.archive.org/cdx/search/cdx?url=evermeet.cx/pub/ffmpeg/*&output=json&filter=statuscode:200&filter=!mimetype:application/.*&collapse=urlkey&limit=1000",
+      "error": "",
+      "exit_code": 0,
+      "bytes": 11832,
+      "sha256": "e084d527921708642a79724e9f0210da659bbc0905c6ce9a3a1f416e4628091c"
+    }
+  ]
+}

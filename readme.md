@@ -26,11 +26,13 @@ Direct tape capture is **planned**, not available in this application. DV/Digita
 
 The stable 1.0.6 package contains an **Intel/Apple Silicon app executable**, but bundled FFmpeg and DVRescue are **Intel-only**. The 1.0.7 preview package is Intel-only throughout. The project/package minimum is macOS 12; native build evidence is Intel macOS 14 with Xcode 15.4. Apple Silicon operation and translation of the bundled tools remain unvalidated; an arm64 app slice alone does not establish compatibility.
 
-The separate [1.0.7 maintenance preview](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.2) improves subtitle-tail timing, temporary workspace isolation, batch error handling, and cancellation cleanup. **This is the unconfirmed maintenance branch.** Its 1.0.7 application changes remain here for owner testing; `main` retains the stable 1.0.6 application code plus the shared documentation, licensing, videos, and roadmap. No maintenance code is approved for stable integration yet. GUI, player, and Apple Silicon acceptance are still open. The published train videos retain their original preview 1 provenance; fresh preview 2 CLI checks are recorded separately.
+The separate [1.0.7 maintenance preview](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.2) improves subtitle-tail timing, temporary workspace isolation, batch error handling, and cancellation cleanup. **This is the unconfirmed maintenance branch.** Its 1.0.7 application changes remain on maintenance for owner testing; `main` retains the stable 1.0.6 application code plus the shared documentation, licensing, videos, and roadmap. No maintenance code is approved for stable integration yet. GUI, player, and Apple Silicon acceptance are still open. The published train videos retain their original preview 1 provenance; fresh preview 2 CLI checks are recorded separately.
 
 [Maintenance status and remaining acceptance](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/maintenance/1.0.7/docs/MAINTENANCE_1.0.7.md) separates historical synthetic tests/native builds from current real-footage measurements. GUI queues/Stop, player rendering, subjective audio and motion quality, and Apple Silicon acceptance remain open. File selection and progress reporting still need further work. Preview 2 includes atomic final publication and H.264 field signaling fixes. Publication currently requires a destination filesystem supporting hard links (APFS/HFS+); unsupported filesystems fail safely.
 
 ## Use and build
+
+Choose the application ZIP from the linked release’s **Assets**, rather than GitHub’s automatically generated source archives. Extract it and move `DVMetaDataBurnIn.app` to Applications. Bundled FFmpeg and DVRescue require no separate installation. For Preview 2, download `SHA256SUMS.txt` and verify the ZIP with `shasum -a 256` against its entry; the manifest and dependency source archive are available on the same release. Historical packages do not all have application checksums.
 
 Download and extract the application, select a DV AVI file or folder, choose the output and timestamp settings, and run processing into a separate destination. The maintenance preview is ad-hoc signed rather than notarized. Use macOS's normal app-opening controls for software you trust.
 
@@ -40,7 +42,7 @@ Open `DVMetaDataBurnIn.xcodeproj` in full Xcode and build the `DVMetaDataBurnIn`
 DEVELOPER_DIR="/path/to/Xcode.app/Contents/Developer" xcodebuild -project DVMetaDataBurnIn.xcodeproj -scheme DVMetaDataBurnIn -configuration Debug -derivedDataPath .build/DerivedData CODE_SIGNING_ALLOWED=NO build
 ```
 
-See [development notes](DEV.md) and [developer test scenarios](docs/DEV_TESTS.md). Run the [automated tests](Resources/scripts/dev/test_all.zsh) with `zsh Resources/scripts/dev/test_all.zsh`. VS Code and Xcode can use the same checkout; no separate project architecture is needed.
+See [contribution guidelines](CONTRIBUTING.md), [security reporting](SECURITY.md), [development notes](DEV.md) and [developer test scenarios](docs/DEV_TESTS.md). On the maintenance branch, run the [automated tests](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/maintenance/1.0.7/Resources/scripts/dev/test_all.zsh) with `zsh Resources/scripts/dev/test_all.zsh`; this runner is not present on `main`. VS Code and Xcode can use the same checkout; no separate project architecture is needed.
 
 The [optional real-footage verifier](scripts/verify_train_demo.py) accepts explicit file paths and existing FFmpeg/ffprobe/DVRescue tools. It does not download videos or add them to default tests. Instructions and hash-pinned downloads are in the [train demonstration](docs/examples/TRAIN_DV_PRESERVATION.md).
 
@@ -60,4 +62,4 @@ The bundled choices are UAV OSD Mono, UAV OSD Sans Mono and VCR OSD Mono.
 - [FFmpeg](https://ffmpeg.org/): decoding, filtering, encoding, and container handling.
 - UAV OSD Mono and UAV OSD Sans Mono: **Nicholas Kruse**, used and redistributed with express permission. VCR OSD Mono: **Riciery Leal (MrManet)**. See [the bundled notices](Resources/licenses/NOTICE.txt).
 
-The application uses the **[MIT License](LICENSE)**. See [third-party licenses and source materials](docs/LICENSING.md).
+The application uses the **[MIT License](LICENSE)**. See [third-party licenses and source materials](docs/LICENSING.md). Historical FFmpeg source delivery remains open in [#194](https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194); Preview 2 supplies source for its different replacement executable.

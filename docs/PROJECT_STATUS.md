@@ -18,7 +18,7 @@ Updated November 13, 2026 for the isolated maintenance preview 2 remediation. Th
 | MP4/MKV audio | H.264 viewing copies use AAC; full decode passed. Published measurements distinguish priming/padding/sample counts. | PCM identity, listening quality or lip-sync acceptance. |
 | Recording dates and transitions | One original Sony MiniDV capture: stored dates 2025-11-11 08:29:35–43; eight second transitions inspected in overlays; nine ASS events cover the final frame. | Independent historical camera-clock truth, damaged tape, other cameras, real midnight/day changes or interior recording breaks. Synthetic fixtures cover some of those timeline cases. |
 | Subtitle tail and NTSC timing | Synthetic short/long/fractional-rate cases; real train subtitle coverage through ~7.941 s. AVI rate 2997/100 is distinguished from nominal DV 30000/1001; 60p output is 60000/1001. | Exact-rate metadata in every output container, player subtitle rendering/toggling or all-input timing correctness. |
-| Interlaced/deinterlaced output | DV/MOV decode bottom-field-first; 60p derivative has 476 frames. Deinterlacing-off H.264 retains combing but progressive decoded flags; MKV container/decoded flags disagree. | Correct moving-picture cadence or all-player behavior. [Field-signaling issue #197](https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/197) remains open. |
+| Interlaced/deinterlaced output | DV/MOV decode bottom-field-first; 60p derivative has 476 frames. Deinterlacing-off H.264 retains combing but progressive decoded flags; MKV container/decoded flags disagree. | Correct moving-picture cadence or all-player behavior. The correction is complete in Preview 2; [#197](https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/197) tracks only manual player acceptance before stable promotion. |
 | Batch cancellation and temporary isolation | Maintenance source and synthetic child-process/workspace tests cover ownership, isolation, failure propagation and tracked cancellation. | GUI folder queues/Stop, every cancellation stage, crash/power-loss cleanup or safe publication of every final output. This historical limitation was fixed on maintenance and [issue #198](https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/198) is closed. |
 
 Source references for maintenance claims: [encode.zsh](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/5f7e13e0b9f94b98bfef32c5d828aae614265583/Resources/scripts/lib/encode.zsh), [timeline.zsh](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/5f7e13e0b9f94b98bfef32c5d828aae614265583/Resources/scripts/lib/timeline.zsh), [regression tests](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/5f7e13e0b9f94b98bfef32c5d828aae614265583/Resources/scripts/dev/tests/test_maintenance.py). Those maintenance fixes must not be attributed to stable 1.0.6.
@@ -60,8 +60,8 @@ fonts are replaced with unmodified OFL-licensed VT323, Share Tech Mono and IBM
 Plex Mono, including their full license texts and correct subtitle family names.
 Generated MKVs carry the applicable font license attachment.
 
-[Build instructions and source locks](../scripts/dependencies/README.md),
-[build receipts and fresh train results](audit/2026-11-13/dependency-builds/),
+[Build instructions and source locks](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/maintenance/1.0.7/scripts/dependencies/README.md),
+[build receipts and fresh train results](https://github.com/shardsofaperture/DVMetaDataBurnIn/tree/maintenance/1.0.7/docs/audit/2026-11-13/dependency-builds/),
 and the [preview 2 release](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.2)
 identify the replacement distribution. Full corresponding sources accompany the
 new app download. The original videos and historical release assets are retained.
