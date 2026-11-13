@@ -25,7 +25,6 @@ struct SplashContentView: View {
                         .font(.system(size: 26, weight: .bold))
 
                     HStack(spacing: 16) {
-                        Text("© 2025 The Polish")
                         Text("Version 1.0.7")
                     }
                     .font(.footnote)

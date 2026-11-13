@@ -3,10 +3,6 @@
   "demonstration_id": "train-01",
   "measured_on": "2026-11-13",
   "release_url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/examples-train-dv-v1",
-  "media_rights": {
-    "attribution": "Zach Zarzycki (ThePolish / shardsofaperture)",
-    "terms": "Published with owner authorization. No new media license granted; the application MIT license does not cover the videos or extracted frames."
-  },
   "capture_workflow": [
     "Sony MiniDV camcorder",
     "Sony laptop capture",
