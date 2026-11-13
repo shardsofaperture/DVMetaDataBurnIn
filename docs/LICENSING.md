@@ -2,53 +2,40 @@
 
 The application is **MIT licensed, Copyright (c) 2025 Zach Zarzycki**.
 See [LICENSE](../LICENSE) and [APP_LICENSE.txt](../Resources/licenses/APP_LICENSE.txt).
-Bundled components retain their own licenses and attribution in
-[Resources/licenses/NOTICE.txt](../Resources/licenses/NOTICE.txt).
+Bundled components retain their own terms in [NOTICE.txt](../Resources/licenses/NOTICE.txt).
+These licensing statements apply across the repository branches; component versions
+and source downloads below identify the distribution to which each applies.
 
-## Maintenance 1.0.7
+## Component licenses
 
-This page covers the current experimental maintenance branch. The published
-[preview 2](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.2)
-uses the same tool binaries but has a different font set, described below.
-[Main remains stable 1.0.6](https://github.com/shardsofaperture/DVMetaDataBurnIn/tree/main),
-with [its own bundled-component terms](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/main/docs/LICENSING.md).
+[Main](https://github.com/shardsofaperture/DVMetaDataBurnIn/tree/main) remains stable
+1.0.6. [Maintenance](https://github.com/shardsofaperture/DVMetaDataBurnIn/tree/maintenance/1.0.7)
+remains experimental 1.0.7.
 
-| Bundled component | Terms and source relationship |
+| Component | License and distribution |
 | --- | --- |
-| FFmpeg 8.0.1-dvmetadata1 | GPL-3.0-or-later; built from the pinned official FFmpeg release with static x264, FreeType and HarfBuzz. Autodetection of other third-party libraries is disabled. Full corresponding sources and the controlling build script are delivered in `dependency-sources.tar` beside the app ZIP. |
-| x264 | GPL-2.0-or-later, pinned VideoLAN commit `b35605ace3ddf7c1a5d67a2eb553f034aef41d55`. |
-| FreeType 2.13.3 | GPL-2.0-or-later alternative selected; included BDF/PCF and HarfBuzz notices retained. |
-| HarfBuzz 10.4.0 | Permissive licenses reproduced from upstream COPYING. |
-| DVRescue 24.07-dvmetadata1 | BSD-3-Clause; built from MediaArea's official all-in-one source with MediaInfoLib 24.06 (BSD-2-Clause) and ZenLib 0.4.41 (zlib). DeckLink and other capture/control integrations are disabled; no SDK is used. |
-| UAV OSD Mono, UAV OSD Sans Mono, VCR OSD Mono | Original unmodified fonts, with attribution and permissions below. MKV attachments include the bundled notices. |
+| Application | MIT, with original authorship preserved. |
+| FFmpeg 8.0.1-tessus in stable and releases through preview 1 | GPL-3.0-or-later. The full [GPLv3 text](../Resources/licenses/COPYING.GPLv3) is copied from [GNU](https://www.gnu.org/licenses/gpl-3.0.txt). Source delivery is described below. |
+| FFmpeg 8.0.1-dvmetadata1 in preview 2/current maintenance | GPL-3.0-or-later, with x264 (GPL-2.0-or-later), FreeType (GPL alternative selected) and HarfBuzz (permissive notices). Sources and notices accompany preview 2. |
+| DVRescue 24.07 | BSD-3-Clause. Stable uses the official binary; its dependency notices accompany the historical downloads as `DVRESCUE-NOTICES-2026-11-13.txt`. Current maintenance uses the source-built capture-disabled variant with MediaInfoLib 24.06 (BSD-2-Clause) and ZenLib 0.4.41 (zlib); no DeckLink SDK is used in that build. |
+| UAV OSD Mono, UAV OSD Sans Mono, VCR OSD Mono | Original unmodified fonts in stable and current maintenance, with permissions and attribution below. |
 
-## Corresponding source
+## Corresponding source and notices
 
-Download `dependency-sources.tar` beside the matching app on the
-[preview release](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.2).
-It contains the pinned FFmpeg/library archives, DVRescue CLI sources and patch,
-license texts, and controlling build scripts. [Build instructions and source
-locks](../scripts/dependencies/README.md) describe how to use them.
-Keep matching source materials available alongside each binary distribution.
+The [preview 2 release](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.2)
+provides `dependency-sources.tar`: FFmpeg and dependency sources, DVRescue sources,
+patches, build scripts and license texts for its source-built tools. See the
+[build instructions](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/maintenance/1.0.7/scripts/dependencies/README.md).
+Keep matching source and notices available alongside each binary distribution.
 
-The tools use macOS-provided system libraries. System/custom fonts selected by
-users retain their own terms; the application grants no redistribution rights
-for them.
-
-## Stable and earlier distributions
-
-Stable 1.0.6 and preview 1 retain their original tools and assets. The preview 2
-source bundle corresponds only to preview 2, not their Evermeet FFmpeg binary.
-Corresponding-source/build materials and the complete dependency notice set for
-that historical binary remain unavailable. The DVRescue notice supplement is
-provided beside the historical downloads.
-
-## Published preview 2 fonts
-
-The unchanged preview 2 archive contains VT323, Share Tech Mono and IBM Plex Mono
-under SIL OFL 1.1, with their full notices. Current maintenance restores the
-original UAV/VCR fonts; build from the branch for that correction. The preview 2
-font notices remain available in its package and tagged source.
+For the different historical Evermeet FFmpeg binary, the outstanding delivery
+work is its corresponding FFmpeg/dependency sources, applicable patches and
+build/install scripts, plus the required dependency notices. These materials
+must be made available alongside the affected downloads under an applicable
+[GPLv3 section 6 route](https://www.gnu.org/licenses/gpl-3.0.html#section6).
+Source delivery does not require byte-identical rebuilding. A license copy alone
+is not corresponding source. This work remains tracked in
+[#194](https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/194).
 
 ## Bundled fonts
 
@@ -67,8 +54,13 @@ The maintainer retains it with the original attribution and source reference.
 Font licensing issue [#196](https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/196)
 is closed. The maintainer will incorporate any further author clarification.
 
+## Published preview 2 fonts
+
+The unchanged preview 2 archive contains VT323, Share Tech Mono and IBM Plex Mono
+under SIL OFL 1.1, with their full notices. Current maintenance restores the
+original UAV/VCR fonts; build from the branch for that correction. System/custom
+fonts selected by users retain their own terms.
+
 ## Train footage and extracted frames
 
 Attribution: **Zach Zarzycki (ThePolish / shardsofaperture)**. The owner authorized publication of the identified train demonstration and directly related outputs. No existing explicit media license was found alongside the supplied files. No new MIT or Creative Commons license is applied to the videos or extracted frames. Public availability is not a new grant of reuse rights; contact the owner for permissions beyond the published demonstration.
-
-[Historical distribution records](THIRD_PARTY_DISTRIBUTION_AUDIT.md) retain the supporting package and source verification.
