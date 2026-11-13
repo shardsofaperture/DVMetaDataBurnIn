@@ -7,9 +7,9 @@ Updated November 13, 2026 after PR #200 and maintenance engineering verification
 - **Stable application: 1.0.6.** The stable runtime restored at `da0a3b97126578d45d24e65573e85367c1f7979e` remains on `main`, which retains the pre-maintenance runtime. Its public package is still named [1.0.6 beta](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/1.0.6beta); “stable” describes the owner's retained baseline, not completed compatibility certification.
 - **Experimental implementation: 1.0.7.** [`maintenance/1.0.7`](https://github.com/shardsofaperture/DVMetaDataBurnIn/tree/maintenance/1.0.7) includes runtime fix `2802355` for final-output safety and H.264 field signaling. [Preview 1](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.1) is still the original `5f7e13e` package and does **not** contain those fixes. No stable release or tag is changed.
 - PR #191 prematurely integrated maintenance code; [PR #193](https://github.com/shardsofaperture/DVMetaDataBurnIn/pull/193) restored stable runtime on main. That historical integration is **superseded**, not ongoing authorization. Main and maintenance share public documentation/licensing corrections. Only owner testing and explicit acceptance can authorize future runtime integration.
-- All eight published app ZIPs contain x86_64 FFmpeg and DVRescue executables. The stable 1.0.6 app executable (and older apps) has x86_64/arm64 slices; preview 1.0.7 is x86_64-only. An arm64 UI slice does not make the Intel tools native or prove Apple Silicon operation. Current packages declare macOS **12.0 minimum**. Native build/tool evidence is Intel macOS 14 with Xcode 15.4; this is not testing across all macOS 12+ versions. Native Apple Silicon and Rosetta operation remain unverified. No Windows/Linux application support is claimed. Preview signing is ad-hoc, not notarized.
+- The eight audited historical app ZIPs contain x86_64 FFmpeg and DVRescue executables. The stable 1.0.6 app executable (and older apps) has x86_64/arm64 slices; preview 1.0.7 is x86_64-only. An arm64 UI slice does not make the Intel tools native or prove Apple Silicon operation. Current packages declare macOS **12.0 minimum**. Native build/tool evidence is Intel macOS 14 with Xcode 15.4; this is not testing across all macOS 12+ versions. Native Apple Silicon and Rosetta operation remain unverified. No Windows/Linux application support is claimed. Preview signing is ad-hoc, not notarized.
 
-## Evidence and limits
+## Historical preview 1 evidence and limits
 
 | Claim / check | Verified evidence | What it does not establish |
 | --- | --- | --- |
@@ -19,7 +19,7 @@ Updated November 13, 2026 after PR #200 and maintenance engineering verification
 | Recording dates and transitions | One original Sony MiniDV capture: stored dates 2025-11-11 08:29:35–43; eight second transitions inspected in overlays; nine ASS events cover the final frame. | Independent historical camera-clock truth, damaged tape, other cameras, real midnight/day changes or interior recording breaks. Synthetic fixtures cover some of those timeline cases. |
 | Subtitle tail and NTSC timing | Synthetic short/long/fractional-rate cases; real train subtitle coverage through ~7.941 s. AVI rate 2997/100 is distinguished from nominal DV 30000/1001; 60p output is 60000/1001. | Exact-rate metadata in every output container, player subtitle rendering/toggling or all-input timing correctness. |
 | Interlaced/deinterlaced output | DV/MOV decode bottom-field-first; 60p derivative has 476 frames. Deinterlacing-off H.264 retains combing but progressive decoded flags; MKV container/decoded flags disagree. | Correct moving-picture cadence or all-player behavior. [Field-signaling issue #197](https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/197) remains open. |
-| Batch cancellation and temporary isolation | Maintenance source and synthetic child-process/workspace tests cover ownership, isolation, failure propagation and tracked cancellation. | GUI folder queues/Stop, every cancellation stage, crash/power-loss cleanup or safe publication of every final output. [Partial-output issue #198](https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/198) remains open. |
+| Batch cancellation and temporary isolation | Maintenance source and synthetic child-process/workspace tests cover ownership, isolation, failure propagation and tracked cancellation. | GUI folder queues/Stop, every cancellation stage, crash/power-loss cleanup or safe publication of every final output. This historical limitation was fixed on maintenance; [issue #198](https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/198) is closed. |
 
 Source references for maintenance claims: [encode.zsh](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/5f7e13e0b9f94b98bfef32c5d828aae614265583/Resources/scripts/lib/encode.zsh), [timeline.zsh](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/5f7e13e0b9f94b98bfef32c5d828aae614265583/Resources/scripts/lib/timeline.zsh), [regression tests](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/5f7e13e0b9f94b98bfef32c5d828aae614265583/Resources/scripts/dev/tests/test_maintenance.py). Those maintenance fixes must not be attributed to stable 1.0.6.
 
@@ -38,3 +38,18 @@ The original official DVRescue 24.07 package now matches the distributed executa
 Application submission evidence is materially improved, but **complete distribution readiness cannot yet be claimed**. Exact FFmpeg corresponding source/build materials and dependency notices (#194), DVRescue DeckLink SDK/build mapping (#195), and explicit font redistribution/embedding evidence (#196) remain external evidence dependencies. See the [distribution audit](THIRD_PARTY_DISTRIBUTION_AUDIT.md) for exact findings. Application MIT terms and authorship remain unchanged.
 
 Accepting the entire 1.0.7 release is not required to complete documentation, notice repair or the packaging gate. Before promoting 1.0.7, complete GUI queues/Stop, player subtitle/motion/audio review, broader real-camera cases and platform acceptance. #197 remains open for its explicit moving-picture/player criterion after the automated field-signaling fix. #198 concerns publication safety, with GUI acceptance tracked separately. Use the [community validation guide](COMMUNITY_VALIDATION.md). Direct DV/Digital8 and HDV capture remain [planned](ROADMAP.md).
+
+## Experimental preview 2 update
+
+[Preview 2](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.2)
+packages the later output-safety and field-signaling fixes, source-built FFmpeg
+and capture-free DVRescue, and three explicitly OFL-licensed fonts. Its source
+archives, patch, build receipts and hashes accompany the download. Validation
+includes 35 regressions, three shell checks, 11 release-gate tests, an Intel
+Release build and fresh train CLI verification. Two clean DVRescue builds from
+the publisher archive and delivered CLI subset produced identical binaries.
+
+The [active maintenance report](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/maintenance/1.0.7/docs/MAINTENANCE_1.0.7.md)
+contains the current evidence and GUI/player/Apple Silicon limits. Main remains
+the stable 1.0.6 application. Historical #194–196 remain open for the old bytes;
+replacement provenance is not claimed to repair those historical obligations.

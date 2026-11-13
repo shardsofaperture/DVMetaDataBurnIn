@@ -1,8 +1,10 @@
 # Application, component, and sample rights
 
+> Scope: this page describes the stable 1.0.6 bundle and the historical distributions through preview 1. Experimental [preview 2](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.2) replaces its tools and fonts independently; see its [source-build and license evidence](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/maintenance/1.0.7/docs/LICENSING.md). Those replacements do not retroactively resolve the historical questions below.
+
 The root [LICENSE](../LICENSE) is a byte-for-byte copy of the existing [APP_LICENSE.txt](../Resources/licenses/APP_LICENSE.txt): MIT, **Copyright (c) 2025 Zach Zarzycki**. Adding it makes the existing terms discoverable; it does not change ownership or grant different terms. The bundled notice remains intact.
 
-See the [distribution audit](THIRD_PARTY_DISTRIBUTION_AUDIT.md) for all eight published application ZIPs, exact binary/font hashes, supplier matches, source-delivery findings and actionable issues. This page is the short rights overview.
+See the [distribution audit](THIRD_PARTY_DISTRIBUTION_AUDIT.md) for the eight historical application ZIPs through preview 1, exact binary/font hashes, supplier matches, source-delivery findings and actionable issues. This page is the short rights overview.
 
 ## Bundled components inspected on November 13, 2026
 
@@ -22,7 +24,7 @@ Resources/bin/ffmpeg -L
 Resources/bin/dvrescue --version
 ```
 
-The application's MIT license does not replace component terms. These observations do not establish blanket distribution compliance. Verified DVRescue notice gaps are partially repaired by the [supplement](audit/2026-11-13/DVRESCUE-NOTICES.txt). Exact remaining FFmpeg, DeckLink/build and font evidence is listed in the distribution audit. No bundled binary or third-party terms were replaced.
+The application's MIT license does not replace component terms. These observations do not establish blanket distribution compliance. Verified DVRescue notice gaps are partially repaired by the [supplement](audit/2026-11-13/DVRESCUE-NOTICES.txt). Exact remaining FFmpeg, DeckLink/build and font evidence is listed in the distribution audit. No stable-branch binary or font is replaced.
 
 ## Train footage and extracted frames
 
