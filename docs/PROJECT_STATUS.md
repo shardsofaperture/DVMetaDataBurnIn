@@ -31,7 +31,7 @@ PR #200 integrated documentation only. Main's Swift, Xcode project, runtime scri
 
 Maintenance runtime `2802355` passes 33 synthetic regressions and three shell checks, including failed/cancelled encodes, destination collisions and extracted H.264 bitstream flags. Fresh train CLI checks preserve 238 DV frames and PCM in MOV, correctly signal 238 bottom-field-first H.264 frames in MP4/MKV, retain 476 progressive frames at 60p and nine subtitles ending at 7.95 seconds. [Machine-readable results](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/maintenance/1.0.7/docs/audit/2026-11-13/maintenance-output-verification.json) and the [maintenance report](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/maintenance/1.0.7/docs/MAINTENANCE_1.0.7.md) distinguish these checks from player/GUI acceptance. Historical table rows above describe Preview 1, not the new code.
 
-The original official DVRescue 24.07 package now matches the distributed executable byte for byte. Twelve verified notice texts are preserved in [the supplement](audit/2026-11-13/DVRESCUE-NOTICES.txt) and appended to the existing bundled notice. [Provenance](audit/2026-11-13/dvrescue-provenance.json) also identifies remaining DeckLink/build-manifest uncertainty; #195 is not closed by partial notice repair. The [release integrity gate](../scripts/verify_release.py) rejects mismatched tags, manifests, built versions and hashes. The historical 1.0.4beta ZIP remains unchanged and labeled as containing version 1.0.3; its actual runtime provenance is not inferred from either label.
+The original official DVRescue 24.07 package now matches the distributed executable byte for byte. Twelve verified notice texts are preserved in [the supplement](audit/2026-11-13/DVRESCUE-NOTICES.txt) and appended to the existing bundled notice. The historical [provenance receipt](audit/2026-11-13/dvrescue-provenance.json) preserves the earlier DeckLink/build-manifest uncertainty. The [non-font review](THIRD_PARTY_DISTRIBUTION_AUDIT.md#non-font-readiness-review--november-13-2026) resolves #195: verified notice delivery and the SDK Include-file/object-code exceptions satisfy the inspected distribution requirements. Exact historical SDK/build mapping is optional provenance. The [release integrity gate](../scripts/verify_release.py) rejects mismatched tags, manifests, built versions and hashes. The historical 1.0.4beta ZIP remains unchanged and labeled as containing version 1.0.3; its actual runtime provenance is not inferred from either label.
 
 ## UAV font permission update — November 13, 2026
 
@@ -39,9 +39,9 @@ On November 13, 2026, Nicholas Kruse, the original author of UAV OSD Mono and UA
 
 ## Outstanding work
 
-Application submission evidence is materially improved, but **complete distribution readiness cannot yet be claimed**. Exact FFmpeg corresponding source/build materials and dependency notices (#194), DVRescue DeckLink SDK/build mapping (#195), and explicit VCR OSD Mono redistribution/embedding evidence (#196) remain external evidence dependencies. See the [distribution audit](THIRD_PARTY_DISTRIBUTION_AUDIT.md) for exact findings. Application MIT terms and authorship remain unchanged.
+Application submission evidence is materially improved, but **complete distribution readiness cannot yet be claimed**. Exact FFmpeg corresponding source/build materials and dependency notices (#194) and explicit VCR OSD Mono redistribution/embedding evidence (#196) remain external evidence dependencies. See the [distribution audit](THIRD_PARTY_DISTRIBUTION_AUDIT.md) for exact findings. Application MIT terms and authorship remain unchanged.
 
-Accepting the entire 1.0.7 release is not required to complete documentation, notice repair or the packaging gate. Before promoting 1.0.7, complete GUI queues/Stop, player subtitle/motion/audio review, broader real-camera cases and platform acceptance. #197 remains open for its explicit moving-picture/player criterion after the automated field-signaling fix. #198 concerns publication safety, with GUI acceptance tracked separately. Use the [community validation guide](COMMUNITY_VALIDATION.md). Direct DV/Digital8 and HDV capture remain [planned](ROADMAP.md).
+Accepting the entire 1.0.7 release is not required to complete documentation, notice repair or the packaging gate. Before promoting 1.0.7, complete GUI queues/Stop, player subtitle/motion/audio review, broader real-camera cases and platform acceptance. #197 remains open only as a moving-picture/player acceptance gate before stable 1.0.7 promotion; the technical correction and automated verification are complete. It does not block maintenance commits, experimental prereleases, documentation or unrelated licensing work. #198 concerns publication safety, with GUI acceptance tracked separately. Use the [community validation guide](COMMUNITY_VALIDATION.md). Direct DV/Digital8 and HDV capture remain [planned](ROADMAP.md).
 
 ## Maintenance preview 2 dependency remediation
 
@@ -58,8 +58,8 @@ and the [preview 2 release](https://github.com/shardsofaperture/DVMetaDataBurnIn
 identify the replacement distribution. Full corresponding sources accompany the
 new app download. The original videos and historical release assets are retained.
 
-Historical #194–196 remain limited to the original executable/font bytes: the
-Evermeet corresponding-source package, exact old DVRescue SDK/build mapping,
+Historical #194 and #196 remain limited to the original executable/font bytes: the
+Evermeet corresponding-source package,
 and explicit VCR OSD Mono redistribution/attachment permission evidence. These are
 not requirements to accept the entire experimental release, and replacement
 build evidence cannot retroactively satisfy them. The separate UAV author

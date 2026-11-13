@@ -46,14 +46,16 @@ and the earlier attribution work, including Nicholas Kruse's UAV OSD fonts and
 Riciery Leal's VCR OSD Mono.
 
 The verified DVRescue notice supplement remains available beside historical
-releases. Three historical questions remain distinct from the new build:
+releases. Historical distribution findings remain distinct from the new build:
 
 - **#194:** exact corresponding sources/build materials for the old Evermeet
   executable `430d60f…` have not been obtained. These new sources cannot be
   substituted for them.
-- **#195:** the official old DVRescue executable matches the publisher package,
-  but its exact DeckLink SDK/build mapping remains unconfirmed. BSD does not
-  itself impose FFmpeg's corresponding-source obligation.
+- **#195 resolved:** official binary identity and supplemental notice delivery
+  are verified. DeckLink Include-file permissions exempt machine-generated
+  object code from notice reproduction. Exact historical SDK/build mapping
+  remains optional provenance, not a redistribution blocker. See the
+  [non-font review](THIRD_PARTY_DISTRIBUTION_AUDIT.md#non-font-readiness-review--november-13-2026).
 - **#196:** the UAV redistribution concern is resolved by Nicholas Kruse’s
   express written permission dated November 13, 2026 (see below). Only VCR OSD
   Mono still lacks explicit app redistribution and font-attachment permission evidence.

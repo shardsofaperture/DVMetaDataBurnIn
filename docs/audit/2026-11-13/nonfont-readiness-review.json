@@ -1,0 +1,248 @@
+{
+  "reviewed_on": "2026-11-13",
+  "scope": "Non-font issues 194, 195, 197; no runtime changes or builds",
+  "historical_distributions": [
+    {
+      "tag": "v1.0.7-maintenance.1",
+      "archive_sha256": "66a3a458cfe02569157a8e012cb11acb3fd3deb3ba963bc351a03b03462ddd32",
+      "remote_digest_matches": true,
+      "all_existing_assets_unchanged": true,
+      "decklink_sdk_driver_runtime_entries": [],
+      "notice_supplement_sha256": "a2f0c9345256d868dc9d4a80852de302bff49e61cf5b002fe3111c18f4c13e05"
+    },
+    {
+      "tag": "1.0.6beta",
+      "archive_sha256": "f9df0efa48d7299682a8dd23e556ad560be426be16795171419845e908d6dacb",
+      "remote_digest_matches": true,
+      "all_existing_assets_unchanged": true,
+      "decklink_sdk_driver_runtime_entries": [],
+      "notice_supplement_sha256": "a2f0c9345256d868dc9d4a80852de302bff49e61cf5b002fe3111c18f4c13e05"
+    },
+    {
+      "tag": "1.0.5beta",
+      "archive_sha256": "07771e5ef0de96ea09ebca1d1eb7235ba48dcee8f7dd1dcca6411862b1eae900",
+      "remote_digest_matches": true,
+      "all_existing_assets_unchanged": true,
+      "decklink_sdk_driver_runtime_entries": [],
+      "notice_supplement_sha256": "a2f0c9345256d868dc9d4a80852de302bff49e61cf5b002fe3111c18f4c13e05"
+    },
+    {
+      "tag": "1.0.4beta",
+      "archive_sha256": "72c89f3312820091b5f58ee9075cc72c59abbf768020c6299d074212584f9972",
+      "remote_digest_matches": true,
+      "all_existing_assets_unchanged": true,
+      "decklink_sdk_driver_runtime_entries": [],
+      "notice_supplement_sha256": "a2f0c9345256d868dc9d4a80852de302bff49e61cf5b002fe3111c18f4c13e05"
+    },
+    {
+      "tag": "1.0.0beta",
+      "archive_sha256": "fb8d9dda2043a5966f2e07b920a1dfaac2f48ea5472da679c4b4f1ff258b1a6a",
+      "remote_digest_matches": true,
+      "all_existing_assets_unchanged": true,
+      "decklink_sdk_driver_runtime_entries": [],
+      "notice_supplement_sha256": "a2f0c9345256d868dc9d4a80852de302bff49e61cf5b002fe3111c18f4c13e05"
+    },
+    {
+      "tag": "0.3.0alpha",
+      "archive_sha256": "659342983a4053226587c173410c2e25ff0d8f04767e2a858402e9f746f45878",
+      "remote_digest_matches": true,
+      "all_existing_assets_unchanged": true,
+      "decklink_sdk_driver_runtime_entries": [],
+      "notice_supplement_sha256": "a2f0c9345256d868dc9d4a80852de302bff49e61cf5b002fe3111c18f4c13e05"
+    },
+    {
+      "tag": "0.2.0alpha",
+      "archive_sha256": "cdbc3588c0d1be55cde32828ea0fc52006911f3c5535247b53c99cb02fd01026",
+      "remote_digest_matches": true,
+      "all_existing_assets_unchanged": true,
+      "decklink_sdk_driver_runtime_entries": [],
+      "notice_supplement_sha256": "a2f0c9345256d868dc9d4a80852de302bff49e61cf5b002fe3111c18f4c13e05"
+    },
+    {
+      "tag": "alpha",
+      "archive_sha256": "2de7a36bb08503ef20a27eec596ba4a197c53ea6a22e50ed3254efd4308fb5b3",
+      "remote_digest_matches": true,
+      "all_existing_assets_unchanged": true,
+      "decklink_sdk_driver_runtime_entries": [],
+      "notice_supplement_sha256": "a2f0c9345256d868dc9d4a80852de302bff49e61cf5b002fe3111c18f4c13e05"
+    }
+  ],
+  "dvrescue": {
+    "binary_sha256": "396f26f02b6ad16fa406b890964df20ddc16424a0c99314892ec12859283ad4f",
+    "official_source_sha256": "e3089cf62757bb2a87bb38c353acf37c03195bcc8bcbf17565f7cb9b8ee51a72",
+    "source_files": [
+      {
+        "path": "dvrescue/Project/GNU/CLI/configure.ac",
+        "sha256": "0bd806eb08f985c9036dce8a7a7292223987dfc5a17be76a8dfb0be5bb76f43f"
+      },
+      {
+        "path": "dvrescue/Project/GNU/CLI/Makefile.am",
+        "sha256": "22f8df320780f747a27454007f39b7c1265512b26b88a0879889e1029d3ab0d9"
+      },
+      {
+        "path": "dvrescue/Source/Common/DecklinkWrapper.cpp",
+        "sha256": "8e03b8a21607dc32efa1767997f83a73bd59da760c5da6b0fb447e233fe2d5ef"
+      },
+      {
+        "path": "dvrescue/Source/Common/DecklinkWrapper.h",
+        "sha256": "ad875074b4f19b7f510d91e2af22c5d8c04138d4011391663772622d1b6e718c"
+      }
+    ],
+    "source_relationship": "Official same-release source, not a claim of reproducing the exact historical executable.",
+    "api_file_evidence": [
+      {
+        "path": "DeckLinkAPI.h",
+        "url": "https://github.com/obsproject/obs-studio/blob/69d274074e8d1a6bdcf6777a0feba8596a8ee9b0/plugins/decklink/mac/decklink-sdk/DeckLinkAPI.h",
+        "sha256": "a29f2c141eda2069f685b4b5a718479fc6ad7a6d3f3d4575286ed14bfd4d2032",
+        "comparison_sdk": "11.6 (not an attribution of the DVRescue build version)"
+      },
+      {
+        "path": "DeckLinkAPIDispatch.cpp",
+        "url": "https://github.com/obsproject/obs-studio/blob/69d274074e8d1a6bdcf6777a0feba8596a8ee9b0/plugins/decklink/mac/decklink-sdk/DeckLinkAPIDispatch.cpp",
+        "sha256": "05132032276cb4f96f4a185bb3b0270c47574ea1889ad77071c4a69cd7343643",
+        "comparison_sdk": "11.6 (not an attribution of the DVRescue build version)"
+      }
+    ],
+    "sdk_version": "Not uniquely recoverable; comparison files are not asserted to be build inputs.",
+    "eula_url": "https://downloads.blackmagicdesign.com/EULA/DeckLink/DeckLink-End-User-License-Agreement.pdf",
+    "eula_sha256": "5d59983b05cc14fcec5d7deacd257719b3b60c386da4838b581a3af75f1b3d03",
+    "eula_exception": "Section 0.1 excludes clauses 1, 4.3, 4.4, 5, 7, 8 for Mac/Include, Win/Include and Linux/Include; other SDK files remain subject to the entire agreement.",
+    "api_file_exception": "File grants permit distribution; copyright/permission reproduction condition exempts machine-executable object code generated by a source language processor.",
+    "binary_runtime_loader_markers": [
+      "/Library/Frameworks/DeckLinkAPI.framework",
+      "CreateDeckLinkIteratorInstance_0004",
+      "CreateDeckLinkAPIInformationInstance_0001",
+      "CreateDeckLinkDiscoveryInstance_0003",
+      "/Library/Application Support/Blackmagic Design/Streaming/BMDStreamingAPI.bundle",
+      "CreateBMDStreamingDiscoveryInstance_0002",
+      "CreateBMDStreamingH264NALParser_0001"
+    ],
+    "dynamic_dependencies": [
+      "\t/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit (compatibility version 1.0.0, current version 275.0.0)",
+      "\t/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation (compatibility version 300.0.0, current version 1858.112.0)",
+      "\t/System/Library/Frameworks/AVFoundation.framework/Versions/A/AVFoundation (compatibility version 1.0.0, current version 2.0.0)",
+      "\t/System/Library/Frameworks/CoreMedia.framework/Versions/A/CoreMedia (compatibility version 1.0.0, current version 1.0.0)",
+      "\t/usr/lib/libz.1.dylib (compatibility version 1.0.0, current version 1.2.11)",
+      "\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1311.100.3)",
+      "\t/usr/lib/libc++.1.dylib (compatibility version 1.0.0, current version 1300.23.0)",
+      "\t/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation (compatibility version 150.0.0, current version 1858.112.0)",
+      "\t/usr/lib/libobjc.A.dylib (compatibility version 1.0.0, current version 228.0.0)"
+    ],
+    "notice_supplement_public_readback_matches": true,
+    "conclusion": "Known distribution notice requirements satisfied; exact SDK/compiler/static revision mapping is optional historical provenance, not an outstanding source-offer or binary-only DeckLink notice obligation.",
+    "api_comparison_12_0": [
+      {
+        "url": "https://github.com/obsproject/obs-studio/blob/32.0.0/plugins/decklink/mac/decklink-sdk/DeckLinkAPI.h",
+        "sha256": "945b6f84f600e204dd5297408a7a21092189c6a907a2ace7ed63be595c9d7fe6"
+      },
+      {
+        "url": "https://github.com/obsproject/obs-studio/blob/32.0.0/plugins/decklink/mac/decklink-sdk/DeckLinkAPIDispatch.cpp",
+        "sha256": "05132032276cb4f96f4a185bb3b0270c47574ea1889ad77071c4a69cd7343643"
+      },
+      {
+        "url": "https://github.com/obsproject/obs-studio/blob/32.0.0/plugins/decklink/mac/decklink-sdk/DeckLinkAPIVersion.h",
+        "sha256": "db32f6be4188472ae9fd021527265d4d7893bf77e772f4cd4cf8fcb751cf1f6f"
+      }
+    ],
+    "known_scope_limit": "Conclusion concerns the inspected DVRescue executable and its API integration, not all SDK components or every conceivable unrecorded publisher modification."
+  },
+  "ffmpeg": {
+    "release_gate": {
+      "tag": "v1.0.7-maintenance.2",
+      "version": "1.0.7",
+      "source_commit": "1735e101881f5fe725c2d1ed539bc3c22bbf8e52",
+      "archive_sha256": "2bc99e7ba5c88e96029772d43b9aee35341d932ff1904c39f62d7965cbc8ab88",
+      "result": "passed"
+    },
+    "source_sha256": "2a5b2a51376098a1cb6b4599191b6f124e2c0db4208679cc296128d1785f910f",
+    "source_archives": [
+      {
+        "file": "ffmpeg-8.0.1.tar.xz",
+        "sha256": "05ee0b03119b45c0bdb4df654b96802e909e0a752f72e4fe3794f487229e5a41",
+        "license_paths": [
+          "ffmpeg-8.0.1/COPYING.GPLv2",
+          "ffmpeg-8.0.1/COPYING.GPLv3"
+        ]
+      },
+      {
+        "file": "freetype-2.13.3.tar.xz",
+        "sha256": "0550350666d427c74daeb85d5ac7bb353acba5f76956395995311a9c6f063289",
+        "license_paths": [
+          "freetype-2.13.3/docs/GPLv2.TXT"
+        ]
+      },
+      {
+        "file": "harfbuzz-10.4.0.tar.xz",
+        "sha256": "480b6d25014169300669aa1fc39fb356c142d5028324ea52b3a27648b9beaad8",
+        "license_paths": [
+          "harfbuzz-10.4.0/COPYING",
+          "harfbuzz-10.4.0/src/ms-use/COPYING",
+          "harfbuzz-10.4.0/test/COPYING",
+          "harfbuzz-10.4.0/test/shape/data/aots/COPYING",
+          "harfbuzz-10.4.0/test/shape/data/text-rendering-tests/COPYING"
+        ]
+      },
+      {
+        "file": "x264-b35605ace3ddf7c1a5d67a2eb553f034aef41d55.tar.bz2",
+        "sha256": "6eeb82934e69fd51e043bd8c5b0d152839638d1ce7aa4eea65a3fedcf83ff224",
+        "license_paths": [
+          "x264-b35605ace3ddf7c1a5d67a2eb553f034aef41d55/COPYING"
+        ]
+      }
+    ],
+    "historical_status": "Unresolved corresponding source and actual dependency notice inventory for 430d60fb; current replacement source is not its corresponding source.",
+    "publisher_recheck": [
+      {
+        "url": "https://evermeet.cx/ffmpeg/",
+        "sha256": "36dbf7e9a784397880ef9061d136aa86f65a13b9f82b36334421583e9921cf36"
+      },
+      {
+        "url": "https://evermeet.cx/pub/ffmpeg/",
+        "sha256": "ecd8a31c9312ceb3874186799bac1f0964df747f508d27a4b8f4231536a8adc3"
+      },
+      {
+        "url": "https://evermeet.cx/ffmpeg/info/ffmpeg/8.0.1",
+        "sha256": "5332fd425ffc1a1800d9bb965a66ac16cd5ce44a50ac7b4fc450e8a3c1921d89"
+      },
+      {
+        "url": "https://evermeet.cx/pub/",
+        "sha256": "21cb67f2ff859a47efa3f6f8593dbc914127b94b091962929776b423594497c6"
+      },
+      {
+        "url": "https://evermeet.cx/pub/scripts/",
+        "sha256": "2d6ef29f0203efc3ecdb9f0defb5a69d10b793f12d97a4625bddf9c7e14ce501"
+      },
+      {
+        "url": "https://evermeet.cx/pub/patches/",
+        "sha256": "03ac24d757a7e602d502f6488f4b00f220f9589c9d862913a697a1493e874254"
+      },
+      {
+        "url": "https://evermeet.cx/pub/repo/",
+        "sha256": "7ef9fc4741c62cb758e37c0f30967d54dfd9d69fc2c242dd39edde9241f7443c"
+      },
+      {
+        "url": "https://evermeet.cx/pub/macosx/",
+        "sha256": "b82c29bd8e48b8bb85ce9a1cc3c6ae14a2068509302946dbb57a244082beb58e"
+      },
+      {
+        "url": "https://evermeet.cx/pub/macosx/ff/",
+        "sha256": "ba0fe4675a42b689139b42cd782980e12ed100a8670cb9835187aa28ddeb830d"
+      }
+    ]
+  },
+  "field_signaling": {
+    "runtime_commit": "2802355",
+    "reviewed_branch_commit": "7ca3ec3560a611330b61a61a6857c73c1e11ff17",
+    "focused_tests": 3,
+    "focused_test_log_sha256": "9e4c0f8e9f72b08e606eacc0af7f8fc72e0fe41ded6b0e5e1cd3e689759a8596",
+    "focused_tests_result": "PASS",
+    "tests": [
+      "MediaTests.test_mp4_burnin_and_deinterlace_modes",
+      "MediaTests.test_subtitle_bitstream_is_bottom_field_first",
+      "MediaTests.test_progressive_and_top_field_first_are_not_forced_to_bottom"
+    ],
+    "existing_real_footage_evidence": "dependency-builds/train-output-verification.json",
+    "real_footage_evidence_sha256": "76d33d72a20ee3696ed325d0b00dd7f991e5236efdd84bb897c15f9289cacbf5",
+    "manual_player_acceptance": "Not performed; required before stable 1.0.7 promotion. Not a blocker to ordinary maintenance, experimental prereleases or unrelated licensing/documentation work."
+  }
+}

@@ -14,7 +14,7 @@ Runtime commit `2802355` is exclusive to maintenance; stable main remains 1.0.6.
 - **33 synthetic regressions and three shell checks pass**, including raw H.264 decoded flags, BFF/TFF/progressive inputs, partial/invalid encoders, cancellation, existing exports and simultaneous writers. The Intel Xcode 15.4 Release build passes; this is not GUI or Apple Silicon acceptance.
 - Fresh [train results](audit/2026-11-13/maintenance-output-verification.json): original SHA-256 unchanged; 238 DV frames and decoded PCM preserved in MOV; 238 bottom-field-first H.264 frames in both MP4/MKV; 476 progressive frames at 60p; nine subtitle events covering the last frame. These are new CLI checks, separate from the historical public videos.
 
-Issue #198's publication defect is fixed with focused evidence. #197 remains open only for its moving-picture/player acceptance criterion. GUI Stop/queues, subjective audio/motion, broader footage, native Apple Silicon and Rosetta remain unverified. Licensing evidence dependencies are separate; see [current status](PROJECT_STATUS.md).
+Issue #198's publication defect is fixed with focused evidence. #197 remains open only for moving-picture/player acceptance before stable 1.0.7 promotion. The technical correction and automated verification are complete; this acceptance gate does not block maintenance commits, experimental prereleases, documentation or unrelated licensing work. GUI Stop/queues, subjective audio/motion, broader footage, native Apple Silicon and Rosetta remain unverified. Licensing evidence dependencies are separate; see [current status](PROJECT_STATUS.md).
 
 ## Preview 2 dependency remediation — November 13, 2026
 
