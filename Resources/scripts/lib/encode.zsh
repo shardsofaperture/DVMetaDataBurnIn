@@ -245,3 +245,19 @@ log_container_resolution() {
 
   info "[mux] Container: ${effective_format} | Video: ${resolved_video_codec:-unknown} | Audio: ${resolved_audio_codec:-unknown} | Subtitles: ${subtitle_label}"
 }
+
+# Inspect decoded field order, not just a container tag. FFmpeg showinfo reports
+# B/T/P for the decoded frame. DV uses a consistent order within a recording.
+interlaced_video_args() {
+  local source="$1" report order
+  report=$("$ffmpeg_bin" -nostdin -hide_banner -i "$source" -map 0:v:0 \
+    -vf showinfo -frames:v 1 -an -f null - 2>&1) || return 1
+  order=$(print -r -- "$report" | sed -n 's/.* i:\([BTP]\) .*/\1/p' | head -1)
+  reply=()
+  case "$order" in
+    B) reply=(-flags +ilme+ildct -top 0 -x264-params bff=1) ;;
+    T) reply=(-flags +ilme+ildct -top 1 -x264-params tff=1) ;;
+    P) ;;
+    *) warn "Cannot determine decoded field order: $source"; return 1 ;;
+  esac
+}
