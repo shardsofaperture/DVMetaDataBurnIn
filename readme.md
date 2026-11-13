@@ -1,122 +1,58 @@
 # DVMetaDataBurnIn
 
-> **Maintenance work in progress:** Additional bug fixes and testing are continuing on [`maintenance/1.0.7`](https://github.com/shardsofaperture/DVMetaDataBurnIn/tree/maintenance/1.0.7) before merging into `main`. [v1.0.7 Maintenance Preview 1](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.1) is available for testing.
+A free, open-source macOS application for preserving the recording context of legacy DV and Digital8 video. It brings DV recording-date extraction, timestamp presentation, batch processing, and verification into one workflow using **DVRescue** and **FFmpeg**.
 
-**DVMetaDataBurnIn** is a free, open source macOS utility for burning original DV/Digital8 camcorder date/time metadata directly into video files. It’s powered by `dvrescue` and `ffmpeg`, which prior to this involved me banging my head running terminal scripts to get the same result. I wanted a beter way for myself outside of apple script. This is my attempt to make DV timestamp burning actually useable for batchwork. 
----
+> I created this because I could not find a suitable free, open-source macOS workflow for recovering and displaying my original camcorder recording dates without assembling command-line tools myself. — Zach Zarzycki (ThePolish)
 
-## Known Issues
+**[Download the current application (1.0.6 beta)](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/1.0.6beta)** · **[Train demonstration: original and processed videos](docs/examples/TRAIN_DV_PRESERVATION.md)** · **[Preservation roadmap](docs/ROADMAP.md)**
 
-- File chooser doesn't limit to file types which the program will accept
-- Unknown issue if this will this work on m series mac. Was built / works on an intel mac.
-- UI could be way better
-- Does not work on Windows 98 =(
+The train demonstration includes the complete supplied DV AVI, the owner's timestamped MP4, and separately identified maintenance-generated comparisons. Downloadable hashes, measured stream properties, genuine before/after frames, and reproduction commands make the results inspectable.
 
----
+## What it does
 
+- Processes existing DV AVI files individually or in batches, with a folder queue.
+- Extracts embedded camcorder recording date/time through DVRescue.
+- Burns date/time into viewing copies or creates an MKV with switchable ASS subtitles.
+- Offers DV stream-copy MOV derivatives, H.264 viewing copies, and deinterlacing settings.
+- Provides a macOS interface around the processing tools, which are bundled with the app.
 
-## Features
+Keep the original capture as the reference. A DV-copy MOV is a derivative; it is not automatically a verified preservation master. A timestamp overlay makes selected information visible but does not preserve every original metadata field. MP4 and H.264 MKV exports are lossy viewing copies. See the [measured distinctions and limitations](docs/examples/TRAIN_DV_PRESERVATION.md).
 
-- Batch or single-file AVI processing including folder queue
-- Extracts original camcorder recording date/time from embedded DV metadata  
-- Overlay date/time using what I feel are camcorder-style fonts   
-- Export to MOV (original quality) or MP4 (H.264) but trying to keep it as close to "DV visual style" as possible (low compression) 
-- Containerize as MP4 in MKV with Subtittles (ASS format) so you can burn in or have the option to output with a turn on/off time and date option
-- No command-line required — simple macOS UI (thank god) 
-- Built in options to deinerlace
+Direct tape capture is **planned**, not available in this application. DV/Digital8 and later HDV capture have separate hardware, software, and acceptance prerequisites in the roadmap.
 
----
+## Platform and maintenance status
 
-## Features Roadmap (ideas)
-- Additional layouts for how the camcorder fonts are burned in
-    - Maybe a gallery, maybe a preview function idk
-- Visual guide improvement (overlay with font instead of static image with prerendered default font)
-- Hide better handling of debug options
-- Improve debug logs 
-- Fix temp / scratch file handling / clearing
-- Organize UI better
-- Custom FFMPEG args instructions
-- Better file browsing handling 
-- Progress bar
-- Auto chose batch or single file based on input field (.avi = single file, open folder = batch process)
-- Presets as an easier way to select options
+The application and bundled tools are built for **Intel macOS**; the current project targets macOS 12 or later. Native build evidence is from Intel macOS 14 with Xcode 15.4. Apple Silicon operation, including any translation requirements, has not been validated.
 
----
+The separate [1.0.7 maintenance preview](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.1) improves subtitle-tail timing, temporary workspace isolation, batch error handling, and cancellation cleanup. These application changes remain on [`maintenance/1.0.7`](https://github.com/shardsofaperture/DVMetaDataBurnIn/tree/maintenance/1.0.7); they are **not merged into `main`**. The train examples exercise that preview's CLI, not its GUI.
+
+[Maintenance status and remaining acceptance](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/maintenance/1.0.7/docs/MAINTENANCE_1.0.7.md) separates historical synthetic tests/native builds from current real-footage measurements. GUI queues/Stop, player rendering, subjective audio and motion quality, and Apple Silicon acceptance remain open. File selection, progress reporting, and final-output publication also need further work.
+
+## Use and build
+
+Download and extract the application, select a DV AVI file or folder, choose the output and timestamp settings, and run processing into a separate destination. The maintenance preview is ad-hoc signed rather than notarized. Use macOS's normal app-opening controls for software you trust.
+
+Open `DVMetaDataBurnIn.xcodeproj` in full Xcode and build the `DVMetaDataBurnIn` scheme. For a command-line development build, select your installed full Xcode for that command; Command Line Tools alone cannot build the app:
+
+```sh
+DEVELOPER_DIR="/path/to/Xcode.app/Contents/Developer" xcodebuild -project DVMetaDataBurnIn.xcodeproj -scheme DVMetaDataBurnIn -configuration Debug -derivedDataPath .build/DerivedData CODE_SIGNING_ALLOWED=NO build
+```
+
+See [development notes](DEV.md) and [developer test scenarios](docs/DEV_TESTS.md). On the maintenance branch, [the test runner](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/maintenance/1.0.7/Resources/scripts/dev/test_all.zsh) runs with `zsh Resources/scripts/dev/test_all.zsh`; that runner is not present on `main`. VS Code and Xcode can use the same checkout; no separate project architecture is needed.
+
+The [optional real-footage verifier](scripts/verify_train_demo.py) accepts explicit file paths and existing FFmpeg/ffprobe/DVRescue tools. It does not download videos or add them to default tests. Instructions and hash-pinned downloads are in the [train demonstration](docs/examples/TRAIN_DV_PRESERVATION.md).
+
 ## Screenshots
-### Splash Screen
-![Splash Screen](Resources/Screenshots/Splash_Screen.png)
 
-### Main Window
-![Main Window](Resources/Screenshots/Main_Window.png)
+![Main application window](Resources/Screenshots/Main_Window.png)
 
-### Main Window (Alternate View)
-![Main Window Two](Resources/Screenshots/Main_Window_Two.png)
+[Alternate view](Resources/Screenshots/Main_Window_Two.png) · [Font picker](Resources/Screenshots/Font_Picker.png) · [Font examples](Resources/Screenshots/Fonts.png)
 
-### Camcorder Only Overview
-![Fonts](Resources/Screenshots/Fonts.png)
+## Credits and licenses
 
-### Font Picker
-![Font Picker](Resources/Screenshots/Font_Picker.png)
+- Application and UI: **Zach Zarzycki / ThePolish**.
+- [DVRescue](https://mediaarea.net/DVRescue): embedded DV metadata analysis; by MIPoPS and MediaArea contributors.
+- [FFmpeg](https://ffmpeg.org/): decoding, filtering, encoding, and container handling.
+- UAV OSD fonts: **Nicholas Kruse**. VCR OSD Mono: **Riciery Leal (mrmanet)**. Existing attribution and permission references remain in [the bundled notices](Resources/licenses/NOTICE.txt).
 
-
-
-
-
----
-
-## Usage
-
-1. **Download** the app  
-2. **Launch** it.  
-2a. Tell apple you don't care about security becuase you got this from the internet.'
-3. **Select** a file or an entire folder of DV/Digital8 clips.  
-4. Pick your **layout** and **output format**.  
-5. Hit **Run Burn-In** and let it cook.
-
----
-
-## Requirements
-
-Nothing external.  
-`ffmpeg` and `dvrescue` are bundled in the app bundle according to their respective licenses.  
-Full license texts are in:  
-`Resources/licenses/`
-
----
-
-## Building (if you want to build it yourself)
-
-1. Clone the repo:
-    ```bash
-    git clone https://github.com/shardsofaperture/DVMetaDataBurnIn.git
-    ```
-2. Open `DVMetaDataBurnIn.xcodeproj` in Xcode.  
-3. Build & run.
-
-Bundled tools:
-- FFmpeg (LGPL/GPL)  
-- dvrescue (BSD-3-Clause)
-
----
-
-## Credits
-
-- App & UI: ThePolish (very vibe coded)  
-
-- **UAV OSD Font** by Nicholas Kruse  
-  - Free for personal and commercial use  
-  - https://www.dafont.com/uav-osd.font  
-  - https://nicholaskruse.com/work/uavosd  
-
-- **VCR OSD Mono** by Riciery Leal (mrmanet)  
-  - Free for personal and commercial use per author comments  
-  - https://www.dafont.com/font-comment.php?file=vcr_osd_mono  
-
-- **FFmpeg** — https://ffmpeg.org/  
-- **dvrescue** — https://mediaarea.net/DVRescue  
-
----
-
-## License
-
-MIT License (see [LICENSE](LICENSE))
+The application uses the **[MIT License](LICENSE)**, identical to its [existing bundled application notice](Resources/licenses/APP_LICENSE.txt), with the original copyright holder and year retained. This does not relicense FFmpeg, DVRescue, fonts, other dependencies, or sample footage. See [dependency evidence and unresolved notice gaps](docs/LICENSING.md). Train videos and extracted frames are attributed to Zach Zarzycki and published with permission; no new media license is granted.
