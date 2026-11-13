@@ -19,7 +19,7 @@ struct AboutView: View {
                     .font(.headline)
 
                 Text("""
-                Copyright (c) 2025 The Polish
+                Copyright (c) 2025 Zach Zarzycki
 
                 Permission is hereby granted, free of charge, to any person obtaining a copy
                 of this software and associated documentation files (the \"Software\"), to deal

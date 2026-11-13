@@ -60,7 +60,3 @@ The unchanged preview 2 archive contains VT323, Share Tech Mono and IBM Plex Mon
 under SIL OFL 1.1, with their full notices. Current maintenance restores the
 original UAV/VCR fonts; build from the branch for that correction. System/custom
 fonts selected by users retain their own terms.
-
-## Train footage and extracted frames
-
-Attribution: **Zach Zarzycki (ThePolish / shardsofaperture)**. The owner authorized publication of the identified train demonstration and directly related outputs. No existing explicit media license was found alongside the supplied files. No new MIT or Creative Commons license is applied to the videos or extracted frames. Public availability is not a new grant of reuse rights; contact the owner for permissions beyond the published demonstration.

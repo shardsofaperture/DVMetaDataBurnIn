@@ -2,9 +2,9 @@
 
 [Download the example release](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/examples-train-dv-v1) · [manifest](train-dv/manifest.json) · [SHA-256 checksums](train-dv/SHA256SUMS-v2.txt) · [measurements](train-dv/measurements.json)
 
-This is one complete, approximately eight-second train clip supplied by **Zach Zarzycki (ThePolish / shardsofaperture)**, not an excerpt made for this release. The supplied files were identified by their contents, frame counts, streams, embedded dates, and matching scenes, then hashed before work. Their local filenames were `Train Raw DV Capture.avi` and `Train Dateburn Transcoded.mp4`; neither was renamed or overwritten in place.
+This demonstration uses a complete, approximately eight-second train clip and compares the original DV capture with processed outputs.
 
-The owner's actual workflow was:
+Capture workflow:
 
 **Sony MiniDV camcorder → Sony laptop capture → flash drive → Mac → DVMetaDataBurnIn → processed outputs.**
 
@@ -27,8 +27,6 @@ All derivatives map to `train-01-original-dv`. Distinct file hashes were retaine
 ```text
 13be6af4cc481e5eea0a8ed9daee8d9ef329abd79ccc5c6620147604cefcca0a
 ```
-
-All media fit the [GitHub release limit of less than 2 GiB per asset](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases), checked November 13, 2026. No multipart packaging or recompression for upload was needed. Media are release assets, not ordinary Git blobs. The example release is explicitly excluded from “Latest”; `1.0.6beta` remains the current application release.
 
 ## Genuine before/after frames
 
@@ -87,7 +85,7 @@ The standalone [ASS](train-dv/train-01-maintenance-timestamps.ass) is the app-ge
 
 ## Reproduce measurements and processing
 
-Download the desired assets into a new directory and compare them against [SHA256SUMS-v2.txt](train-dv/SHA256SUMS-v2.txt). The v2 checksum file covers every named release asset except itself, including `manifest.json`, `verification.json`, both sample-note revisions, and the original checksum file. [SAMPLE-NOTES-v2.txt](train-dv/SAMPLE-NOTES-v2.txt) corrects the documentation link after GitHub reported that `main` is locked; original published bytes are retained. [PR #192](https://github.com/shardsofaperture/DVMetaDataBurnIn/pull/192) delivered the documentation and licensing changes. Versioned release notes preserve the original publication-time lock status. Current branch policy keeps the 1.0.6 application on `main` and the 1.0.7 preview on `maintenance/1.0.7` for owner testing. The manifest lists video/subtitle samples; the checksum file also covers the supporting release documents. No circular checksum is required.
+Download the desired assets into a new directory and compare them against [SHA256SUMS-v2.txt](train-dv/SHA256SUMS-v2.txt). The manifest maps the samples; the checksum file also covers supporting documents.
 
 From a checkout containing the verifier, use existing installed tools with explicit paths. It does not modify inputs, download files, or run as part of the default test suite:
 
@@ -130,12 +128,10 @@ To regenerate a comparison sheet from a downloaded 29.97-rate file:
 Resources/bin/ffmpeg -v error -i /path/to/train-01-owner-dateburn.mp4 -vf 'select=eq(n\,0)+eq(n\,24)+eq(n\,119)+eq(n\,237),scale=640:480,setsar=1,tile=2x2' -frames:v 1 -q:v 3 /path/to/new-comparison.jpg
 ```
 
-## Evidence boundaries and rights
+## Verification limits
 
-**Real footage:** current hashes, full decodes, streams, fields, payload/PCM identity for the MOV, recording-date extraction, subtitle packet coverage, and sampled visible overlays. Public downloads are verified from unauthenticated downloaded bytes; [the publication receipt](train-dv/public-download-verification.json) records all 13 matching sizes and hashes and confirms `1.0.6beta` remains Latest.
+**Real footage:** current hashes, full decodes, streams, fields, payload/PCM identity for the MOV, recording-date extraction, subtitle packet coverage, and sampled visible overlays. The [initial publication receipt](train-dv/public-download-verification.json) records download checks at publication time. The sample notes, manifest and checksums have since been updated to simplify the documentation; the video and subtitle hashes are unchanged.
 
 **Historical synthetic/build evidence:** November 12, 2026 maintenance implementation `fac8e6f` and preview commit `5f7e13e`. The retained preview logs substantiate 26 synthetic regressions plus three shell smoke checks and a Release build at `5f7e13e`. Six Swift workspace checks and native Debug/Release builds belong to the earlier maintenance validation that day; they were not rerun for this documentation task. See the [maintenance report](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/maintenance/1.0.7/docs/MAINTENANCE_1.0.7.md). Synthetic edge cases do not establish real camera/GUI acceptance.
 
 **Independent recording facts:** the owner supplied the capture workflow and identified the demonstration files. No independent recording-clock ground truth is available. Other cameras, long recordings, midnight/day transitions, damaged tapes, GUI behavior, motion/audio quality, and Apple Silicon remain outside this demonstration's acceptance.
-
-Attribution: **Zach Zarzycki (ThePolish / shardsofaperture)**. Published with owner authorization. No new media license is granted for these videos or extracted frames; the application MIT license applies separately. [Licensing and third-party notices](../LICENSING.md) explain the distinction.

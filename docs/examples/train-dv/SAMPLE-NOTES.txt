@@ -1,21 +1,14 @@
-Train DV Preservation Demonstration — Original and Processed Video
+Train DV demonstration — original and processed video
 
-Owner: Zach Zarzycki (ThePolish / shardsofaperture).
 Workflow: Sony MiniDV camcorder → Sony laptop capture → flash drive → Mac → DVMetaDataBurnIn → processed outputs.
 
-The complete supplied reference is train-01-original-dv.avi (238 DV frames, approximately 7.94 seconds). train-01-owner-dateburn.mp4 is the supplied timestamped output; its exact application version/settings are unknown. Files named maintenance were generated separately on 2026-11-13 by unchanged commit 5f7e13e0b9f94b98bfef32c5d828aae614265583 (v1.0.7-maintenance.1).
+train-01-original-dv.avi is the complete reference capture: 238 DV frames, approximately 7.94 seconds. train-01-owner-dateburn.mp4 is the supplied timestamped viewing copy; its processing version/settings are unknown. The maintenance comparisons were generated with commit 5f7e13e0b9f94b98bfef32c5d828aae614265583 (v1.0.7-maintenance.1).
 
-manifest.json gives sample IDs, source relationships, full sizes/hashes, stream measurements, provenance, and direct download URLs. verification.json contains full measurements, timestamp transitions, subtitle intervals, and exact processing argument arrays with portable path placeholders. SHA256SUMS.txt covers every named asset except itself.
+The DV-copy MOV matches the reference's encoded DV payload and decoded PCM audio. Keep the original AVI. H.264/AAC outputs are viewing copies. The original deinterlacing-off comparisons retain combing with progressive H.264 flags. The 60p output has 476 frames. The MKV contains nine switchable subtitle events covering 0–7.95 seconds.
 
-All six videos decode without reported FFmpeg error-level messages. DV-copy MOV matches the source's concatenated encoded DV payload and separately decoded PCM samples at the same sample rate/channel count. This does not prove whole-file identity, all container metadata preservation, or player compatibility. Keep the original AVI.
+See manifest.json for file relationships and measurements, verification.json for detailed checks, and SHA256SUMS-v2.txt for download hashes. Player rendering, motion/audio quality, GUI behavior and Apple Silicon operation remain unverified by these CLI checks.
 
-Source and 29.97-rate derivatives report 2997/100 fps in their containers; DVRescue reports nominal DV 30000/1001. The 60p derivative is 60000/1001 with 476 frames. Deinterlacing-off H.264 retains visible combing despite progressive decoded flags; the MKV container reports bottom-first while decoded H.264 flags are progressive. These limitations are intentionally documented, not repaired in this publication task.
-
-Extracted recording dates span 2025-11-11 08:29:35–08:29:43. Sampled overlay transitions agree with extraction. Independent historical camera-clock truth is unavailable. The nine MKV subtitle intervals span 0–7.95 seconds and cover the final video frame; actual target-player rendering/toggling remains unverified. The ASS asset is the original pre-mux app artifact.
-
-Full notes, genuine comparison frames and reproduction instructions:
+Comparison frames and reproduction instructions:
 https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/main/docs/examples/TRAIN_DV_PRESERVATION.md
 
-The app's MIT license does not apply to these videos or extracted frames. Published with owner authorization; no new media license is granted. No GUI, subjective audio/motion, Apple Silicon, capture-hardware, midnight rollover, or damaged-tape acceptance is claimed. Existing historical synthetic regressions and native build evidence are separate.
-
-This dedicated example release is excluded from Latest; 1.0.6beta remains the application release. Reruns must reuse identical verified assets or publish a new filename/revision. Never overwrite an existing public asset with different bytes or move this tag.
+This example-data release is excluded from Latest.
