@@ -41,7 +41,7 @@ Corresponding-source/build materials and the complete dependency notice set for
 that historical binary remain unavailable. The DVRescue notice supplement is
 provided beside the historical downloads.
 
-## UAV OSD fonts in stable and earlier releases
+## Fonts in stable and earlier releases
 
 UAV OSD Mono and UAV OSD Sans Mono are by Nicholas Kruse. He granted
 DVMetaDataBurnIn express written permission to use and redistribute both fonts
@@ -50,9 +50,22 @@ This permission applies to this project; it is not an OFL license, a public-doma
 dedication, or blanket permission for unrelated projects. Copyright attribution
 and source links are retained in the notices.
 
-VCR OSD Mono by Riciery Leal has documented use permission; explicit app
-redistribution and attachment/embedding terms, including attribution requirements,
-remain unconfirmed. Its terms are managed separately by the owner.
+VCR OSD Mono is by Riciery Leal (MrManet). His own
+[February 24, 2017 comment](https://www.dafont.com/font-comment.php?file=vcr_osd_mono)
+confirms commercial use is permitted. [DaFont](https://www.dafont.com/vcr-osd-mono.font)
+classifies it as 100% Free. The maintainer also reviewed third-party catalog
+classifications permitting redistribution; these classifications are not
+independent author grants. Explicit author permission for redistribution and
+attachment/embedding remains unconfirmed.
+
+The maintainer has decided to retain VCR OSD Mono with its existing attribution
+and source references in stable and earlier distributions. Clarification has
+been requested from the author; the project will be updated if a response arrives.
+The completed documentation and maintainer decision are recorded in
+[#196](https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/196), which may
+be reopened on new author evidence. Closing the issue does not establish legal
+permission, and absence of a reply grants no additional rights. Maintenance
+preview 2's OFL fonts and their terms are unchanged.
 
 ## Train footage and extracted frames
 
