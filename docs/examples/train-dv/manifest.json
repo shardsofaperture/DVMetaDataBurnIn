@@ -1,0 +1,483 @@
+{
+  "schema_version": 1,
+  "demonstration_id": "train-01",
+  "measured_on": "2026-11-13",
+  "release_url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/examples-train-dv-v1",
+  "media_rights": {
+    "attribution": "Zach Zarzycki (ThePolish / shardsofaperture)",
+    "terms": "Published with owner authorization. No new media license granted; the application MIT license does not cover the videos or extracted frames."
+  },
+  "capture_workflow": [
+    "Sony MiniDV camcorder",
+    "Sony laptop capture",
+    "flash drive",
+    "Mac",
+    "DVMetaDataBurnIn",
+    "processed outputs"
+  ],
+  "measurement_tools": {
+    "ffmpeg": "ffmpeg version 8.0.1-tessus  https://evermeet.cx/ffmpeg/  Copyright (c) 2000-2025 the FFmpeg developers",
+    "ffprobe": "ffprobe version 9.0.2 Copyright (c) 2007-2026 the FFmpeg developers",
+    "dvrescue": "DVRescue v.24.07 (MediaInfoLib v.24.06) by MIPoPS."
+  },
+  "dv_nominal_rate": "30000/1001",
+  "container_rate_caveat": "Original AVI and 29.97-rate derivatives report 2997/100; DVRescue reports native DV rate 30000/1001. Values are retained as measured.",
+  "independent_recording_datetime_ground_truth": "not available",
+  "samples": [
+    {
+      "sample_id": "train-01-maintenance-burn-60p",
+      "filename": "train-01-maintenance-burn-60p.mp4",
+      "role": "New maintenance 60000/1001 fps yadif viewing copy",
+      "relationship": "transcode",
+      "source_sample_id": "train-01-original-dv",
+      "source_sha256": "13be6af4cc481e5eea0a8ed9daee8d9ef329abd79ccc5c6620147604cefcca0a",
+      "bytes": 7360608,
+      "sha256": "4cdc98968c06c52e2baaf14443590e432ed54159f82c915b02a968b6be41a784",
+      "download_url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/train-01-maintenance-burn-60p.mp4",
+      "timestamp_presentation": "permanent overlay",
+      "container": "mov,mp4,m4a,3gp,3g2,mj2",
+      "duration_seconds": "7.941267",
+      "video": {
+        "codec_name": "h264",
+        "width": 720,
+        "height": 480,
+        "pix_fmt": "yuv422p",
+        "r_frame_rate": "60000/1001",
+        "avg_frame_rate": "60000/1001",
+        "nb_read_frames": "476",
+        "duration": "7.941267",
+        "field_order": "progressive",
+        "sample_aspect_ratio": "8:9",
+        "display_aspect_ratio": "4:3"
+      },
+      "decoded_field_flags": {
+        "frames": 476,
+        "interlaced": 0,
+        "top_first": 0
+      },
+      "audio": {
+        "codec_name": "aac",
+        "sample_rate": "48000",
+        "channels": 2,
+        "channel_layout": "stereo",
+        "bits_per_sample": 0,
+        "duration": "7.941000"
+      },
+      "decoded_audio_s16le": {
+        "bytes": 1527808,
+        "sha256": "8d8991998551fca70b5655b4fc8c1f2e3ea7a120f4bb9d0f9a6fd440eb52ea15"
+      },
+      "packet_timing": {
+        "video": {
+          "count": 476,
+          "first_pts": 0.0,
+          "end_pts": 7.941266
+        },
+        "audio": {
+          "count": 374,
+          "first_pts": -0.021333,
+          "end_pts": 7.94125
+        }
+      },
+      "provenance": {
+        "application_version": "1.0.7 maintenance preview 1",
+        "application_commit": "5f7e13e0b9f94b98bfef32c5d828aae614265583",
+        "tool_versions": {
+          "ffmpeg": "ffmpeg version 8.0.1-tessus  https://evermeet.cx/ffmpeg/  Copyright (c) 2000-2025 the FFmpeg developers",
+          "ffprobe": "ffprobe version 9.0.2 Copyright (c) 2007-2026 the FFmpeg developers",
+          "dvrescue": "DVRescue v.24.07 (MediaInfoLib v.24.06) by MIPoPS."
+        },
+        "settings_evidence": "processing-commands.json and retained local run logs",
+        "relationship_evidence": "Same hash-pinned source used by recorded command"
+      },
+      "decode_errors": "",
+      "decode_ok": true
+    },
+    {
+      "sample_id": "train-01-maintenance-burn-deinterlace-off",
+      "filename": "train-01-maintenance-burn-deinterlace-off.mp4",
+      "role": "New maintenance burn-in with deinterlacing off; combing retained, progressive H.264 flag",
+      "relationship": "transcode",
+      "source_sample_id": "train-01-original-dv",
+      "source_sha256": "13be6af4cc481e5eea0a8ed9daee8d9ef329abd79ccc5c6620147604cefcca0a",
+      "bytes": 8223526,
+      "sha256": "8d920c9540c3d7018dfde5265d13d80da13fa5b9569335b5fcd5aede81a9c47d",
+      "download_url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/train-01-maintenance-burn-deinterlace-off.mp4",
+      "timestamp_presentation": "permanent overlay",
+      "container": "mov,mp4,m4a,3gp,3g2,mj2",
+      "duration_seconds": "7.941275",
+      "video": {
+        "codec_name": "h264",
+        "width": 720,
+        "height": 480,
+        "pix_fmt": "yuv422p",
+        "r_frame_rate": "2997/100",
+        "avg_frame_rate": "2997/100",
+        "nb_read_frames": "238",
+        "duration": "7.941275",
+        "field_order": "progressive",
+        "sample_aspect_ratio": "8:9",
+        "display_aspect_ratio": "4:3"
+      },
+      "decoded_field_flags": {
+        "frames": 238,
+        "interlaced": 0,
+        "top_first": 0
+      },
+      "audio": {
+        "codec_name": "aac",
+        "sample_rate": "48000",
+        "channels": 2,
+        "channel_layout": "stereo",
+        "bits_per_sample": 0,
+        "duration": "7.941000"
+      },
+      "decoded_audio_s16le": {
+        "bytes": 1527808,
+        "sha256": "8d8991998551fca70b5655b4fc8c1f2e3ea7a120f4bb9d0f9a6fd440eb52ea15"
+      },
+      "packet_timing": {
+        "video": {
+          "count": 238,
+          "first_pts": 0.0,
+          "end_pts": 7.941275
+        },
+        "audio": {
+          "count": 374,
+          "first_pts": -0.021333,
+          "end_pts": 7.94125
+        }
+      },
+      "provenance": {
+        "application_version": "1.0.7 maintenance preview 1",
+        "application_commit": "5f7e13e0b9f94b98bfef32c5d828aae614265583",
+        "tool_versions": {
+          "ffmpeg": "ffmpeg version 8.0.1-tessus  https://evermeet.cx/ffmpeg/  Copyright (c) 2000-2025 the FFmpeg developers",
+          "ffprobe": "ffprobe version 9.0.2 Copyright (c) 2007-2026 the FFmpeg developers",
+          "dvrescue": "DVRescue v.24.07 (MediaInfoLib v.24.06) by MIPoPS."
+        },
+        "settings_evidence": "processing-commands.json and retained local run logs",
+        "relationship_evidence": "Same hash-pinned source used by recorded command"
+      },
+      "decode_errors": "",
+      "decode_ok": true
+    },
+    {
+      "sample_id": "train-01-maintenance-dv-copy",
+      "filename": "train-01-maintenance-dv-copy.mov",
+      "role": "New maintenance DV stream-copy derivative",
+      "relationship": "remux",
+      "source_sample_id": "train-01-original-dv",
+      "source_sha256": "13be6af4cc481e5eea0a8ed9daee8d9ef329abd79ccc5c6620147604cefcca0a",
+      "bytes": 30090518,
+      "sha256": "c982b5d7d8dff7d13c1875d446abf87e0ce55dc74ff3e8176b8e69241fb75c2c",
+      "download_url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/train-01-maintenance-dv-copy.mov",
+      "timestamp_presentation": "neither",
+      "container": "mov,mp4,m4a,3gp,3g2,mj2",
+      "duration_seconds": "7.941275",
+      "video": {
+        "codec_name": "dvvideo",
+        "width": 720,
+        "height": 480,
+        "pix_fmt": "yuv411p",
+        "r_frame_rate": "2997/100",
+        "avg_frame_rate": "2997/100",
+        "nb_read_frames": "238",
+        "duration": "7.941275",
+        "field_order": "unknown",
+        "sample_aspect_ratio": "8:9",
+        "display_aspect_ratio": "4:3"
+      },
+      "decoded_field_flags": {
+        "frames": 238,
+        "interlaced": 238,
+        "top_first": 0
+      },
+      "audio": {
+        "codec_name": "pcm_s16le",
+        "sample_rate": "48000",
+        "channels": 2,
+        "channel_layout": "stereo",
+        "bits_per_sample": 16,
+        "duration": "7.941250"
+      },
+      "decoded_audio_s16le": {
+        "bytes": 1524720,
+        "sha256": "7361915b0c317d46f4e3d4d8110255c74d175f6ca2704f0ac80661ada01ba065"
+      },
+      "packet_timing": {
+        "video": {
+          "count": 238,
+          "first_pts": 0.0,
+          "end_pts": 7.941275
+        },
+        "audio": {
+          "count": 476,
+          "first_pts": 0.0,
+          "end_pts": 7.94125
+        }
+      },
+      "provenance": {
+        "application_version": "1.0.7 maintenance preview 1",
+        "application_commit": "5f7e13e0b9f94b98bfef32c5d828aae614265583",
+        "tool_versions": {
+          "ffmpeg": "ffmpeg version 8.0.1-tessus  https://evermeet.cx/ffmpeg/  Copyright (c) 2000-2025 the FFmpeg developers",
+          "ffprobe": "ffprobe version 9.0.2 Copyright (c) 2007-2026 the FFmpeg developers",
+          "dvrescue": "DVRescue v.24.07 (MediaInfoLib v.24.06) by MIPoPS."
+        },
+        "settings_evidence": "processing-commands.json and retained local run logs",
+        "relationship_evidence": "Same hash-pinned source used by recorded command"
+      },
+      "decode_errors": "",
+      "decode_ok": true
+    },
+    {
+      "sample_id": "train-01-maintenance-subtitles",
+      "filename": "train-01-maintenance-subtitles.mkv",
+      "role": "New maintenance H.264/AAC MKV with switchable ASS and attached font",
+      "relationship": "transcode",
+      "source_sample_id": "train-01-original-dv",
+      "source_sha256": "13be6af4cc481e5eea0a8ed9daee8d9ef329abd79ccc5c6620147604cefcca0a",
+      "bytes": 8338107,
+      "sha256": "4b6f18f66f10f4e79f16129ecadf16d1d4f86909fa1e325e3324f1cdd3bafd45",
+      "download_url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/train-01-maintenance-subtitles.mkv",
+      "timestamp_presentation": "switchable subtitles",
+      "container": "matroska,webm",
+      "duration_seconds": "7.962000",
+      "video": {
+        "codec_name": "h264",
+        "width": 720,
+        "height": 480,
+        "pix_fmt": "yuv422p",
+        "r_frame_rate": "2997/100",
+        "avg_frame_rate": "2997/100",
+        "nb_read_frames": "238",
+        "duration": "unknown",
+        "field_order": "bt",
+        "sample_aspect_ratio": "8:9",
+        "display_aspect_ratio": "4:3"
+      },
+      "decoded_field_flags": {
+        "frames": 238,
+        "interlaced": 0,
+        "top_first": 0
+      },
+      "audio": {
+        "codec_name": "aac",
+        "sample_rate": "48000",
+        "channels": 2,
+        "channel_layout": "stereo",
+        "bits_per_sample": 0,
+        "duration": "unknown"
+      },
+      "decoded_audio_s16le": {
+        "bytes": 1531904,
+        "sha256": "703a2d4773d6b1893a250c8cd68cde8765d53e4fca2bdff7b9c0984485c77b08"
+      },
+      "packet_timing": {
+        "video": {
+          "count": 238,
+          "first_pts": 0.0,
+          "end_pts": 7.941000000000001
+        },
+        "audio": {
+          "count": 374,
+          "first_pts": -0.021,
+          "end_pts": 7.957
+        },
+        "subtitle": {
+          "count": 9,
+          "first_pts": 0.0,
+          "end_pts": 7.95
+        }
+      },
+      "provenance": {
+        "application_version": "1.0.7 maintenance preview 1",
+        "application_commit": "5f7e13e0b9f94b98bfef32c5d828aae614265583",
+        "tool_versions": {
+          "ffmpeg": "ffmpeg version 8.0.1-tessus  https://evermeet.cx/ffmpeg/  Copyright (c) 2000-2025 the FFmpeg developers",
+          "ffprobe": "ffprobe version 9.0.2 Copyright (c) 2007-2026 the FFmpeg developers",
+          "dvrescue": "DVRescue v.24.07 (MediaInfoLib v.24.06) by MIPoPS."
+        },
+        "settings_evidence": "processing-commands.json and retained local run logs",
+        "relationship_evidence": "Same hash-pinned source used by recorded command"
+      },
+      "decode_errors": "",
+      "decode_ok": true
+    },
+    {
+      "sample_id": "train-01-original-dv",
+      "filename": "train-01-original-dv.avi",
+      "role": "Original supplied Sony DV AVI capture",
+      "relationship": "original",
+      "source_sample_id": null,
+      "source_sha256": null,
+      "bytes": 30105600,
+      "sha256": "13be6af4cc481e5eea0a8ed9daee8d9ef329abd79ccc5c6620147604cefcca0a",
+      "download_url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/train-01-original-dv.avi",
+      "timestamp_presentation": "neither",
+      "container": "avi",
+      "duration_seconds": "7.941275",
+      "video": {
+        "codec_name": "dvvideo",
+        "width": 720,
+        "height": 480,
+        "pix_fmt": "yuv411p",
+        "r_frame_rate": "2997/100",
+        "avg_frame_rate": "2997/100",
+        "nb_read_frames": "238",
+        "duration": "7.941275",
+        "field_order": "unknown",
+        "sample_aspect_ratio": "8:9",
+        "display_aspect_ratio": "4:3"
+      },
+      "decoded_field_flags": {
+        "frames": 238,
+        "interlaced": 238,
+        "top_first": 0
+      },
+      "audio": {
+        "codec_name": "pcm_s16le",
+        "sample_rate": "48000",
+        "channels": 2,
+        "channel_layout": "unknown",
+        "bits_per_sample": 16,
+        "duration": "unknown"
+      },
+      "decoded_audio_s16le": {
+        "bytes": 1524720,
+        "sha256": "7361915b0c317d46f4e3d4d8110255c74d175f6ca2704f0ac80661ada01ba065"
+      },
+      "packet_timing": {
+        "video": {
+          "count": 238,
+          "first_pts": 0.0,
+          "end_pts": 7.941275
+        },
+        "audio": {
+          "count": 476,
+          "first_pts": 0.0,
+          "end_pts": 7.94125
+        }
+      },
+      "provenance": {
+        "application_version": "unknown",
+        "application_commit": "unknown",
+        "tool_versions": {
+          "processing_tools": "unknown",
+          "embedded_encoder_tags": {
+            "video": "unknown",
+            "container": "unknown"
+          }
+        },
+        "settings_evidence": "Owner supplied; exact processing settings unknown",
+        "relationship_evidence": "Owner identification, DV metadata and visual inspection"
+      },
+      "decode_errors": "",
+      "decode_ok": true
+    },
+    {
+      "sample_id": "train-01-owner-dateburn",
+      "filename": "train-01-owner-dateburn.mp4",
+      "role": "Owner-supplied timestamp-burned viewing copy",
+      "relationship": "transcode",
+      "source_sample_id": "train-01-original-dv",
+      "source_sha256": "13be6af4cc481e5eea0a8ed9daee8d9ef329abd79ccc5c6620147604cefcca0a",
+      "bytes": 3319029,
+      "sha256": "901b961f3997192ad0ffa094a9bd165e403343f839acadfca2251c0761830eab",
+      "download_url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/train-01-owner-dateburn.mp4",
+      "timestamp_presentation": "permanent overlay",
+      "container": "mov,mp4,m4a,3gp,3g2,mj2",
+      "duration_seconds": "7.941275",
+      "video": {
+        "codec_name": "h264",
+        "width": 720,
+        "height": 480,
+        "pix_fmt": "yuv422p",
+        "r_frame_rate": "2997/100",
+        "avg_frame_rate": "2997/100",
+        "nb_read_frames": "238",
+        "duration": "7.941275",
+        "field_order": "progressive",
+        "sample_aspect_ratio": "8:9",
+        "display_aspect_ratio": "4:3"
+      },
+      "decoded_field_flags": {
+        "frames": 238,
+        "interlaced": 0,
+        "top_first": 0
+      },
+      "audio": {
+        "codec_name": "aac",
+        "sample_rate": "48000",
+        "channels": 2,
+        "channel_layout": "stereo",
+        "bits_per_sample": 0,
+        "duration": "7.941000"
+      },
+      "decoded_audio_s16le": {
+        "bytes": 1527808,
+        "sha256": "8d8991998551fca70b5655b4fc8c1f2e3ea7a120f4bb9d0f9a6fd440eb52ea15"
+      },
+      "packet_timing": {
+        "video": {
+          "count": 238,
+          "first_pts": 0.0,
+          "end_pts": 7.941275
+        },
+        "audio": {
+          "count": 374,
+          "first_pts": -0.021333,
+          "end_pts": 7.94125
+        }
+      },
+      "provenance": {
+        "application_version": "unknown",
+        "application_commit": "unknown",
+        "tool_versions": {
+          "processing_tools": "unknown",
+          "embedded_encoder_tags": {
+            "video": "Lavc62.11.100 libx264",
+            "container": "Lavf62.3.100"
+          }
+        },
+        "settings_evidence": "Owner supplied; exact processing settings unknown",
+        "relationship_evidence": "Owner identification, equal frame count and matching train scenes at beginning/middle/end; overlay matches extracted dates"
+      },
+      "decode_errors": "",
+      "decode_ok": true
+    },
+    {
+      "sample_id": "train-01-maintenance-timestamps",
+      "filename": "train-01-maintenance-timestamps.ass",
+      "role": "Standalone ASS generated before MKV mux; source timeline starts at zero",
+      "relationship": "subtitle export",
+      "source_sample_id": "train-01-original-dv",
+      "source_sha256": "13be6af4cc481e5eea0a8ed9daee8d9ef329abd79ccc5c6620147604cefcca0a",
+      "bytes": 1172,
+      "sha256": "7aaee5b9b1f5563db1c698dcbc409527a3f74b4044496785191c2ed82ccb7999",
+      "download_url": "https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/download/examples-train-dv-v1/train-01-maintenance-timestamps.ass",
+      "timestamp_presentation": "switchable subtitles when loaded by a player",
+      "container": "ASS text",
+      "video": "not applicable",
+      "audio": "not applicable",
+      "provenance": {
+        "application_commit": "5f7e13e0b9f94b98bfef32c5d828aae614265583",
+        "application_version": "1.0.7 maintenance preview 1",
+        "settings_evidence": "processing-commands.json subtitleTrack command"
+      }
+    }
+  ],
+  "evidence_files": [
+    "measurements.json",
+    "processing-commands.json",
+    "source-dvrescue.xml",
+    "source-recording-metadata.txt"
+  ],
+  "limitations": [
+    "Single approximately eight-second clip; no midnight/day change or damaged-tape fixture.",
+    "Field flags do not establish motion quality; deinterlacing-off H.264 reports progressive despite visible combing.",
+    "Matching DV payload and decoded PCM do not prove complete container metadata preservation or whole-file identity.",
+    "GUI, player-specific subtitle and motion quality, subjective audio, and Apple Silicon acceptance remain unverified."
+  ]
+}

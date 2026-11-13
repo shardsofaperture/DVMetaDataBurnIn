@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dvrescue xmlns="https://mediaarea.net/dvrescue" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://mediaarea.net/dvrescue https://mediaarea.net/dvrescue/dvrescue.xsd" version="1.2.1">
+	<creator>
+		<program>dvrescue</program>
+		<version>24.07</version>
+		<library version="24.06">MediaInfoLib</library>
+	</creator>
+	<media ref="train-01-original-dv.avi" format="AVI" size="30105600">
+		<frames count="238" pts="00:00:00.000000" end_pts="00:00:07.941266" abst="48320" end_abst="50690" size="720x480" video_rate="30000/1001" chroma_subsampling="4:1:1" aspect_ratio="4/3" audio_rate="48000" channels="2">
+			<frame n="0" pos="2068" pts="00:00:00.000000" abst="48320" tc="00:02:41;06" rdt="2025-11-11 08:29:35" rec_start="1" seqn="5"/>
+			<frame n="237" pos="29967020" pts="00:00:07.907900" abst="50690" tc="00:02:49;03" rdt="2025-11-11 08:29:43" seqn="2"/>
+		</frames>
+	</media>
+</dvrescue>

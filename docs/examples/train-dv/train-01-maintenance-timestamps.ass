@@ -1,0 +1,25 @@
+[Script Info]
+Title: DV Metadata Burn-In
+ScriptType: v4.00+
+Collisions: Normal
+PlayResX: 720
+PlayResY: 480
+Timer: 100.0000
+
+[V4+ Styles]
+; bottom-left (date)
+Style: DVLeft,UAV OSD Sans Mono,24,&H00FFFFFF,&H00000000,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,0,0,1,20,0,40,1
+; bottom-right (time or stacked block)
+Style: DVRight,UAV OSD Sans Mono,24,&H00FFFFFF,&H00000000,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,0,0,3,0,20,40,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.00,0:00:00.80,DVRight,,0,0,40,,2025-11-11\N08:29:35
+Dialogue: 0,0:00:00.80,0:00:01.80,DVRight,,0,0,40,,2025-11-11\N08:29:36
+Dialogue: 0,0:00:01.80,0:00:02.80,DVRight,,0,0,40,,2025-11-11\N08:29:37
+Dialogue: 0,0:00:02.80,0:00:03.80,DVRight,,0,0,40,,2025-11-11\N08:29:38
+Dialogue: 0,0:00:03.80,0:00:04.80,DVRight,,0,0,40,,2025-11-11\N08:29:39
+Dialogue: 0,0:00:04.80,0:00:05.80,DVRight,,0,0,40,,2025-11-11\N08:29:40
+Dialogue: 0,0:00:05.80,0:00:06.80,DVRight,,0,0,40,,2025-11-11\N08:29:41
+Dialogue: 0,0:00:06.80,0:00:07.80,DVRight,,0,0,40,,2025-11-11\N08:29:42
+Dialogue: 0,0:00:07.80,0:00:07.95,DVRight,,0,0,40,,2025-11-11\N08:29:43
