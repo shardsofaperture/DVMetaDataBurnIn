@@ -1,0 +1,7 @@
+{
+  "python3.11": "Python 3.11.17",
+  "meson": "1.12.1",
+  "ninja": "1.13.2",
+  "nasm": "NASM version 3.02 compiled on Aug 26 2026",
+  "pkg-config": "0.29.2"
+}

@@ -6,10 +6,11 @@ import json
 from pathlib import Path
 import plistlib
 import re
+import tarfile
 import zipfile
 
 
-def verify(tag, manifest, archive, project=None):
+def verify(tag, manifest, archive, project=None, sources=None):
     match = re.fullmatch(r'v?(\d+\.\d+\.\d+)(?:beta|alpha|[-.][A-Za-z0-9.-]+)?', tag)
     if not match:
         raise ValueError('Not an application version tag')
@@ -50,6 +51,29 @@ def verify(tag, manifest, archive, project=None):
                 raise ValueError('Unexpected bundled tool')
             if hashlib.sha256(z.read(prefix+'Resources/'+tool)).hexdigest() != expected:
                 raise ValueError('Bundled tool hash differs: '+tool)
+        for name, expected in manifest.get('bundled_resources_sha256', {}).items():
+            if '/' in name or name in ('.', '..'):
+                raise ValueError('Expected a flat bundled resource name')
+            if hashlib.sha256(z.read(prefix+'Resources/'+name)).hexdigest() != expected:
+                raise ValueError('Bundled resource hash differs: '+name)
+    if 'dependency_sources' in manifest:
+        source_identity = manifest['dependency_sources']
+        if not sources or sources.name != source_identity['name'] or sources.stat().st_size != source_identity['bytes']:
+            raise ValueError('Matching dependency source delivery is required')
+        if hashlib.sha256(sources.read_bytes()).hexdigest() != source_identity['sha256']:
+            raise ValueError('Dependency source delivery hash differs')
+        with tarfile.open(sources) as t:
+            lock_bytes = t.extractfile('scripts/dependencies/sources.lock.json').read()
+            if hashlib.sha256(lock_bytes).hexdigest() != source_identity['lock_sha256']:
+                raise ValueError('Dependency source lock differs')
+            recipe = t.extractfile('scripts/dependencies/build.py').read()
+            if hashlib.sha256(recipe).hexdigest() != source_identity['recipe_sha256']:
+                raise ValueError('Dependency build recipe differs')
+            for item in json.loads(lock_bytes)['archives']:
+                item = item.get('delivery', item)
+                data = t.extractfile('archives/'+item['file']).read()
+                if hashlib.sha256(data).hexdigest() != item['sha256']:
+                    raise ValueError('Dependency source archive differs: '+item['file'])
     return {'tag': tag, 'version': version, 'source_commit': commit,
             'archive_sha256': identity['sha256'], 'result': 'passed'}
 
@@ -60,10 +84,11 @@ def main():
     parser.add_argument('--manifest', type=Path, required=True)
     parser.add_argument('--archive', type=Path, required=True)
     parser.add_argument('--project', type=Path)
+    parser.add_argument('--sources', type=Path)
     args = parser.parse_args()
     try:
-        print(json.dumps(verify(args.tag, json.loads(args.manifest.read_text()), args.archive, args.project), indent=2))
-    except (ValueError, KeyError, OSError, zipfile.BadZipFile) as error:
+        print(json.dumps(verify(args.tag, json.loads(args.manifest.read_text()), args.archive, args.project, args.sources), indent=2))
+    except (ValueError, KeyError, OSError, zipfile.BadZipFile, tarfile.TarError) as error:
         parser.exit(1, 'Release validation failed: '+str(error)+'\n')
 
 

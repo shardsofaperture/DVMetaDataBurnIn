@@ -1,0 +1,159 @@
+--- a/dvrescue/Source/CLI/CommandLine_Parser.cpp
++++ b/dvrescue/Source/CLI/CommandLine_Parser.cpp
+@@ -559,6 +559,7 @@
+             }
+         }
+         #endif
++        #if defined(ENABLE_CAPTURE) || defined(ENABLE_SIMULATOR)
+         else if (!strcmp(argv_ansi[i], "--device") || !strcmp(argv_ansi[i], "-device"))
+         {
+             if (++i >= argc)
+@@ -663,6 +664,7 @@
+             Device_Speed = (float)atof(argv_ansi[i]);
+             Device_Command = 3;
+         }
++        #endif
+         else if (!strcmp(argv_ansi[i], "--use-abst"))
+         {
+             if (++i >= argc)
+@@ -796,6 +798,7 @@
+             *C.Err << "\nWarning: technology preview, unstable, for testing preview only.\n\n";
+     }
+ 
++    #if defined(ENABLE_CAPTURE) || defined(ENABLE_SIMULATOR)
+     if (Device_Command && C.Inputs.empty())
+         C.Inputs.push_back(__T("device://0"));
+     if (Device_Command == 3)
+@@ -816,6 +819,8 @@
+ 
+         }
+     }
++
++    #endif
+ 
+     if (!ClearInput && C.Inputs.empty())
+     {
+--- a/dvrescue/Source/Common/Output_Xml.cpp
++++ b/dvrescue/Source/Common/Output_Xml.cpp
+@@ -226,10 +226,15 @@
+     for (const auto& File : PerFile)
+     {
+         // Media header
+-        if (File->CaptureMode == Capture_Mode_DV && !File->MI.Count_Get(Stream_General))
++        #if defined(ENABLE_CAPTURE) || defined(ENABLE_SIMULATOR)
++        const bool IsDV = File->CaptureMode == Capture_Mode_DV;
++        #else
++        const bool IsDV = true; // File-only builds always analyze DV input.
++        #endif
++        if (IsDV && !File->MI.Count_Get(Stream_General))
+             continue; // Show the file only if it exists
+         Text += "\t<media";
+-        auto FileName = File->CaptureMode == Capture_Mode_DV ? File->MI.Get(Stream_General, 0, __T("CompleteName")) : __T("");
++        auto FileName = IsDV ? File->MI.Get(Stream_General, 0, __T("CompleteName")) : __T("");
+         if (FileName.empty() && !Merge_OutputFileNames.empty())
+             FileName = Ztring().From_Local(Merge_OutputFileNames[0]);
+         if (!FileName.empty())
+@@ -244,7 +249,7 @@
+             Text += Merge_InputFileNames[0];
+             Text += '\"';
+         }
+-        if (File->CaptureMode == Capture_Mode_DV)
++        if (IsDV)
+         {
+             if (File->PerFrame.empty() || File->PerChange.empty())
+             {
+@@ -312,6 +317,7 @@
+         #endif
+         Text += ">\n";
+ 
++        #if defined(ENABLE_CAPTURE) || defined(ENABLE_SIMULATOR)
+         if (File->TimeOutReached)
+         {
+             Text += "\t\t<stop method='timeout' extra='";
+@@ -320,6 +326,8 @@
+         }
+         else if (File->TerminateRequested)
+             Text += "\t\t<stop method='user' extra='SIGINT'/>\n";
++
++        #endif
+ 
+         #if defined(ENABLE_DECKLINK) || defined(ENABLE_SIMULATOR)
+         if (File->CaptureMode == Capture_Mode_DeckLink)
+--- a/dvrescue/Source/Common/ProcessFile.cpp
++++ b/dvrescue/Source/Common/ProcessFile.cpp
+@@ -555,7 +555,9 @@
+         MI.Option(__T("File_RequestTerminate"), __T("1"));
+     }
+ 
++    #if defined(ENABLE_CAPTURE) || defined(ENABLE_SIMULATOR)
+     TerminateRequested = true;
++    #endif
+ }
+ 
+ //---------------------------------------------------------------------------
+@@ -852,8 +854,12 @@
+ 
+     if (!Merge_Out.empty())
+     {
++        #if defined(ENABLE_CAPTURE) || defined(ENABLE_SIMULATOR)
+         auto Speed = abs(Speed_Before) > abs(Speed_After) ? Speed_Before : Speed_After;
+         Speed_Before = Speed_After;
++        #else
++        const float Speed = 0; // Same value as a non-capture file in a capture-enabled build.
++        #endif
+         Merge.AddFrameAnalysis(Merge_FilePos, FrameData, Speed);
+         #if defined(ENABLE_CAPTURE) || defined(ENABLE_SIMULATOR)
+         if (TransportControlsSupported() && Merge.RewindToTimeCode.HasValue())
+@@ -891,6 +897,7 @@
+             Text += ' ';
+             timecode_to_string(Text, RecDateTime.TimeInSeconds(), TC_Temp.DropFrame(), RecDateTime.Frames());
+         }
++        #if defined(ENABLE_CAPTURE) || defined(ENABLE_SIMULATOR)
+         if (Capture)
+         {
+             Text += ' ';
+@@ -909,6 +916,7 @@
+             }
+             Text += ')';
+         }
++        #endif
+         UpdateDynamicDisplay(Text);
+     }
+ }
+--- a/dvrescue/Source/Common/ProcessFileWrapper.cpp
++++ b/dvrescue/Source/Common/ProcessFileWrapper.cpp
+@@ -190,7 +190,9 @@
+ 
+     if (File)
+     {
++        #if defined(ENABLE_CAPTURE) || defined(ENABLE_SIMULATOR)
+         File->Speed_After = File->Capture->GetSpeed();
++        #endif
+         File->Parse_Buffer(Buffer, Buffer_Size);
+     }
+ }
+--- a/dvrescue/Source/Common/SimulatorWrapper.cpp
++++ b/dvrescue/Source/Common/SimulatorWrapper.cpp
+@@ -4,6 +4,7 @@
+  *  be found in the LICENSE.txt file in the root of the source tree.
+  */
+ 
++#if defined(ENABLE_SIMULATOR)
+ #include "Common/SimulatorWrapper.h"
+ #include "Common/ProcessFile.h"
+ #include "ZenLib/File.h"
+@@ -930,3 +931,5 @@
+ 
+     delete P;
+ }
++
++#endif // ENABLE_SIMULATOR
+--- a/dvrescue/Source/Common/Config.h
++++ b/dvrescue/Source/Common/Config.h
+@@ -25,5 +25,5 @@
+ //---------------------------------------------------------------------------
+ 
+ //---------------------------------------------------------------------------
+-#define Program_Version "24.07"
++#define Program_Version "24.07-dvmetadata1"
+ //---------------------------------------------------------------------------

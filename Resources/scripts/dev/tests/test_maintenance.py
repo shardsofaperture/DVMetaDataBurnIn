@@ -15,7 +15,7 @@ ENTRY = REPO / "Resources/scripts/dvmetaburn.zsh"
 FFMPEG = Path(os.environ.get("FFMPEG_BIN", REPO / "Resources/bin/ffmpeg"))
 DVRESCUE = Path(os.environ.get("DVRESCUE_BIN", REPO / "Resources/bin/dvrescue"))
 FFPROBE = shutil.which("ffprobe")
-FONT = REPO / "Resources/fonts/UAV-OSD-Mono.ttf"
+FONT = REPO / "Resources/fonts/VT323-Regular.ttf"
 FPS = 30000 / 1001
 
 
@@ -39,7 +39,7 @@ fontfile=""
 DVMETABURN_FONTFILE=""
 burn_granularity=per_second
 missing_meta=error
-subtitle_font_name="UAV OSD Mono"
+subtitle_font_name="VT323"
 ''' + code
     argv = ["/bin/zsh", "-c", script, "maintenance-test", str(LIB)] + list(map(str, args))
     if check:
@@ -149,6 +149,26 @@ make_ass_subs "$2" "$7" "$3" "unused" "$4" "$5" "$6"
 
 
 class WorkspaceTests(unittest.TestCase):
+    def test_bundled_font_license_matches_bytes_and_fails_if_missing(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            for folder in ('scripts', 'fonts', 'licenses'):
+                (root / folder).mkdir()
+            shutil.copyfile(FONT, root / 'fonts' / FONT.name)
+            renamed = root / 'renamed.ttf'
+            shutil.copyfile(FONT, renamed)
+            code = 'script_root=$1; bundled_font_license "$2"'
+            result = zsh(code, root / 'scripts', renamed, check=False)
+            self.assertEqual(result.returncode, 2)
+            license = root / 'licenses/VT323-Regular-OFL.txt'
+            license.write_bytes((REPO / 'Resources/licenses' / license.name).read_bytes())
+            self.assertEqual(Path(zsh(code, root / 'scripts', renamed).strip()).resolve(), license.resolve())
+            renamed.write_bytes(b'unrelated font with a misleading name')
+            self.assertEqual(zsh(code, root / 'scripts', renamed, check=False).returncode, 1)
+            (root / 'fonts' / FONT.name).rename(root / FONT.name)
+            found = zsh('script_root=$1; find_font', root / 'scripts').strip()
+            self.assertEqual(Path(found).resolve(), (root / FONT.name).resolve())
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="dvmeta-workspace-")
         self.root = Path(self.temp.name)
@@ -311,6 +331,35 @@ print -r -- '37 00:00:01;06 2024-01-02 00:00:00'
         self.assertEqual(stream["codec_name"], "dvvideo")
         self.assertEqual((stream["width"], stream["height"]), (720, 480))
 
+    def test_each_bundled_font_renders_and_mkv_carries_original_license(self):
+        import hashlib
+        lock = json.loads((REPO / "scripts/dependencies/fonts.lock.json").read_text())
+        for item in lock["files"]:
+            self.assertEqual(hashlib.sha256((REPO / item["file"]).read_bytes()).hexdigest(), item["sha256"])
+        for font in sorted((REPO / "Resources/fonts").glob("*.ttf")):
+            with self.subTest(font=font.name):
+                self.cli("--format=mp4", "--burn-mode=burnin", "--fontfile="+str(font))
+                out = self.output("_dateburn.mp4")
+                pixels = subprocess.check_output([str(FFMPEG), "-v", "error", "-i", str(out),
+                         "-frames:v", "1", "-pix_fmt", "gray", "-f", "rawvideo", "-"], timeout=20)
+                self.assertGreater(max(pixels), 180)
+                out.unlink()
+                self.cli("--format=mkv", "--burn-mode=subtitleTrack", "--fontfile="+str(font))
+                out = self.output("_dvsub.mkv")
+                attachments = self.probe(out, "-select_streams", "t", "-show_streams")["streams"]
+                license_name = font.stem + "-OFL.txt"
+                family = {"VT323-Regular": "VT323", "ShareTechMono-Regular": "Share Tech Mono",
+                          "IBMPlexMono-Regular": "IBM Plex Mono"}[font.stem]
+                ass = run([FFMPEG, "-v", "error", "-i", out, "-map", "0:s:0", "-c", "copy", "-f", "ass", "-"])
+                self.assertTrue(any(line.startswith("Style:") and line.split(",")[1] == family
+                                    for line in ass.splitlines()), ass)
+                self.assertEqual([s["tags"]["filename"] for s in attachments], [font.name, license_name])
+                extracted = self.work / license_name
+                run([FFMPEG, "-v", "error", "-dump_attachment:t:1", extracted,
+                     "-i", out, "-map", "0:v", "-frames:v", "1", "-f", "null", "-"])
+                self.assertEqual(extracted.read_bytes(), (REPO / "Resources/licenses" / license_name).read_bytes())
+                out.unlink()
+
     def test_mp4_burnin_and_deinterlace_modes(self):
         for mode, count in [("off", 37), ("30p", 37), ("60p", 74)]:
             with self.subTest(mode=mode):
@@ -333,7 +382,7 @@ print -r -- '37 00:00:01;06 2024-01-02 00:00:00'
         self.cli("--format=mkv", "--burn-mode=subtitleTrack", "--deinterlace=off")
         out = self.output("_dvsub.mkv")
         streams = self.probe(out, "-show_streams")["streams"]
-        self.assertIn("ass", [s["codec_name"] for s in streams])
+        self.assertIn("ass", [s.get("codec_name") for s in streams])
         packets = self.probe(out, "-select_streams", "s", "-show_packets")["packets"]
         last = packets[-1]
         end = float(last["pts_time"]) + float(last["duration_time"])

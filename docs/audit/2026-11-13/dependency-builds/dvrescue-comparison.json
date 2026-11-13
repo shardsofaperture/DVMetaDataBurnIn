@@ -1,0 +1,17 @@
+{
+  "recording_rows": 238,
+  "rows_identical": true,
+  "xml_identical_except_version": true,
+  "source_sha256": "13be6af4cc481e5eea0a8ed9daee8d9ef329abd79ccc5c6620147604cefcca0a",
+  "comparison_method": "Both executables analyzed the same original AVI with --xml-output. All 238 frame/timecode/recording-date rows match. XML byte comparison differs only in 24.07 versus 24.07-dvmetadata1 creator version.",
+  "original_binary_sha256": "396f26f02b6ad16fa406b890964df20ddc16424a0c99314892ec12859283ad4f",
+  "tested_replacement_sha256": "39673420e987dd57aa96485a7fdc43f65c6ce090eda62bede3d84d88aaace440",
+  "device_control_rejected": [
+    "--mode p",
+    "--device 0",
+    "--cmd play"
+  ],
+  "delivered_replacement_sha256": "aa821166b9f6eba5d3511559bf11a0bf8a16434c5b62ff9bda7c6aad9235dc08",
+  "no_capture_backend_symbols": true,
+  "source_subset_build_verified": true
+}

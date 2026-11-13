@@ -16,6 +16,35 @@ Runtime commit `2802355` is exclusive to maintenance; stable main remains 1.0.6.
 
 Issue #198's publication defect is fixed with focused evidence. #197 remains open only for its moving-picture/player acceptance criterion. GUI Stop/queues, subjective audio/motion, broader footage, native Apple Silicon and Rosetta remain unverified. Licensing evidence dependencies are separate; see [current status](PROJECT_STATUS.md).
 
+## Preview 2 dependency remediation — November 13, 2026
+
+[Preview 2](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.2)
+packages the maintenance fixes above and replaces the untraceable supplier-build
+inputs for future maintenance distribution. FFmpeg 8.0.1-dvmetadata1 is built
+from pinned source with x264, FreeType and HarfBuzz. DVRescue 24.07-dvmetadata1
+uses MediaInfoLib 24.06 and ZenLib 0.4.41 with capture/DeckLink/serial control and
+simulation disabled. A disclosed patch corrects upstream conditional compilation;
+no capture SDK is used. Direct tape capture remains a future application goal.
+
+The bundled fonts are now VT323, Share Tech Mono and IBM Plex Mono under SIL
+OFL 1.1. Their unmodified bytes and full terms are pinned, included in the app,
+and attached together in generated MKVs. Font selection passes the actual
+family name to ASS, and the live UI preview registers the default font.
+
+The [build recipe](../scripts/dependencies/README.md), source/font locks and
+[actual receipts](audit/2026-11-13/dependency-builds/) accompany the release's
+full corresponding-source asset. 35 regressions, three shell smoke checks, 11 release-gate tests and the Intel
+Release build pass. Two clean DVRescue builds from the full and delivered source
+archives produce byte-identical executables. Fresh train checks preserve the source hash,
+DV/PCM in MOV, 238 BFF H.264 frames, 476 progressive 60p frames and nine subtitle
+events. DVRescue's 238 extracted recording-date rows match the original binary;
+XML differs only in the declared modified version. These outputs are local test
+artifacts, not replacements for the published example videos.
+
+Stable `main` remains 1.0.6. No branch merge is part of this remediation.
+The historical issues and remaining manual acceptance are distinguished in
+[licensing](LICENSING.md) and [project status](PROJECT_STATUS.md).
+
 ## Historical preview validation — November 12, 2026
 
 Implementation, synthetic regression checks, and the native Xcode build are complete. The maintenance changes first passed the native build at 1.0.6; the application was then updated to **1.0.7** and its Debug and Release builds passed. Distribution is the `v1.0.7-maintenance.1` prerelease from `maintenance/1.0.7`. This describes the original preview gate. A later source-integration authorization was misunderstood and superseded by the owner clarification and corrective PR #193; it is not current approval to integrate maintenance code. GUI, player, motion/audio, additional real-camera scenarios and Apple Silicon acceptance still limit release readiness. See [release notes](releases/1.0.7-maintenance.1.md).

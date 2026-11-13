@@ -1,0 +1,113 @@
+{
+  "date": "2026-11-13",
+  "runtime_baseline": "b71e651",
+  "dependency_replacement": "maintenance preview 2",
+  "source_sha256_before": "13be6af4cc481e5eea0a8ed9daee8d9ef329abd79ccc5c6620147604cefcca0a",
+  "source_sha256_after": "13be6af4cc481e5eea0a8ed9daee8d9ef329abd79ccc5c6620147604cefcca0a",
+  "results": [
+    {
+      "mode": "copy",
+      "file": "copy_conv.mov",
+      "sha256": "c982b5d7d8dff7d13c1875d446abf87e0ce55dc74ff3e8176b8e69241fb75c2c",
+      "frames": 238,
+      "field_order": null,
+      "decoded_interlaced_frames": 238,
+      "decoded_top_first_frames": 0,
+      "width": 720,
+      "height": 480,
+      "sample_aspect_ratio": "8:9",
+      "frame_rate": "2997/100",
+      "video_payload_sha256": "a89282b9c5e8b74add7d2f214df113a268ce52f69f43392c96fab33c4634a04f",
+      "audio_payload_sha256": "7361915b0c317d46f4e3d4d8110255c74d175f6ca2704f0ac80661ada01ba065"
+    },
+    {
+      "mode": "interlaced",
+      "file": "interlaced_dateburn.mp4",
+      "sha256": "4a256a994a46a1ef6a2e15ccaedeb90b7ec49d9dd28f01a45bb08f5153a26b42",
+      "frames": 238,
+      "field_order": "bb",
+      "decoded_interlaced_frames": 238,
+      "decoded_top_first_frames": 0,
+      "width": 720,
+      "height": 480,
+      "sample_aspect_ratio": "8:9",
+      "frame_rate": "2997/100"
+    },
+    {
+      "mode": "subtitles",
+      "file": "subtitles_dvsub.mkv",
+      "sha256": "0ab52d3907f3ff4ca990f6fd84e21f94139626e4b151cfc64b8e02d0baba8875",
+      "frames": 238,
+      "field_order": "bt",
+      "decoded_interlaced_frames": 238,
+      "decoded_top_first_frames": 0,
+      "width": 720,
+      "height": 480,
+      "sample_aspect_ratio": "8:9",
+      "frame_rate": "2997/100",
+      "subtitle_events": 9,
+      "subtitle_end": 7.95
+    },
+    {
+      "mode": "progressive",
+      "file": "progressive_dateburn.mp4",
+      "sha256": "0649e697eb72d406d4bf46fb6fbd2feaa9aba388709de990883dacca25156ece",
+      "frames": 476,
+      "field_order": "progressive",
+      "decoded_interlaced_frames": 0,
+      "decoded_top_first_frames": 0,
+      "width": 720,
+      "height": 480,
+      "sample_aspect_ratio": "8:9",
+      "frame_rate": "60000/1001"
+    }
+  ],
+  "scope": "Fresh CLI encodes with maintenance fixes. Original and published derivatives unchanged. GUI, player motion/audio and Apple Silicon acceptance not performed.",
+  "font": "ShareTechMono-Regular.ttf",
+  "reproduction": {
+    "input": "Train Video Example/Train Raw DV Capture.avi",
+    "common_argv": [
+      "zsh",
+      "Resources/scripts/dvmetaburn.zsh",
+      "--mode=single",
+      "--layout=stacked",
+      "--ffmpeg=Resources/bin/ffmpeg",
+      "--dvrescue=Resources/bin/dvrescue",
+      "--fontfile=Resources/fonts/ShareTechMono-Regular.ttf",
+      "--fontname=Share Tech Mono",
+      "--dest-dir=NEW_OUTPUT_DIRECTORY",
+      "--scratch-dir=NEW_SCRATCH_DIRECTORY"
+    ],
+    "modes": [
+      {
+        "output_base": "copy",
+        "format": "mov",
+        "burn_mode": "off",
+        "deinterlace": "off"
+      },
+      {
+        "output_base": "interlaced",
+        "format": "mp4",
+        "burn_mode": "burnin",
+        "deinterlace": "off"
+      },
+      {
+        "output_base": "subtitles",
+        "format": "mkv",
+        "burn_mode": "subtitleTrack",
+        "deinterlace": "off"
+      },
+      {
+        "output_base": "progressive",
+        "format": "mp4",
+        "burn_mode": "burnin",
+        "deinterlace": "60p"
+      }
+    ],
+    "verification": "scripts/verify_train_demo.py --reference INPUT --ffmpeg Resources/bin/ffmpeg --ffprobe EXISTING_FFPROBE --dvrescue Resources/bin/dvrescue OUTPUT_FILES; frame flags additionally checked with ffprobe -show_frames"
+  },
+  "tools_sha256": {
+    "ffmpeg": "98ed2a98711494da4282ca7ea5316dbe11f0e270f071efe8b0d74122681f7838",
+    "dvrescue": "aa821166b9f6eba5d3511559bf11a0bf8a16434c5b62ff9bda7c6aad9235dc08"
+  }
+}

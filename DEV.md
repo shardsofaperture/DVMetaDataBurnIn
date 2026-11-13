@@ -90,7 +90,11 @@ Use the actual Xcode path on another Mac. These checks exercise Swift allocation
 
 The `v1.0.7-maintenance.1` prerelease is built from the exact commit identified by its tag and `BUILD-MANIFEST.json`. Its Release app is copied into an isolated package staging directory, existing license texts and application source/build identity are included, and the outer app is ad-hoc signed without replacing the bundled tools. The ZIP is created with macOS `ditto` to preserve executable permissions and metadata. It is extracted again for signature/resource checks and a CLI self-test before upload. Published assets are downloaded and checked against SHA-256. The prerelease remains separate from the stable release. The premature source integration was reversed by PR #193; main retains stable 1.0.6 and maintenance needs owner testing/approval before future integration. The app manifest does not establish dependency build provenance. See [current status](docs/PROJECT_STATUS.md) and the [distribution audit](docs/THIRD_PARTY_DISTRIBUTION_AUDIT.md) for unresolved source/notice evidence.
 
-The handoff ZIP in Nextcloud includes the source snapshot, release assets, validation logs, Git diffs/receipts and the end-to-end summary. No credentials, private keys, unrelated project files or original footage belong in that handoff.
+Preview 2 replaces the bundled tools and fonts on maintenance only. Its
+[dependency build recipe](scripts/dependencies/README.md), source/font locks,
+patch and build receipts identify the actual replacement inputs. Publish the
+complete `dependency-sources.tar` beside the matching application ZIP. Historical
+preview 1 assets and stable 1.0.6 remain unchanged.
 
 ## Release integrity
 
@@ -99,8 +103,8 @@ Before publishing any new application package, create external and embedded `BUI
 Run against the exact source checkout and final ZIP:
 
 ```sh
-python3 scripts/verify_release.py --tag v1.0.7-maintenance.2 --manifest /path/to/BUILD-MANIFEST.json --archive /path/to/application.zip --project DVMetaDataBurnIn.xcodeproj/project.pbxproj
+python3 scripts/verify_release.py --tag v1.0.7-maintenance.2 --manifest /path/to/BUILD-MANIFEST.json --archive /path/to/application.zip --project DVMetaDataBurnIn.xcodeproj/project.pbxproj --sources /path/to/dependency-sources.tar
 python3 -m unittest discover -s scripts/tests -v
 ```
 
-Use the intended tag and actual paths. This example is not a new release announcement. Never upload after a failed check. The `Application release integrity` workflow repeats validation on newly published application releases, or manually for a specified tag, and compares the tag's source project to the archive. Example-data releases are excluded. Historical packages without manifests are not retrospectively certified. The existing 1.0.4beta ZIP contains version 1.0.3; its tag and bytes are preserved, with actual runtime provenance unknown. Integrity checks do not establish licensing compliance, signing, GUI or player acceptance.
+Use the intended tag and actual paths. For preview 2 and later source-built packages, include `dependency_sources` and `bundled_resources_sha256` in the manifest; the gate checks the source asset, locked archives, build recipe, fonts and notices. Never upload after a failed check. The `Application release integrity` workflow repeats validation on newly published application releases, or manually for a specified tag, and compares the tag's source project to the archive. Example-data releases are excluded. Historical packages without manifests are not retrospectively certified. The existing 1.0.4beta ZIP contains version 1.0.3; its tag and bytes are preserved, with actual runtime provenance unknown. Integrity checks do not establish licensing compliance, signing, GUI or player acceptance.

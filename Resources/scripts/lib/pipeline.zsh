@@ -278,11 +278,17 @@ process_file_core() {
 
 # Default if UI didn't pass a name
 if [[ -z "$subtitle_font_name" ]]; then
-  subtitle_font_name="UAV OSD Mono"
+  local matching_license
+  matching_license=$(bundled_font_license "$font" 2>/dev/null) || matching_license=""
+  case "${matching_license:t}" in
+    VT323-Regular-OFL.txt) subtitle_font_name="VT323" ;;
+    ShareTechMono-Regular-OFL.txt) subtitle_font_name="Share Tech Mono" ;;
+    IBMPlexMono-Regular-OFL.txt) subtitle_font_name="IBM Plex Mono" ;;
+    *) subtitle_font_name="${font:t:r}" ;;
+  esac
 fi
 
-# Normalize to ASS/libass font family matching
-subtitle_font_name="${subtitle_font_name//-/ }"   # UAV-OSD-Mono -> UAV OSD Mono
+# ASS expects a family name, not a hyphen-rewritten PostScript name.
 subtitle_font_name="${subtitle_font_name//,/ }"   # commas to spaces (defensive)
 
 debug_log "ASS font family resolved to: '$subtitle_font_name'"
@@ -420,6 +426,14 @@ debug_log "ASS font family resolved to: '$subtitle_font_name'"
 
   -map 0:v:0 -map "0:a?" -map 1:0
 )
+    local font_license license_status=0
+    font_license=$(bundled_font_license "$font_attach") || license_status=$?
+    if (( license_status == 2 )); then
+      return 1
+    elif (( license_status == 0 )); then
+      mux_cmd+=(-attach "$font_license" -metadata:s:t:1 mimetype=text/plain
+        -metadata:s:t:1 filename="${font_license:t}")
+    fi
     if [[ -n "$deinterlace_vf" ]]; then
       mux_cmd+=(-vf "$deinterlace_vf")
     fi

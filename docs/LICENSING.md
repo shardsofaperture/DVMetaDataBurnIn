@@ -1,28 +1,67 @@
 # Application, component, and sample rights
 
-The root [LICENSE](../LICENSE) is a byte-for-byte copy of the existing [APP_LICENSE.txt](../Resources/licenses/APP_LICENSE.txt): MIT, **Copyright (c) 2025 Zach Zarzycki**. Adding it makes the existing terms discoverable; it does not change ownership or grant different terms. The bundled notice remains intact.
+The root [LICENSE](../LICENSE) retains the application's original MIT license,
+**Copyright (c) 2025 Zach Zarzycki**, byte-for-byte identical to
+[APP_LICENSE.txt](../Resources/licenses/APP_LICENSE.txt). Component licenses do
+not change that authorship or license.
 
-See the [distribution audit](THIRD_PARTY_DISTRIBUTION_AUDIT.md) for all eight published application ZIPs, exact binary/font hashes, supplier matches, source-delivery findings and actionable issues. This page is the short rights overview.
+## Maintenance preview 2 replacements
 
-## Bundled components inspected on November 13, 2026
+These statements apply to `maintenance/1.0.7` and
+[preview 2](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.2),
+not stable 1.0.6 or preview 1. Stable source remains on
+[main](https://github.com/shardsofaperture/DVMetaDataBurnIn/tree/main).
 
-| Component | Observed version and notice | Scope and remaining evidence |
-| --- | --- | --- |
-| FFmpeg | Bundled x86_64 `8.0.1-tessus`; `-buildconf` includes `--enable-gpl --enable-version3`; `-L` states GPL version 3 or later. [GPLv3 text](../Resources/licenses/COPYING.GPLv3), [existing FFmpeg notice](../Resources/licenses/LICENSE.md). | This specific binary reports GPL-3.0-or-later. Other FFmpeg configurations can have different terms. The executable now matches the supplier download by SHA-256. Exact corresponding source/build materials and complete external-library notices remain unresolved in issue #194. |
-| DVRescue | Bundled x86_64 24.07, reporting MediaInfoLib 24.06. [BSD-3-Clause notice](../Resources/licenses/dvrescue_LICENSE.txt), copyright 2019–2025 MIPoPS. | Official 24.07 package matches the binary. Verified dependency notices are now appended to the bundled notice and supplied beside historical downloads; exact DeckLink SDK/build mapping remains open in #195. |
-| UAV OSD fonts | UAV-OSD-Mono and UAV-OSD-Sans-Mono; attribution to Nicholas Kruse. | Existing notice references free personal/commercial use and author pages; author-linked font bytes and use permission are verified, while explicit redistribution/embedding terms remain unresolved in issue #196. |
-| VCR OSD Mono | Attribution to Riciery Leal (mrmanet). | Existing notice relies on author comments for permission; author-linked font bytes and use permission are verified, while explicit redistribution/embedding terms remain unresolved in issue #196. |
+| Bundled component | Terms and source relationship |
+| --- | --- |
+| FFmpeg 8.0.1-dvmetadata1 | GPL-3.0-or-later; built from the pinned official FFmpeg release with static x264, FreeType and HarfBuzz. Autodetection of other third-party libraries is disabled. Full corresponding sources and the controlling build script are delivered in `dependency-sources.tar` beside the app ZIP. |
+| x264 | GPL-2.0-or-later, pinned VideoLAN commit `b35605ace3ddf7c1a5d67a2eb553f034aef41d55`. |
+| FreeType 2.13.3 | GPL-2.0-or-later alternative selected; included BDF/PCF and HarfBuzz notices retained. |
+| HarfBuzz 10.4.0 | Permissive licenses reproduced from upstream COPYING. |
+| DVRescue 24.07-dvmetadata1 | BSD-3-Clause; built from MediaArea's official all-in-one source with MediaInfoLib 24.06 (BSD-2-Clause) and ZenLib 0.4.41 (zlib). DeckLink and other capture/control integrations are disabled; no SDK is used. |
+| VT323, Share Tech Mono, IBM Plex Mono | Unmodified font bytes from a pinned Google Fonts revision. Full author/copyright/reserved-name terms and SIL OFL 1.1 texts accompany the app. MKV attachments include the corresponding OFL text. |
 
-All existing third-party texts and [attributions](../Resources/licenses/NOTICE.txt) are retained, including the LGPL and GPL copies. Verify tool evidence locally without changing the binaries:
+[Build recipe and locks](../scripts/dependencies/README.md),
+[actual build receipts](audit/2026-11-13/dependency-builds/) and
+[complete bundled notices](../Resources/licenses/NOTICE.txt) identify the actual
+inputs and configuration. The source asset includes the FFmpeg/library archives, the byte-preserving
+DVRescue CLI source subset and its documented capture-disable patch. The
+selection script omits unrelated GUI media and precompiled Windows DLLs; its
+upstream/delivery hashes and exact exclusions are published. The native
+macOS runtime, zlib and system frameworks are supplied by the operating system;
+no MacPorts libraries are dynamically required by the distributed tools.
 
-```sh
-Resources/bin/ffmpeg -version
-Resources/bin/ffmpeg -buildconf
-Resources/bin/ffmpeg -L
-Resources/bin/dvrescue --version
-```
+The replacement is a pinned source build with recorded commands and hashes.
+Bit-for-bit reproducibility across build paths/toolchain versions is not claimed.
+The application invokes the executables as separate tools. Optional supplier
+codecs/filters outside the documented application pipeline may differ.
 
-The application's MIT license does not replace component terms. These observations do not establish blanket distribution compliance. Verified DVRescue notice gaps are partially repaired by the [supplement](audit/2026-11-13/DVRESCUE-NOTICES.txt). Exact remaining FFmpeg, DeckLink/build and font evidence is listed in the distribution audit. No bundled binary or third-party terms were replaced.
+## Historical distributions
+
+The [dated distribution audit](THIRD_PARTY_DISTRIBUTION_AUDIT.md) remains the
+record for the eight original application ZIPs, including stable 1.0.6 and
+preview 1. Their assets and tags have not been silently overwritten. The old
+[bundled notice](audit/2026-11-13/HISTORICAL-BUNDLED-NOTICE.txt) preserves authorship
+and the earlier attribution work, including Nicholas Kruse's UAV OSD fonts and
+Riciery Leal's VCR OSD Mono.
+
+The verified DVRescue notice supplement remains available beside historical
+releases. Three historical questions remain distinct from the new build:
+
+- **#194:** exact corresponding sources/build materials for the old Evermeet
+  executable `430d60f…` have not been obtained. These new sources cannot be
+  substituted for them.
+- **#195:** the official old DVRescue executable matches the publisher package,
+  but its exact DeckLink SDK/build mapping remains unconfirmed. BSD does not
+  itself impose FFmpeg's corresponding-source obligation.
+- **#196:** author statements permit use of the old fonts, but explicit app
+  redistribution and font-attachment permission evidence is still missing.
+  OFL licenses for the new fonts do not license the old ones or old sample MKVs.
+
+No permission has been fabricated and no third-party author has been contacted
+on the owner's behalf. Historical obligations are not closed by replacing
+future maintenance downloads. System/custom fonts selected by users retain
+their own terms; the application does not grant redistribution rights for them.
 
 ## Train footage and extracted frames
 

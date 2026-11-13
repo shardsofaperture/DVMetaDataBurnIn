@@ -1,0 +1,8 @@
+{
+  "full_publisher_archive_clean_build_sha256": "aa821166b9f6eba5d3511559bf11a0bf8a16434c5b62ff9bda7c6aad9235dc08",
+  "delivered_cli_subset_clean_build_sha256": "aa821166b9f6eba5d3511559bf11a0bf8a16434c5b62ff9bda7c6aad9235dc08",
+  "byte_identical": true,
+  "different_build_directories": true,
+  "toolchain": "Xcode 15.4, macOS 14.5 SDK, Apple Clang 15",
+  "scope": "Two local clean builds on the same Intel Mac. This does not establish cross-toolchain or Apple Silicon reproducibility."
+}

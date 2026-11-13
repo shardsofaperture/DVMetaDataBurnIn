@@ -1,0 +1,101 @@
+{
+  "component": "dvrescue",
+  "source_archives": [
+    {
+      "file": "dvrescue-24.07-cli-source.tar",
+      "sha256": "9220056b261d972b89b834b9d18b70ad5bbad35f5d38cc4ad353bc78a5a544d8"
+    }
+  ],
+  "environment": {
+    "DEVELOPER_DIR": "/Volumes/1 TB Storage/xcode-15.4/Xcode.app/Contents/Developer",
+    "CC": "/usr/bin/clang",
+    "CXX": "/usr/bin/clang++",
+    "OBJCXX": "/usr/bin/clang++",
+    "OBJCXXFLAGS": "-O2 -mmacosx-version-min=12.0",
+    "CFLAGS": "-O2 -mmacosx-version-min=12.0",
+    "CXXFLAGS": "-O2 -mmacosx-version-min=12.0",
+    "LDFLAGS": "-mmacosx-version-min=12.0",
+    "PATH": "/usr/bin:/bin:/usr/sbin:/sbin:/opt/local/bin",
+    "MACOSX_DEPLOYMENT_TARGET": "12.0",
+    "SOURCE_DATE_EPOCH": "1759276800",
+    "ZERO_AR_DATE": "1",
+    "PKG_CONFIG_LIBDIR": "/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/dvrescue-delivered-build/prefix/lib/pkgconfig"
+  },
+  "commands": [
+    {
+      "cwd": "/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/dvrescue-delivered-build/dvrescue_CLI_GNU_FromSource",
+      "argv": [
+        "/usr/bin/patch",
+        "-p1",
+        "--batch",
+        "--forward",
+        "-i",
+        "/Users/zach/gitr/DVMetaDataBurnIn/scripts/dependencies/dvrescue-disable-capture.patch"
+      ]
+    },
+    {
+      "cwd": "/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/dvrescue-delivered-build/dvrescue_CLI_GNU_FromSource/ZenLib/Project/GNU/Library",
+      "argv": [
+        "./configure",
+        "--enable-static",
+        "--disable-shared",
+        "--prefix=/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/dvrescue-delivered-build/prefix"
+      ]
+    },
+    {
+      "cwd": "/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/dvrescue-delivered-build/dvrescue_CLI_GNU_FromSource/ZenLib/Project/GNU/Library",
+      "argv": [
+        "make",
+        "-j4"
+      ]
+    },
+    {
+      "cwd": "/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/dvrescue-delivered-build/dvrescue_CLI_GNU_FromSource/MediaInfoLib/Project/GNU/Library",
+      "argv": [
+        "./configure",
+        "--enable-static",
+        "--disable-shared",
+        "--prefix=/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/dvrescue-delivered-build/prefix"
+      ]
+    },
+    {
+      "cwd": "/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/dvrescue-delivered-build/dvrescue_CLI_GNU_FromSource/MediaInfoLib/Project/GNU/Library",
+      "argv": [
+        "make",
+        "-j4"
+      ]
+    },
+    {
+      "cwd": "/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/dvrescue-delivered-build/dvrescue_CLI_GNU_FromSource/dvrescue/Project/GNU/CLI",
+      "argv": [
+        "./configure",
+        "--prefix=/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/dvrescue-delivered-build/prefix",
+        "--enable-staticlibs",
+        "--disable-capture",
+        "--disable-avfctl",
+        "--disable-decklink",
+        "--disable-sony9pin",
+        "--disable-simulator"
+      ]
+    },
+    {
+      "cwd": "/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/dvrescue-delivered-build/dvrescue_CLI_GNU_FromSource/dvrescue/Project/GNU/CLI",
+      "argv": [
+        "make",
+        "-j4"
+      ]
+    },
+    {
+      "cwd": "/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/dvrescue-delivered-build/dvrescue_CLI_GNU_FromSource/dvrescue/Project/GNU/CLI",
+      "argv": [
+        "make",
+        "install"
+      ]
+    }
+  ],
+  "binary_sha256": "aa821166b9f6eba5d3511559bf11a0bf8a16434c5b62ff9bda7c6aad9235dc08",
+  "binary": "/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/dvrescue-delivered-build/prefix/bin/dvrescue",
+  "dynamic_libraries": "/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/dvrescue-delivered-build/prefix/bin/dvrescue:\n\t/usr/lib/libz.1.dylib (compatibility version 1.0.0, current version 1.2.12)\n\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1345.120.2)\n\t/usr/lib/libc++.1.dylib (compatibility version 1.0.0, current version 1700.255.5)\n",
+  "xcode": "Xcode 15.4\nBuild version 15F31d\n",
+  "compiler": "Apple clang version 15.0.0 (clang-1500.3.9.4)\nTarget: x86_64-apple-darwin23.6.0\nThread model: posix\nInstalledDir: /Volumes/1 TB Storage/xcode-15.4/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin\n"
+}

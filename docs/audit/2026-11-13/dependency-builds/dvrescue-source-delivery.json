@@ -1,0 +1,12 @@
+{
+  "file": "dvrescue-24.07-cli-source.tar",
+  "sha256": "9220056b261d972b89b834b9d18b70ad5bbad35f5d38cc4ad353bc78a5a544d8",
+  "bytes": 28508160,
+  "upstream_sha256": "e3089cf62757bb2a87bb38c353acf37c03195bcc8bcbf17565f7cb9b8ee51a72",
+  "excluded_prefixes": [
+    "dvrescue/Source/GUI",
+    "dvrescue/docs",
+    "MediaInfoLib/Contrib"
+  ],
+  "retained_members": 1361
+}

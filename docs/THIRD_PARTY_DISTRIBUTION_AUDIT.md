@@ -1,5 +1,7 @@
 # Third-party distribution audit
 
+> Maintenance update: preview 2 replaces the tools with pinned source builds and the fonts with OFL alternatives. See [current licensing and source delivery](LICENSING.md). The dated findings below apply to the original eight ZIPs; those bytes and their unresolved historical questions are preserved.
+
 Audited November 13, 2026. **Distribution readiness remains partially verified.** This records what the distributed files demonstrate and the specific materials still needed; it does not certify blanket compliance or change any license terms.
 
 ## Scope and reproducible evidence

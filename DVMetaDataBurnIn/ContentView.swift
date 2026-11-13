@@ -482,10 +482,8 @@ struct ContentView: View {
         return "Example: H.264 CRF \(crf) · preset medium · AAC 192k audio."
     }
 
-    private let camcorderFontPreviews: [String: String] = [
-        "UAV-OSD-Mono.ttf": "FontPreview_UAVOSDMono",
-        "UAV-OSD-Sans-Mono.ttf": "FontPreview_UAVOSDSANS",
-        "VCR_OSD_MONO.ttf": "FontPreview_VCROSDMONO"
+    private let bundledFontFiles: Set<String> = [
+        "VT323-Regular.ttf", "ShareTechMono-Regular.ttf", "IBMPlexMono-Regular.ttf"
     ]
 
     var body: some View {
@@ -822,7 +820,7 @@ struct ContentView: View {
                         Text("Subtitle font:")
 
                         Menu {
-                            Section("Camcorder fonts") {
+                            Section("Bundled fonts") {
                                 ForEach(camcorderFonts) { option in
                                     fontMenuItem(option)
                                 }
@@ -1691,9 +1689,9 @@ struct ContentView: View {
                           userInfo: [NSLocalizedDescriptionKey: "ERROR: Could not find dvrescue in app bundle."])
         }
 
-        guard let fontURL = findBundledResource(named: "UAV-OSD-Mono.ttf") else {
+        guard let fontURL = findBundledResource(named: "VT323-Regular.ttf") else {
             throw NSError(domain: "DVMeta", code: 6,
-                          userInfo: [NSLocalizedDescriptionKey: "ERROR: Could not find UAV-OSD-Mono.ttf in app bundle."])
+                          userInfo: [NSLocalizedDescriptionKey: "ERROR: Could not find VT323-Regular.ttf in app bundle."])
         }
         _ = fontURL
 
@@ -2006,6 +2004,7 @@ struct ContentView: View {
         let source: SubtitleFontSource
         let previewAssetName: String?
         let fontName: String?
+        let familyName: String?
     }
 
     private func loadAvailableFonts() {
@@ -2019,7 +2018,7 @@ struct ContentView: View {
         if let enumerator = fm.enumerator(at: resourceRoot, includingPropertiesForKeys: nil) {
             for case let file as URL in enumerator {
                 guard extensions.contains(file.pathExtension.lowercased()) else { continue }
-                guard camcorderFontPreviews.keys.contains(file.lastPathComponent) else { continue }
+                guard bundledFontFiles.contains(file.lastPathComponent) else { continue }
 
                 let descriptors = CTFontManagerCreateFontDescriptorsFromURL(file as CFURL) as? [CTFontDescriptor]
                 let descriptor = descriptors?.first
@@ -2037,8 +2036,9 @@ struct ContentView: View {
                             displayName: displayName,
                             path: file.path,
                             source: .camcorder,
-                            previewAssetName: camcorderFontPreviews[file.lastPathComponent],
-                            fontName: postScriptName
+                            previewAssetName: nil,
+                            fontName: postScriptName,
+                            familyName: descriptor.flatMap { CTFontDescriptorCopyAttribute($0, kCTFontFamilyNameAttribute) as? String }
                         )
                     )
                 }
@@ -2075,7 +2075,8 @@ struct ContentView: View {
                             path: file.path,
                             source: .system,
                             previewAssetName: nil,
-                            fontName: postScriptName
+                            fontName: postScriptName,
+                            familyName: descriptor.flatMap { CTFontDescriptorCopyAttribute($0, kCTFontFamilyNameAttribute) as? String }
                         )
                     )
                 }
@@ -2088,6 +2089,9 @@ struct ContentView: View {
         camcorderFonts = camcorderResults
         systemFonts = systemResults
         normalizeSelectedFont()
+        if let selectedFontPath {
+            registerFontIfNeeded(at: selectedFontPath)
+        }
     }
 
     private func resolvedFontPath() -> String {
@@ -2095,17 +2099,17 @@ struct ContentView: View {
         if let selected = selectedFontPath, fm.fileExists(atPath: selected) {
             return selected
         }
-        if let u = findBundledResource(named: "UAV-OSD-Mono.ttf") {
+        if let u = findBundledResource(named: "VT323-Regular.ttf") {
             return u.path
         }
-        return "/Library/Fonts/UAV-OSD-Mono.ttf" // last-ditch; or just return ""
+        return "/Library/Fonts/VT323-Regular.ttf" // last-ditch; or just return ""
     }
 
     private func resolvedFontName() -> String {
         if let match = displayedFonts.first(where: { $0.path == selectedFontPath }) {
-            return match.fontName ?? match.displayName
+            return match.familyName ?? match.displayName
         }
-        return "UAV OSD Mono"
+        return "VT323"
     }
 
     private func currentFontSelectionName() -> String {
@@ -2113,8 +2117,8 @@ struct ContentView: View {
             return match.displayName
         }
 
-        if let uavDefault = camcorderFonts.first(where: { $0.path.localizedCaseInsensitiveContains("uav-osd-mono") }) {
-            return uavDefault.displayName
+        if let bundledDefault = camcorderFonts.first(where: { $0.path.localizedCaseInsensitiveContains("vt323-regular") }) {
+            return bundledDefault.displayName
         }
 
         return "Choose font"
@@ -2128,8 +2132,8 @@ struct ContentView: View {
             return
         }
 
-        if let uavFont = camcorderFonts.first(where: { $0.path.localizedCaseInsensitiveContains("uav-osd-mono") }) {
-            selectedFontPath = uavFont.path
+        if let defaultFont = camcorderFonts.first(where: { $0.path.localizedCaseInsensitiveContains("vt323-regular") }) {
+            selectedFontPath = defaultFont.path
             return
         }
 

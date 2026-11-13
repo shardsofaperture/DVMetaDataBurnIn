@@ -87,6 +87,26 @@ validate_and_plan_file() {
   return 0
 }
 
+bundled_font_license() {
+  local selected="$1" name font_dir license
+  # Match bytes even when a user copied/renamed one of the bundled fonts.
+  for name in VT323-Regular ShareTechMono-Regular IBMPlexMono-Regular; do
+   for font_dir in "$script_root/fonts" "$script_root/../fonts" "$script_root/.."; do
+    [[ -f "$font_dir/$name.ttf" ]] || continue
+    cmp -s "$selected" "$font_dir/$name.ttf" || continue
+    for license in "$script_root/../licenses/$name-OFL.txt" "$script_root/../$name-OFL.txt"; do
+      if [[ -f "$license" ]]; then
+        print -r -- "$license"
+        return 0
+      fi
+    done
+    echo "[ERROR] Missing license for bundled font: $name" >&2
+    return 2
+   done
+  done
+  return 1
+}
+
 find_font() {
   local -a candidates
 
@@ -103,14 +123,15 @@ find_font() {
   # 3) Bundled fonts next
   local script_dir="${script_root%/}"
   local -a font_names=(
-    "UAV-OSD-Mono.ttf"
-    "UAV-OSD-Sans-Mono.ttf"
-    "VCR_OSD_MONO_1.001.ttf"
+    "VT323-Regular.ttf"
+    "ShareTechMono-Regular.ttf"
+    "IBMPlexMono-Regular.ttf"
   )
 
   local resource_fonts_dirs=(
     "${script_dir}/fonts"
     "${script_dir}/../fonts"
+    "${script_dir}/.." # Xcode copies individual font resources flat into Resources.
   )
 
   local d fname

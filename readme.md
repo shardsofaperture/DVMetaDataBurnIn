@@ -6,7 +6,7 @@ A free, open-source macOS application for preserving the recording context of le
 
 **[Recommended established release: v1.0.6 (published as beta)](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/1.0.6beta)** · **[Train demonstration: original and processed videos](docs/examples/TRAIN_DV_PRESERVATION.md)** · **[Preservation roadmap](docs/ROADMAP.md)**
 
-**Active experimental development:** [`maintenance/1.0.7`](https://github.com/shardsofaperture/DVMetaDataBurnIn/tree/maintenance/1.0.7) · [Preview 1 download](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.1) · [tests and known limitations](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/maintenance/1.0.7/docs/MAINTENANCE_1.0.7.md). The branch includes newer fixes than the unchanged preview package. Stable application source remains [v1.0.6 on main](https://github.com/shardsofaperture/DVMetaDataBurnIn/tree/main).
+**Active experimental development:** [`maintenance/1.0.7`](https://github.com/shardsofaperture/DVMetaDataBurnIn/tree/maintenance/1.0.7) · [Preview 2 download and corresponding source](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.2) · [tests and known limitations](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/maintenance/1.0.7/docs/MAINTENANCE_1.0.7.md). Preview 2 includes the output-safety and field-signaling fixes, traceable source-built tools, and OFL fonts. Stable application source remains [v1.0.6 on main](https://github.com/shardsofaperture/DVMetaDataBurnIn/tree/main).
 
 The train demonstration includes the complete supplied DV AVI, the owner's timestamped MP4, and separately identified maintenance-generated comparisons. Downloadable hashes, measured stream properties, genuine before/after frames, and reproduction commands make the results inspectable.
 
@@ -26,9 +26,9 @@ Direct tape capture is **planned**, not available in this application. DV/Digita
 
 The stable 1.0.6 package contains an **Intel/Apple Silicon app executable**, but bundled FFmpeg and DVRescue are **Intel-only**. The 1.0.7 preview package is Intel-only throughout. The project/package minimum is macOS 12; native build evidence is Intel macOS 14 with Xcode 15.4. Apple Silicon operation and translation of the bundled tools remain unvalidated; an arm64 app slice alone does not establish compatibility.
 
-The separate [1.0.7 maintenance preview](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.1) improves subtitle-tail timing, temporary workspace isolation, batch error handling, and cancellation cleanup. **This is the unconfirmed maintenance branch.** Its 1.0.7 application changes remain here for owner testing; `main` retains the stable 1.0.6 application code plus the shared documentation, licensing, videos, and roadmap. No maintenance code is approved for stable integration yet. GUI, player, and Apple Silicon acceptance are still open. The train examples exercise that preview's CLI, not its GUI.
+The separate [1.0.7 maintenance preview](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.2) improves subtitle-tail timing, temporary workspace isolation, batch error handling, and cancellation cleanup. **This is the unconfirmed maintenance branch.** Its 1.0.7 application changes remain here for owner testing; `main` retains the stable 1.0.6 application code plus the shared documentation, licensing, videos, and roadmap. No maintenance code is approved for stable integration yet. GUI, player, and Apple Silicon acceptance are still open. The published train videos retain their original preview 1 provenance; fresh preview 2 CLI checks are recorded separately.
 
-[Maintenance status and remaining acceptance](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/maintenance/1.0.7/docs/MAINTENANCE_1.0.7.md) separates historical synthetic tests/native builds from current real-footage measurements. GUI queues/Stop, player rendering, subjective audio and motion quality, and Apple Silicon acceptance remain open. File selection and progress reporting still need further work. Current maintenance adds atomic final publication and H.264 field signaling fixes; the unchanged Preview 1 download predates them. Publication currently requires a destination filesystem supporting hard links (APFS/HFS+); unsupported filesystems fail safely.
+[Maintenance status and remaining acceptance](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/maintenance/1.0.7/docs/MAINTENANCE_1.0.7.md) separates historical synthetic tests/native builds from current real-footage measurements. GUI queues/Stop, player rendering, subjective audio and motion quality, and Apple Silicon acceptance remain open. File selection and progress reporting still need further work. Preview 2 includes atomic final publication and H.264 field signaling fixes. Publication currently requires a destination filesystem supporting hard links (APFS/HFS+); unsupported filesystems fail safely.
 
 ## Use and build
 
@@ -48,6 +48,8 @@ Report a successful test or discrepancy using the [community validation guide](d
 
 ## Screenshots
 
+Historical UI examples below predate the preview 2 font replacement. The current bundled choices are VT323, Share Tech Mono and IBM Plex Mono.
+
 ![Main application window](Resources/Screenshots/Main_Window.png)
 
 [Alternate view](Resources/Screenshots/Main_Window_Two.png) · [Font picker](Resources/Screenshots/Font_Picker.png) · [Font examples](Resources/Screenshots/Fonts.png)
@@ -57,6 +59,6 @@ Report a successful test or discrepancy using the [community validation guide](d
 - Application and UI: **Zach Zarzycki / ThePolish**.
 - [DVRescue](https://mediaarea.net/DVRescue): embedded DV metadata analysis; by MIPoPS and MediaArea contributors.
 - [FFmpeg](https://ffmpeg.org/): decoding, filtering, encoding, and container handling.
-- UAV OSD fonts: **Nicholas Kruse**. VCR OSD Mono: **Riciery Leal (mrmanet)**. Existing attribution and permission references remain in [the bundled notices](Resources/licenses/NOTICE.txt).
+- Bundled OFL fonts: **The VT323 Project Authors**, **Carrois Type Design / Ralph du Carrois**, and **IBM Corp.** Full licenses are in [the bundled notices](Resources/licenses/NOTICE.txt). Historical UAV/VCR credits remain in the [licensing record](docs/LICENSING.md).
 
-The application uses the **[MIT License](LICENSE)**, identical to its [existing bundled application notice](Resources/licenses/APP_LICENSE.txt), with the original copyright holder and year retained. This does not relicense FFmpeg, DVRescue, fonts, other dependencies, or sample footage. See [dependency evidence and unresolved notice gaps](docs/LICENSING.md). Train videos and extracted frames are attributed to Zach Zarzycki and published with permission; no new media license is granted.
+The application uses the **[MIT License](LICENSE)**, identical to its [existing bundled application notice](Resources/licenses/APP_LICENSE.txt), with the original copyright holder and year retained. This does not relicense FFmpeg, DVRescue, fonts, other dependencies, or sample footage. See [replacement source delivery and historical licensing questions](docs/LICENSING.md). Train videos and extracted frames are attributed to Zach Zarzycki and published with permission; no new media license is granted.

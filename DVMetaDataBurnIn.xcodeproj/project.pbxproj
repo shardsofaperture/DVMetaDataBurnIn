@@ -20,9 +20,9 @@
 		9226A4E12EDE59CA0041247E /* Change Log.txt in Resources */ = {isa = PBXBuildFile; fileRef = 9226A4E02EDE59CA0041247E /* Change Log.txt */; };
 		9260F2D92EDA9AFC00285ABB /* DVProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9260F2D82EDA9AFC00285ABB /* DVProcessor.swift */; };
 		92908F852ED9603D00A9A38A /* dvrescue in Resources */ = {isa = PBXBuildFile; fileRef = 92908F712ED9603D00A9A38A /* dvrescue */; };
-		92908F872ED9603D00A9A38A /* UAV-OSD-Mono.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 92908F742ED9603D00A9A38A /* UAV-OSD-Mono.ttf */; };
-		92908F882ED9603D00A9A38A /* UAV-OSD-Sans-Mono.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 92908F752ED9603D00A9A38A /* UAV-OSD-Sans-Mono.ttf */; };
-		92908F892ED9603D00A9A38A /* VCR_OSD_MONO.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 92908F762ED9603D00A9A38A /* VCR_OSD_MONO.ttf */; };
+		92908F872ED9603D00A9A38A /* VT323-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 92908F742ED9603D00A9A38A /* VT323-Regular.ttf */; };
+		92908F882ED9603D00A9A38A /* ShareTechMono-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 92908F752ED9603D00A9A38A /* ShareTechMono-Regular.ttf */; };
+		92908F892ED9603D00A9A38A /* IBMPlexMono-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 92908F762ED9603D00A9A38A /* IBMPlexMono-Regular.ttf */; };
 		92908F8A2ED9603D00A9A38A /* APP_LICENSE.txt in Resources */ = {isa = PBXBuildFile; fileRef = 92908F782ED9603D00A9A38A /* APP_LICENSE.txt */; };
 		92908F8B2ED9603D00A9A38A /* COPYING.GPLv2 in Resources */ = {isa = PBXBuildFile; fileRef = 92908F792ED9603D00A9A38A /* COPYING.GPLv2 */; };
 		92908F8C2ED9603D00A9A38A /* COPYING.GPLv3 in Resources */ = {isa = PBXBuildFile; fileRef = 92908F7A2ED9603D00A9A38A /* COPYING.GPLv3 */; };
@@ -36,6 +36,9 @@
 		92908F9F2ED987C700A9A38A /* SplashContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92908F9E2ED987C700A9A38A /* SplashContentView.swift */; };
 		92908FA32EDA720800A9A38A /* readme.md in Resources */ = {isa = PBXBuildFile; fileRef = 92908FA22EDA720800A9A38A /* readme.md */; };
 		9A1B2C3D4E5F678901234568 /* scripts in Resources */ = {isa = PBXBuildFile; fileRef = 9A1B2C3D4E5F678901234567 /* scripts */; };
+		FE0000000000000000000001 /* VT323-Regular-OFL.txt in Resources */ = {isa = PBXBuildFile; fileRef = FE0000000000000000000002 /* VT323-Regular-OFL.txt */; };
+		FE0000000000000000000011 /* ShareTechMono-Regular-OFL.txt in Resources */ = {isa = PBXBuildFile; fileRef = FE0000000000000000000012 /* ShareTechMono-Regular-OFL.txt */; };
+		FE0000000000000000000021 /* IBMPlexMono-Regular-OFL.txt in Resources */ = {isa = PBXBuildFile; fileRef = FE0000000000000000000022 /* IBMPlexMono-Regular-OFL.txt */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -53,9 +56,9 @@
 		9226A4E02EDE59CA0041247E /* Change Log.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Change Log.txt"; sourceTree = "<group>"; };
 		9260F2D82EDA9AFC00285ABB /* DVProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DVProcessor.swift; sourceTree = "<group>"; };
 		92908F712ED9603D00A9A38A /* dvrescue */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = dvrescue; sourceTree = "<group>"; };
-		92908F742ED9603D00A9A38A /* UAV-OSD-Mono.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "UAV-OSD-Mono.ttf"; sourceTree = "<group>"; };
-		92908F752ED9603D00A9A38A /* UAV-OSD-Sans-Mono.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "UAV-OSD-Sans-Mono.ttf"; sourceTree = "<group>"; };
-		92908F762ED9603D00A9A38A /* VCR_OSD_MONO.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = VCR_OSD_MONO.ttf; sourceTree = "<group>"; };
+		92908F742ED9603D00A9A38A /* VT323-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "VT323-Regular.ttf"; sourceTree = "<group>"; };
+		92908F752ED9603D00A9A38A /* ShareTechMono-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ShareTechMono-Regular.ttf"; sourceTree = "<group>"; };
+		92908F762ED9603D00A9A38A /* IBMPlexMono-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = IBMPlexMono-Regular.ttf; sourceTree = "<group>"; };
 		92908F782ED9603D00A9A38A /* APP_LICENSE.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = APP_LICENSE.txt; sourceTree = "<group>"; };
 		92908F792ED9603D00A9A38A /* COPYING.GPLv2 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = COPYING.GPLv2; sourceTree = "<group>"; };
 		92908F7A2ED9603D00A9A38A /* COPYING.GPLv3 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = COPYING.GPLv3; sourceTree = "<group>"; };
@@ -70,6 +73,9 @@
 		92908FA22EDA720800A9A38A /* readme.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = readme.md; sourceTree = "<group>"; };
 		92B952412EE3EC4F00464FCA /* DVMetaDataBurnIn.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DVMetaDataBurnIn.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9A1B2C3D4E5F678901234567 /* scripts */ = {isa = PBXFileReference; lastKnownFileType = folder; path = scripts; sourceTree = "<group>"; };
+		FE0000000000000000000002 /* VT323-Regular-OFL.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "VT323-Regular-OFL.txt"; sourceTree = "<group>"; };
+		FE0000000000000000000012 /* ShareTechMono-Regular-OFL.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "ShareTechMono-Regular-OFL.txt"; sourceTree = "<group>"; };
+		FE0000000000000000000022 /* IBMPlexMono-Regular-OFL.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "IBMPlexMono-Regular-OFL.txt"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -142,9 +148,9 @@
 		92908F772ED9603D00A9A38A /* fonts */ = {
 			isa = PBXGroup;
 			children = (
-				92908F742ED9603D00A9A38A /* UAV-OSD-Mono.ttf */,
-				92908F752ED9603D00A9A38A /* UAV-OSD-Sans-Mono.ttf */,
-				92908F762ED9603D00A9A38A /* VCR_OSD_MONO.ttf */,
+				92908F742ED9603D00A9A38A /* VT323-Regular.ttf */,
+				92908F752ED9603D00A9A38A /* ShareTechMono-Regular.ttf */,
+				92908F762ED9603D00A9A38A /* IBMPlexMono-Regular.ttf */,
 			);
 			path = fonts;
 			sourceTree = "<group>";
@@ -160,6 +166,9 @@
 				92908F7D2ED9603D00A9A38A /* dvrescue_LICENSE.txt */,
 				92908F7E2ED9603D00A9A38A /* LICENSE.md */,
 				92908F7F2ED9603D00A9A38A /* NOTICE.txt */,
+				FE0000000000000000000022 /* IBMPlexMono-Regular-OFL.txt */,
+				FE0000000000000000000012 /* ShareTechMono-Regular-OFL.txt */,
+				FE0000000000000000000002 /* VT323-Regular-OFL.txt */,
 				92908F802ED9603D00A9A38A /* README.md */,
 			);
 			path = licenses;
@@ -237,13 +246,16 @@
 			files = (
 				9220232A2EE3E2C30046F768 /* Main_Window.png in Resources */,
 				92908F912ED9603D00A9A38A /* NOTICE.txt in Resources */,
+				FE0000000000000000000021 /* IBMPlexMono-Regular-OFL.txt in Resources */,
+				FE0000000000000000000011 /* ShareTechMono-Regular-OFL.txt in Resources */,
+				FE0000000000000000000001 /* VT323-Regular-OFL.txt in Resources */,
 				9220232B2EE3E2C30046F768 /* Splash_Screen.png in Resources */,
 				92908F8A2ED9603D00A9A38A /* APP_LICENSE.txt in Resources */,
 				92908F8D2ED9603D00A9A38A /* COPYING.LGPLv2.1 in Resources */,
 				92908F8F2ED9603D00A9A38A /* dvrescue_LICENSE.txt in Resources */,
 				922023292EE3E2C30046F768 /* Main_Window_Two.png in Resources */,
-				92908F882ED9603D00A9A38A /* UAV-OSD-Sans-Mono.ttf in Resources */,
-				92908F892ED9603D00A9A38A /* VCR_OSD_MONO.ttf in Resources */,
+				92908F882ED9603D00A9A38A /* ShareTechMono-Regular.ttf in Resources */,
+				92908F892ED9603D00A9A38A /* IBMPlexMono-Regular.ttf in Resources */,
 				92908F922ED9603D00A9A38A /* README.md in Resources */,
 				922023272EE3E2C30046F768 /* Font_Picker.png in Resources */,
 				92908F8B2ED9603D00A9A38A /* COPYING.GPLv2 in Resources */,
@@ -256,7 +268,7 @@
 				92908FA32EDA720800A9A38A /* readme.md in Resources */,
 				9226A4E12EDE59CA0041247E /* Change Log.txt in Resources */,
 				922023282EE3E2C30046F768 /* Fonts.png in Resources */,
-				92908F872ED9603D00A9A38A /* UAV-OSD-Mono.ttf in Resources */,
+				92908F872ED9603D00A9A38A /* VT323-Regular.ttf in Resources */,
 				9A1B2C3D4E5F678901234568 /* scripts in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

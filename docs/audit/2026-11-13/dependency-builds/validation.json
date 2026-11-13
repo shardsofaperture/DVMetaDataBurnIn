@@ -1,0 +1,42 @@
+{
+  "date": "2026-11-13",
+  "branch": "maintenance/1.0.7",
+  "version": "1.0.7",
+  "tests": {
+    "synthetic_regressions": 35,
+    "shell_smoke_checks": 3,
+    "release_integrity_tests": 11,
+    "result": "PASS"
+  },
+  "native_release_build": {
+    "result": "PASS",
+    "architecture": "x86_64",
+    "xcode": "15.4 (15F31d)",
+    "sdk": "macOS 14.5",
+    "deployment_target": "12.0"
+  },
+  "tools_sha256": {
+    "ffmpeg": "98ed2a98711494da4282ca7ea5316dbe11f0e270f071efe8b0d74122681f7838",
+    "dvrescue": "aa821166b9f6eba5d3511559bf11a0bf8a16434c5b62ff9bda7c6aad9235dc08"
+  },
+  "source_delivery": {
+    "name": "dependency-sources.tar",
+    "bytes": 61521920,
+    "sha256": "2a5b2a51376098a1cb6b4599191b6f124e2c0db4208679cc296128d1785f910f"
+  },
+  "delivered_dvrescue_retained_source_files_byte_identical": 1188,
+  "two_clean_dvrescue_builds_byte_identical": true,
+  "logs_sha256": {
+    "final-regressions.log": "712409f5b0930773d26c3ebc42ffc81eb388f8c87d8776250b8fdac372f4264b",
+    "release-gate-tests.log": "9dfd7c2dc8ad389c12c525fc66722585602cb7d9d0aaab0c7c6e1a077506d89c",
+    "xcode-release-final.log": "8f666d727ee7b68edb7da2fd776820c5689625f1b200ba59ee2f3e872a0cfb3b",
+    "real-footage-final.log": "dfe6fafa395a709cdbb9680c6e3a6dc182da01222eee5cb07310d54bc56aece6"
+  },
+  "acceptance_not_performed": [
+    "GUI queues/Stop",
+    "player subtitle rendering and motion/audio",
+    "other cameras/hardware capture",
+    "Apple Silicon native or Rosetta"
+  ],
+  "historical_original_train_sha256": "13be6af4cc481e5eea0a8ed9daee8d9ef329abd79ccc5c6620147604cefcca0a"
+}

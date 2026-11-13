@@ -1,0 +1,159 @@
+{
+  "component": "ffmpeg",
+  "environment": {
+    "DEVELOPER_DIR": "/Volumes/1 TB Storage/xcode-15.4/Xcode.app/Contents/Developer",
+    "CC": "/usr/bin/clang",
+    "CXX": "/usr/bin/clang++",
+    "CFLAGS": "-O2 -mmacosx-version-min=12.0",
+    "CXXFLAGS": "-O2 -mmacosx-version-min=12.0",
+    "LDFLAGS": "-mmacosx-version-min=12.0",
+    "PATH": "/usr/bin:/bin:/usr/sbin:/sbin:/opt/local/bin",
+    "MACOSX_DEPLOYMENT_TARGET": "12.0",
+    "SOURCE_DATE_EPOCH": "1759276800",
+    "ZERO_AR_DATE": "1",
+    "PKG_CONFIG_LIBDIR": "/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/ffmpeg-build2/prefix/lib/pkgconfig"
+  },
+  "commands": [
+    {
+      "cwd": "/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/ffmpeg-build2/freetype-2.13.3",
+      "argv": [
+        "./configure",
+        "--prefix=/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/ffmpeg-build2/prefix",
+        "--disable-shared",
+        "--enable-static",
+        "--without-harfbuzz",
+        "--without-zlib",
+        "--without-bzip2",
+        "--without-png",
+        "--without-brotli"
+      ]
+    },
+    {
+      "cwd": "/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/ffmpeg-build2/freetype-2.13.3",
+      "argv": [
+        "make",
+        "-j4"
+      ]
+    },
+    {
+      "cwd": "/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/ffmpeg-build2/freetype-2.13.3",
+      "argv": [
+        "make",
+        "install"
+      ]
+    },
+    {
+      "cwd": "/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/ffmpeg-build2/harfbuzz-10.4.0",
+      "argv": [
+        "meson",
+        "setup",
+        "_build",
+        "--prefix=/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/ffmpeg-build2/prefix",
+        "--libdir=lib",
+        "--buildtype=release",
+        "--default-library=static",
+        "--wrap-mode=nodownload",
+        "-Dfreetype=enabled",
+        "-Dglib=disabled",
+        "-Dgobject=disabled",
+        "-Dcairo=disabled",
+        "-Dchafa=disabled",
+        "-Dicu=disabled",
+        "-Dgraphite2=disabled",
+        "-Dcoretext=disabled",
+        "-Dtests=disabled",
+        "-Dutilities=disabled",
+        "-Dintrospection=disabled",
+        "-Ddocs=disabled",
+        "-Dbenchmark=disabled"
+      ]
+    },
+    {
+      "cwd": "/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/ffmpeg-build2/harfbuzz-10.4.0",
+      "argv": [
+        "ninja",
+        "-C",
+        "_build",
+        "-j4"
+      ]
+    },
+    {
+      "cwd": "/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/ffmpeg-build2/harfbuzz-10.4.0",
+      "argv": [
+        "ninja",
+        "-C",
+        "_build",
+        "install"
+      ]
+    },
+    {
+      "cwd": "/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/ffmpeg-build2/x264-b35605ace3ddf7c1a5d67a2eb553f034aef41d55",
+      "argv": [
+        "./configure",
+        "--prefix=/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/ffmpeg-build2/prefix",
+        "--enable-static",
+        "--disable-cli",
+        "--disable-opencl",
+        "--enable-pic",
+        "--bit-depth=8",
+        "--chroma-format=all"
+      ]
+    },
+    {
+      "cwd": "/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/ffmpeg-build2/x264-b35605ace3ddf7c1a5d67a2eb553f034aef41d55",
+      "argv": [
+        "make",
+        "-j4"
+      ]
+    },
+    {
+      "cwd": "/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/ffmpeg-build2/x264-b35605ace3ddf7c1a5d67a2eb553f034aef41d55",
+      "argv": [
+        "make",
+        "install"
+      ]
+    },
+    {
+      "cwd": "/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/ffmpeg-build2/ffmpeg-8.0.1",
+      "argv": [
+        "./configure",
+        "--prefix=/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/ffmpeg-build2/prefix",
+        "--disable-autodetect",
+        "--disable-shared",
+        "--enable-static",
+        "--enable-gpl",
+        "--enable-version3",
+        "--enable-libx264",
+        "--enable-libfreetype",
+        "--enable-libharfbuzz",
+        "--enable-zlib",
+        "--disable-ffplay",
+        "--disable-ffprobe",
+        "--disable-doc",
+        "--disable-debug",
+        "--pkg-config-flags=--static",
+        "--extra-ldflags=-lc++",
+        "--extra-version=dvmetadata1"
+      ]
+    },
+    {
+      "cwd": "/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/ffmpeg-build2/ffmpeg-8.0.1",
+      "argv": [
+        "make",
+        "-j4"
+      ]
+    },
+    {
+      "cwd": "/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/ffmpeg-build2/ffmpeg-8.0.1",
+      "argv": [
+        "make",
+        "install"
+      ]
+    }
+  ],
+  "binary_sha256": "98ed2a98711494da4282ca7ea5316dbe11f0e270f071efe8b0d74122681f7838",
+  "binary": "/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/ffmpeg-build2/prefix/bin/ffmpeg",
+  "dynamic_libraries": "/Users/zach/gitr/DVMetaDataBurnIn/.maintenance/licensing-remediation/ffmpeg-build2/prefix/bin/ffmpeg:\n\t/usr/lib/libc++.1.dylib (compatibility version 1.0.0, current version 1700.255.5)\n\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1345.120.2)\n\t/usr/lib/libz.1.dylib (compatibility version 1.0.0, current version 1.2.12)\n\t/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation (compatibility version 150.0.0, current version 2503.1.0)\n\t/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo (compatibility version 1.2.0, current version 1.5.0)\n\t/System/Library/Frameworks/CoreMedia.framework/Versions/A/CoreMedia (compatibility version 1.0.0, current version 1.0.0)\n",
+  "xcode": "Xcode 15.4\nBuild version 15F31d\n",
+  "compiler": "Apple clang version 15.0.0 (clang-1500.3.9.4)\nTarget: x86_64-apple-darwin23.6.0\nThread model: posix\nInstalledDir: /Volumes/1 TB Storage/xcode-15.4/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin\n"
+}
