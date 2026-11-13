@@ -4,7 +4,9 @@ A free, open-source macOS application for preserving the recording context of le
 
 > I created this because I could not find a suitable free, open-source macOS workflow for recovering and displaying my original camcorder recording dates without assembling command-line tools myself. — Zach Zarzycki (ThePolish)
 
-**[Download the current application (1.0.6 beta)](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/1.0.6beta)** · **[Train demonstration: original and processed videos](docs/examples/TRAIN_DV_PRESERVATION.md)** · **[Preservation roadmap](docs/ROADMAP.md)**
+**[Recommended established release: v1.0.6 (published as beta)](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/1.0.6beta)** · **[Train demonstration: original and processed videos](docs/examples/TRAIN_DV_PRESERVATION.md)** · **[Preservation roadmap](docs/ROADMAP.md)**
+
+**Active experimental development:** [`maintenance/1.0.7`](https://github.com/shardsofaperture/DVMetaDataBurnIn/tree/maintenance/1.0.7) · [Preview 1 download](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.1) · [tests and known limitations](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/maintenance/1.0.7/docs/MAINTENANCE_1.0.7.md). The branch includes newer fixes than the unchanged preview package. Stable application source remains [v1.0.6 on main](https://github.com/shardsofaperture/DVMetaDataBurnIn/tree/main).
 
 The train demonstration includes the complete supplied DV AVI, the owner's timestamped MP4, and separately identified maintenance-generated comparisons. Downloadable hashes, measured stream properties, genuine before/after frames, and reproduction commands make the results inspectable.
 
@@ -26,7 +28,7 @@ The stable 1.0.6 package contains an **Intel/Apple Silicon app executable**, but
 
 The separate [1.0.7 maintenance preview](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.1) improves subtitle-tail timing, temporary workspace isolation, batch error handling, and cancellation cleanup. **This is the unconfirmed maintenance branch.** Its 1.0.7 application changes remain here for owner testing; `main` retains the stable 1.0.6 application code plus the shared documentation, licensing, videos, and roadmap. No maintenance code is approved for stable integration yet. GUI, player, and Apple Silicon acceptance are still open. The train examples exercise that preview's CLI, not its GUI.
 
-[Maintenance status and remaining acceptance](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/maintenance/1.0.7/docs/MAINTENANCE_1.0.7.md) separates historical synthetic tests/native builds from current real-footage measurements. GUI queues/Stop, player rendering, subjective audio and motion quality, and Apple Silicon acceptance remain open. File selection, progress reporting, and final-output publication also need further work.
+[Maintenance status and remaining acceptance](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/maintenance/1.0.7/docs/MAINTENANCE_1.0.7.md) separates historical synthetic tests/native builds from current real-footage measurements. GUI queues/Stop, player rendering, subjective audio and motion quality, and Apple Silicon acceptance remain open. File selection and progress reporting still need further work. Current maintenance adds atomic final publication and H.264 field signaling fixes; the unchanged Preview 1 download predates them. Publication currently requires a destination filesystem supporting hard links (APFS/HFS+); unsupported filesystems fail safely.
 
 ## Use and build
 

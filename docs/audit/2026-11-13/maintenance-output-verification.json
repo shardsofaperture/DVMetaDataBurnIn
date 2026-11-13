@@ -1,0 +1,116 @@
+{
+  "date": "2026-11-13",
+  "runtime_commit": "2802355a1aa10e783e17d63a1ae13f54b7cf9f3b",
+  "source_sha256_before": "13be6af4cc481e5eea0a8ed9daee8d9ef329abd79ccc5c6620147604cefcca0a",
+  "source_sha256_after": "13be6af4cc481e5eea0a8ed9daee8d9ef329abd79ccc5c6620147604cefcca0a",
+  "results": [
+    {
+      "mode": "copy",
+      "file": "copy_conv.mov",
+      "sha256": "c982b5d7d8dff7d13c1875d446abf87e0ce55dc74ff3e8176b8e69241fb75c2c",
+      "frames": 238,
+      "field_order": null,
+      "decoded_interlaced_frames": 238,
+      "decoded_top_first_frames": 0,
+      "width": 720,
+      "height": 480,
+      "sample_aspect_ratio": "8:9",
+      "frame_rate": "2997/100",
+      "video_payload_sha256": "a89282b9c5e8b74add7d2f214df113a268ce52f69f43392c96fab33c4634a04f",
+      "audio_payload_sha256": "7361915b0c317d46f4e3d4d8110255c74d175f6ca2704f0ac80661ada01ba065"
+    },
+    {
+      "mode": "interlaced",
+      "file": "interlaced_dateburn.mp4",
+      "sha256": "59cccae2e754861ae3422b3dbb33427a01ccd5a43848d86ccd463f20566638f7",
+      "frames": 238,
+      "field_order": "bb",
+      "decoded_interlaced_frames": 238,
+      "decoded_top_first_frames": 0,
+      "width": 720,
+      "height": 480,
+      "sample_aspect_ratio": "8:9",
+      "frame_rate": "2997/100"
+    },
+    {
+      "mode": "subtitles",
+      "file": "subtitles_dvsub.mkv",
+      "sha256": "2d121955e9e89c9ea01f3a77fbbd2d6d57c4b86d544b9b0e3d05d96255bf2538",
+      "frames": 238,
+      "field_order": "bt",
+      "decoded_interlaced_frames": 238,
+      "decoded_top_first_frames": 0,
+      "width": 720,
+      "height": 480,
+      "sample_aspect_ratio": "8:9",
+      "frame_rate": "2997/100",
+      "subtitle_events": 9,
+      "subtitle_end": 7.95
+    },
+    {
+      "mode": "progressive",
+      "file": "progressive_dateburn.mp4",
+      "sha256": "166b42c12e2a3c2fb24efe0f6b356183fe28e27879588be8b0c574396d6fc114",
+      "frames": 476,
+      "field_order": "progressive",
+      "decoded_interlaced_frames": 0,
+      "decoded_top_first_frames": 0,
+      "width": 720,
+      "height": 480,
+      "sample_aspect_ratio": "8:9",
+      "frame_rate": "60000/1001"
+    }
+  ],
+  "scope": "Fresh CLI encodes with maintenance fixes. Original and published derivatives unchanged. GUI, player motion/audio and Apple Silicon acceptance not performed.",
+  "synthetic_regressions": 33,
+  "shell_smoke_checks": 3,
+  "native_release_build": "Xcode 15.4 Intel, passed",
+  "runtime_files_sha256": {
+    "Resources/scripts/dvmetaburn.zsh": "93b4bd5186e43e85ec8256dcbed2518dc5ee2d2abd38beea3cd30c6091800a79",
+    "Resources/scripts/lib/artifacts.zsh": "afedeef6e26648a7b273b96bd6f0dcdab6e8bf8eb2d822e81b6bbfd5dd239251",
+    "Resources/scripts/lib/cleanup.zsh": "3ba43fbaf1929fe7fbf82531489b97a5f0d361eb91d2f730be23e45e16bfe9bf",
+    "Resources/scripts/lib/dvrescue.zsh": "7e5a913ce23195b838ae51b42ce5c9586af23102c043cb9a20b3d7dfb9a2371a",
+    "Resources/scripts/lib/encode.zsh": "e14dd66183011cbc9077c765ad3fde8c775c5899458013d9f33dde23814c6497",
+    "Resources/scripts/lib/env.zsh": "c9c1febf02990e5b39e99f43c8b391938eb23ab3e85ad8262428c27f376188ad",
+    "Resources/scripts/lib/filtergraph.zsh": "fec9bd3194738455b1843e6cc2f274e933ca6a336dff0f312f4e181d7cbb7a22",
+    "Resources/scripts/lib/logging.zsh": "04cc0ff3399e7a3a31849ac8b3c58f2feeda22eb17fef4d5ea66f857053b6fdd",
+    "Resources/scripts/lib/pathing.zsh": "937f5ee6f75fc28e0ec7c049048b5a6dcbaf7b12cfe25611222f13be73e27d1d",
+    "Resources/scripts/lib/pipeline.zsh": "829f5b25c327b428ec8ecdff2a762aa55f429b6efdb07c25374a5664bbc0024b",
+    "Resources/scripts/lib/stitch.zsh": "098b00d912f0d83b462e3e9d1f71ef4d7ad049573dc9ff5d2583dc4a9970e6c0",
+    "Resources/scripts/lib/timeline.zsh": "a1ca75c90b90f374886ce660f15dd0726402bd0189e5a0ecb1c727edb8cc00f8"
+  },
+  "reproduction": {
+    "source": "Published train-01-original-dv.avi, unchanged hash above",
+    "common_cli_options": [
+      "--mode=single",
+      "--layout=stacked",
+      "--fontname=UAV OSD Sans Mono",
+      "--fontfile=Resources/fonts/UAV-OSD-Sans-Mono.ttf",
+      "--ffmpeg=Resources/bin/ffmpeg",
+      "--dvrescue=Resources/bin/dvrescue"
+    ],
+    "modes": [
+      [
+        "--format=mov",
+        "--burn-mode=off",
+        "--deinterlace=off"
+      ],
+      [
+        "--format=mp4",
+        "--burn-mode=burnin",
+        "--deinterlace=off"
+      ],
+      [
+        "--format=mkv",
+        "--burn-mode=subtitleTrack",
+        "--deinterlace=off"
+      ],
+      [
+        "--format=mp4",
+        "--burn-mode=burnin",
+        "--deinterlace=60p"
+      ]
+    ],
+    "destination": "Use a new separate --dest-dir and --scratch-dir per run; generated videos were not uploaded."
+  }
+}
