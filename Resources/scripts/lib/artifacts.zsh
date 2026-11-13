@@ -247,6 +247,10 @@ finish_run() {
     return "$exit_code"
   fi
 
+  if [[ "$status_label" != success ]]; then
+    burn_output="" subtitle_output="" passthrough_output=""
+    last_burn_output_path="" last_subtitle_output_path="" last_passthrough_output_path=""
+  fi
   write_versions_file "$versions_file"
   write_run_manifest "$manifest_path" "$status_label" "$input_path" "$artifact_dir" "$dvrescue_xml" "$dvrescue_log" "$timeline_path" "$cmd_path" "$ass_path" "$burn_output" "$subtitle_output" "$passthrough_output" "$versions_file"
 

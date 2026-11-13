@@ -78,7 +78,7 @@ zsh "$APP_RES/scripts/dvmetaburn.zsh" --mode=single --layout=stacked --format=mo
 python3 "$REPO/scripts/verify_train_demo.py" --ffmpeg "$FFMPEG" --ffprobe "$FFPROBE" --dvrescue "$DVRESCUE" --reference "$SOURCE" "$WORK/generated/train-check_conv.mov" > "$WORK/verification.json"
 ```
 
-Use separate destinations for concurrent runs and keep originals untouched. Scratch is deliberately retained here for diagnosis. CLI success is a CLI result. A GUI report should separately describe file selection, progress, folder queue behavior, Finder workspace access and Stop. Cancellation can leave a partial final output ([#198](https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/198)); test with disposable derivatives in a new destination.
+Use separate destinations for concurrent runs and keep originals untouched. Scratch is deliberately retained here for diagnosis. CLI success is a CLI result. A GUI report should separately describe file selection, progress, folder queue behavior, Finder workspace access and Stop. Stable and the original Preview 1 can leave a partial final output on cancellation; current maintenance stages and validates outputs, then refuses collisions ([#198](https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/198)); test with disposable derivatives in a new destination.
 
 ## 5. Observe playback and report the result
 

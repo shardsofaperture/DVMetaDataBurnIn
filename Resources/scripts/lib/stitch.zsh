@@ -86,9 +86,14 @@ stitch_sources() {
   prepare_subprocess_env
   local -a stitch_reencode_cmd
   build_codec_args "$format" "$effective_quality_kind"
+  local -a stitch_codecs=("${reply[@]}")
+  if [[ "$format" != mov && "$deinterlace_mode" == off && "$output_mode" != audio ]]; then
+    interlaced_video_args "$inputs[1]" || return 1
+    stitch_codecs+=("${reply[@]}")
+  fi
   stitch_reencode_cmd=(
     "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file"
-    "${reply[@]}"
+    "${stitch_codecs[@]}"
     "${sanitized_extra_args[@]}"
     "$stitched_path"
   )
@@ -201,7 +206,7 @@ stitch_batch_folder() {
     "$stitched_path"
   )
   log_ffmpeg_command "stitch-batch-copy" "${stitch_copy_cmd[@]}"
-  if run_owned_command "${stitch_copy_cmd[@]}"; then
+  if run_output_command "${stitch_copy_cmd[@]}"; then
     stitch_inputs_resolved="$list_file"
     stitched_source="$stitched_path"
     return 0
@@ -211,14 +216,19 @@ stitch_batch_folder() {
   prepare_subprocess_env
   local -a stitch_reencode_cmd
   build_codec_args "$format" "$effective_quality_kind"
+  local -a stitch_codecs=("${reply[@]}")
+  if [[ "$format" != mov && "$deinterlace_mode" == off && "$output_mode" != audio ]]; then
+    interlaced_video_args "$inputs[1]" || return 1
+    stitch_codecs+=("${reply[@]}")
+  fi
   stitch_reencode_cmd=(
     "$ffmpeg_bin" -y -f concat -safe 0 -i "$list_file"
-    "${reply[@]}"
+    "${stitch_codecs[@]}"
     "${sanitized_extra_args[@]}"
     "$stitched_path"
   )
   log_ffmpeg_command "stitch-batch-encode" "${stitch_reencode_cmd[@]}"
-  if run_owned_command "${stitch_reencode_cmd[@]}"; then
+  if run_output_command "${stitch_reencode_cmd[@]}"; then
     stitch_inputs_resolved="$list_file"
     stitched_source="$stitched_path"
     return 0

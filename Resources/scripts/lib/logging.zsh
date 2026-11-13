@@ -113,7 +113,9 @@ run_stage() {
 
   set +e
   local rc=0
-  if [[ "$1" == "${ffmpeg_bin:-}" || "$1" == "${dvrescue_bin:-}" ]]; then
+  if [[ "$1" == "${ffmpeg_bin:-}" && ( "$stage" == encode || "$stage" == audio-extract ) ]]; then
+    run_output_command "$@" || rc=$?
+  elif [[ "$1" == "${ffmpeg_bin:-}" || "$1" == "${dvrescue_bin:-}" ]]; then
     run_owned_command "$@" || rc=$?
   else
     "$@" || rc=$?

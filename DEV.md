@@ -47,7 +47,7 @@ Default workspaces are `~/Library/Logs/DVMeta/run.XXXXXXXX/`. With `--scratch-di
 - `tmp/`: subprocess temporary files; removed on handled exit after the tracked child stops.
 - `artifacts/`: separate per-clip directories, logs, timeline, ASS, versions, manifests, and stitch intermediates.
 
-`TMPDIR` and `TMPPREFIX` point inside the run. Output filenames and user-selected output locations are retained. A batch cleans its workspace once, after every clip and final concat, rather than at the end of each clip. The GUI's **Open temp folder** button opens its latest workspace; if that workspace was explicitly cleaned, it opens the existing parent folder.
+`TMPDIR` and `TMPPREFIX` point inside the run. Output filenames and user-selected output locations are retained. Current maintenance refuses existing final names, including symlinks and directories. Encodes are staged in a private sibling directory, fully decoded for validation, and published through an exclusive hard link. Filesystems without hard-link support (for example exFAT) fail safely; select an APFS/HFS+ destination. Validation adds one decode pass. Handled failure/cancellation removes the owned stage; SIGKILL/power loss may retain a hidden stage. Existing exports are never deleted. A batch cleans its workspace once, after every clip and final concat, rather than at the end of each clip. The GUI's **Open temp folder** button opens its latest workspace; if that workspace was explicitly cleaned, it opens the existing parent folder.
 
 CLI cleanup controls retain their meanings:
 
@@ -91,3 +91,16 @@ Use the actual Xcode path on another Mac. These checks exercise Swift allocation
 The `v1.0.7-maintenance.1` prerelease is built from the exact commit identified by its tag and `BUILD-MANIFEST.json`. Its Release app is copied into an isolated package staging directory, existing license texts and application source/build identity are included, and the outer app is ad-hoc signed without replacing the bundled tools. The ZIP is created with macOS `ditto` to preserve executable permissions and metadata. It is extracted again for signature/resource checks and a CLI self-test before upload. Published assets are downloaded and checked against SHA-256. The prerelease remains separate from the stable release. The premature source integration was reversed by PR #193; main retains stable 1.0.6 and maintenance needs owner testing/approval before future integration. The app manifest does not establish dependency build provenance. See [current status](docs/PROJECT_STATUS.md) and the [distribution audit](docs/THIRD_PARTY_DISTRIBUTION_AUDIT.md) for unresolved source/notice evidence.
 
 The handoff ZIP in Nextcloud includes the source snapshot, release assets, validation logs, Git diffs/receipts and the end-to-end summary. No credentials, private keys, unrelated project files or original footage belong in that handoff.
+
+## Release integrity
+
+Before publishing any new application package, create external and embedded `BUILD-MANIFEST.json` files identifying the exact full source commit, release tag and application version. The external manifest also records the archive name/size/SHA-256, executable hash and bundled-tool hashes; the unchanged Preview 1 manifest is a concrete example. Keep the tag pointing at that source commit. Include all bundled notices, including the DVRescue supplement appended to `Resources/licenses/NOTICE.txt`.
+
+Run against the exact source checkout and final ZIP:
+
+```sh
+python3 scripts/verify_release.py --tag v1.0.7-maintenance.2 --manifest /path/to/BUILD-MANIFEST.json --archive /path/to/application.zip --project DVMetaDataBurnIn.xcodeproj/project.pbxproj
+python3 -m unittest discover -s scripts/tests -v
+```
+
+Use the intended tag and actual paths. This example is not a new release announcement. Never upload after a failed check. The `Application release integrity` workflow repeats validation on newly published application releases, or manually for a specified tag, and compares the tag's source project to the archive. Example-data releases are excluded. Historical packages without manifests are not retrospectively certified. The existing 1.0.4beta ZIP contains version 1.0.3; its tag and bytes are preserved, with actual runtime provenance unknown. Integrity checks do not establish licensing compliance, signing, GUI or player acceptance.

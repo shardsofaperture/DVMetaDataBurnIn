@@ -822,6 +822,10 @@ if [[ "$mode" == "batch" ]]; then
             local -a stitch_codec_args
             build_codec_args "$format" "$effective_quality_kind"
             stitch_codec_args=("${reply[@]}")
+            if [[ "$format" != mov && "$deinterlace_mode" == off ]]; then
+              interlaced_video_args "$stitch_inputs[1]" || exit 1
+              stitch_codec_args+=("${reply[@]}")
+            fi
             log_export "$list_file" "$stitched_output"
             prepare_subprocess_env
             local -a stitch_encode_cmd=(
@@ -857,7 +861,7 @@ if [[ "$mode" == "batch" ]]; then
     fi
 
     log_move "$stitched_output" "$final_stitch_out"
-    if ! mv -f "$stitched_output" "$final_stitch_out"; then
+    if ! publish_completed_output "$stitched_output" "$final_stitch_out"; then
       echo "[ERROR] Failed to move stitched output into place: $stitched_output -> $final_stitch_out" >&2
       exit 1
     fi

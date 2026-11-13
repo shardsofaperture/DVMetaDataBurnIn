@@ -323,6 +323,11 @@ print -r -- '37 00:00:01;06 2024-01-02 00:00:00'
                 data = subprocess.check_output([str(FFMPEG), "-v", "error", "-sseof", "-0.04", "-i", str(out),
                                                 "-frames:v", "1", "-pix_fmt", "gray", "-f", "rawvideo", "-"], timeout=10)
                 self.assertTrue(data and max(data) > 180)
+                frames = self.probe(out, "-select_streams", "v", "-show_frames")["frames"]
+                self.assertTrue(all(f["interlaced_frame"] == (1 if mode == "off" else 0) for f in frames))
+                if mode == "off":
+                    self.assertTrue(all(f["top_field_first"] == 0 for f in frames))
+                out.unlink()
 
     def test_switchable_ass_covers_final_frame(self):
         self.cli("--format=mkv", "--burn-mode=subtitleTrack", "--deinterlace=off")
@@ -379,6 +384,7 @@ print -r -- '37 00:00:01;06 2024-01-02 00:00:00'
                 self.assertGreaterEqual(starts[2], 37 / FPS - .04)
                 self.assertFalse(list((self.work / "scratch").glob("**/run.*")))
                 self.assertEqual(len(list((self.work / "output").glob("*.mkv"))), 1)
+                out.unlink()
         # No-stitch batch must also keep its workspace through the second clip.
         self.cli("--mode=batch", "--format=mov", "--burn-mode=off", "--scratch-cleanup=success", source=batch)
         self.assertTrue((self.work / "output/part0_conv.mov").exists())
@@ -443,6 +449,154 @@ exec "$DVMETA_TEST_REAL_FFMPEG" "$@"
         manifests = list((self.work / "scratch").glob("**/run_manifest.json"))
         self.assertTrue(manifests)
         self.assertEqual(json.loads(manifests[-1].read_text())["status"], "error")
+
+
+    def test_subtitle_bitstream_is_bottom_field_first(self):
+        self.cli("--format=mkv", "--burn-mode=subtitleTrack", "--deinterlace=off")
+        elementary = self.work / "elementary.h264"
+        run([FFMPEG, "-v", "error", "-i", self.output("_dvsub.mkv"), "-map", "0:v", "-c", "copy", elementary])
+        frames = self.probe(elementary, "-show_frames")["frames"]
+        self.assertEqual(len(frames), 37)
+        self.assertTrue(all(f["interlaced_frame"] == 1 and f["top_field_first"] == 0 for f in frames))
+
+    def safety_modes(self):
+        return [("mov", "off", "off", False), ("mp4", "off", "off", False),
+                ("mp4", "burnin", "off", False), ("mp4", "burnin", "60p", False),
+                ("mkv", "subtitleTrack", "off", False),
+                ("mkv", "subtitleTrack", "off", True),
+                ("mp4", "burnin", "off", True), ("mp4", "off", "off", "audio")]
+
+    def safety_wrapper(self, behavior):
+        wrapper = self.work / "encoder.zsh"
+        wrapper.write_text('#!/bin/zsh\n' +
+            'if [[ "${@[-1]}" == */.dvmeta-output.*/output.* ]]; then\n' +
+            '  print -r -- partial > "${@[-1]}"\n' + behavior + '\nfi\n' +
+            'exec ' + __import__('shlex').quote(str(FFMPEG)) + ' "$@"\n')
+        wrapper.chmod(0o755)
+        return wrapper
+
+    def test_all_encode_routes_reject_partial_or_invalid_success(self):
+        for behavior in ("exit 42", "exit 0"):
+            wrapper = self.safety_wrapper(behavior)
+            for index, (fmt, burn, deint, fallback) in enumerate(self.safety_modes()):
+                with self.subTest(behavior=behavior, mode=index):
+                    flags = ["--format="+fmt, "--burn-mode="+burn, "--deinterlace="+deint,
+                             "--output-base=case"+str(index), "--ffmpeg="+str(wrapper),
+                             "--missing-meta=skip_burnin_convert"]
+                    if fallback == "audio": flags.append("--output-mode=audio")
+                    result = self.cli(*flags, metadata=DVRESCUE if fallback is True else None, check=False)
+                    self.assertNotEqual(result.returncode, 0, result.stdout)
+                    self.assertEqual(list((self.work / "output").iterdir()), [])
+
+    def test_all_encode_routes_cancel_without_final_or_stage(self):
+        wrapper = self.safety_wrapper('print -r -- ready > "$DVMETA_CANCEL_READY"; while true; do sleep 0.1; done')
+        for index, (fmt, burn, deint, fallback) in enumerate(self.safety_modes()):
+            with self.subTest(mode=index):
+                marker = self.work / "ready"
+                marker.unlink(missing_ok=True)
+                args = ["/bin/zsh", str(ENTRY), "--ffmpeg="+str(wrapper),
+                        "--dvrescue="+str(DVRESCUE if fallback is True else self.metadata),
+                        "--fontfile="+str(FONT), "--scratch-dir="+str(self.work / "scratch"),
+                        "--dest-dir="+str(self.work / "output"), "--output-base=case"+str(index),
+                        "--format="+fmt, "--burn-mode="+burn, "--deinterlace="+deint,
+                        "--missing-meta=skip_burnin_convert"]
+                if fallback == "audio": args.append("--output-mode=audio")
+                args.append(str(self.source))
+                with (self.work / "cancel.log").open("w") as log:
+                    proc = subprocess.Popen(args, stdout=log, stderr=log,
+                                            env=dict(os.environ, DVMETA_CANCEL_READY=str(marker)))
+                    try:
+                        deadline = time.monotonic()+15
+                        while not marker.exists() and proc.poll() is None and time.monotonic()<deadline:
+                            time.sleep(.05)
+                        self.assertTrue(marker.exists(), (self.work / "cancel.log").read_text())
+                        proc.terminate()
+                        self.assertNotEqual(proc.wait(timeout=10), 0)
+                    finally:
+                        if proc.poll() is None: proc.terminate(); proc.wait(timeout=10)
+                self.assertEqual(list((self.work / "output").iterdir()), [])
+
+    def test_existing_file_directory_and_symlink_are_preserved(self):
+        output = self.work / "output"
+        output.mkdir()
+        target = self.output("_conv.mov")
+        owner = self.work / "owner.mov"
+        owner.write_bytes(b"owner export")
+        for kind in ("file", "directory", "symlink"):
+            with self.subTest(kind=kind):
+                if kind == "file": target.write_bytes(b"existing export")
+                elif kind == "directory": target.mkdir()
+                else: target.symlink_to(owner)
+                result = self.cli("--format=mov", "--burn-mode=off", check=False)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(owner.read_bytes(), b"owner export")
+                if kind == "directory": self.assertEqual(list(target.iterdir()), []); target.rmdir()
+                else:
+                    self.assertEqual(target.read_bytes(), b"existing export" if kind == "file" else b"owner export")
+                    target.unlink()
+
+    def test_atomic_publish_race_and_distinct_destinations(self):
+        # Real simultaneous writers of valid media: exactly one wins a collision.
+        output = self.work / "output"
+        output.mkdir()
+        for distinct in (False, True):
+            targets = [output / (str(i if distinct else 0)+".mov") for i in range(2)]
+            code = '''source "$1/cleanup.zsh"
+warn() { print -r -- "$*" >&2; }
+owned_workspace_token=test; output_stage_dirs=(); active_child_pid=""; ffmpeg_bin=$2
+run_output_command /bin/cp "$3" "$4"
+'''
+            procs = [subprocess.Popen(["zsh", "-c", code, "test", str(LIB), str(FFMPEG), str(self.source), str(t)],
+                                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT) for t in targets]
+            results = [p.communicate(timeout=20) for p in procs]
+            self.assertEqual(sum(p.returncode == 0 for p in procs), 2 if distinct else 1, results)
+            for t in set(targets):
+                self.assertEqual(t.read_bytes(), self.source.read_bytes()); t.unlink()
+            self.assertEqual(list(output.iterdir()), [])
+
+
+    def test_progressive_and_top_field_first_are_not_forced_to_bottom(self):
+        for label, options, expected in [("progressive", [], (0, 0)),
+                ("top", ["-flags", "+ilme+ildct", "-top", "1", "-x264-params", "tff=1"], (1, 1))]:
+            with self.subTest(source=label):
+                source = self.work / (label+".avi")
+                run([FFMPEG, "-v", "error", "-i", self.source, "-c:v", "libx264", *options,
+                     "-c:a", "copy", source])
+                self.cli("--format=mp4", "--burn-mode=off", "--output-base="+label, source=source)
+                out = self.work / "output" / (label+"_conv.mp4")
+                frames = self.probe(out, "-select_streams", "v", "-show_frames")["frames"]
+                self.assertTrue(all((f["interlaced_frame"], f["top_field_first"]) == expected for f in frames))
+
+    def test_cancel_final_concat_preserves_existing_export(self):
+        batch = self.work / "batch"
+        batch.mkdir()
+        for i in range(2): shutil.copyfile(self.source, batch/(str(i)+".avi"))
+        output = self.work / "output"
+        output.mkdir()
+        final = output/"batch_stitched_conv.mov"
+        final.write_bytes(b"owner export")
+        marker = self.work/"ready"
+        wrapper = self.work/"concat-cancel.zsh"
+        import shlex
+        wrapper.write_text('#!/bin/zsh\nfor arg in "$@"; do\nif [[ "$arg" == concat ]]; then\n' +
+                           'print partial > "${@[-1]}"\nprint ready > '+shlex.quote(str(marker))+'\n' +
+                           'while true; do sleep 0.1; done\nfi\ndone\nexec '+shlex.quote(str(FFMPEG))+' "$@"\n')
+        wrapper.chmod(0o755)
+        args = ["zsh", str(ENTRY), "--mode=batch", "--stitch-batch", "--format=mov", "--burn-mode=off",
+                "--ffmpeg="+str(wrapper), "--dvrescue="+str(self.metadata), "--scratch-dir="+str(self.work/"scratch"),
+                "--dest-dir="+str(output), str(batch)]
+        with (self.work/"cancel.log").open('w') as log:
+            proc = subprocess.Popen(args, stdout=log, stderr=log)
+            try:
+                deadline = time.monotonic()+15
+                while not marker.exists() and proc.poll() is None and time.monotonic()<deadline: time.sleep(.05)
+                self.assertTrue(marker.exists(), (self.work/"cancel.log").read_text())
+                proc.terminate()
+                self.assertNotEqual(proc.wait(timeout=10), 0)
+            finally:
+                if proc.poll() is None: proc.terminate(); proc.wait(timeout=10)
+        self.assertEqual(final.read_bytes(), b"owner export")
+        self.assertEqual(list(output.iterdir()), [final])
 
 
 if __name__ == "__main__":

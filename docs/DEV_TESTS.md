@@ -65,3 +65,7 @@ Test mixed metadata using original camera footage only when the owner chooses ap
 ## Optional real-footage fixture
 
 The [train preservation demonstration](examples/TRAIN_DV_PRESERVATION.md) includes hash-pinned downloads and explicit-path verification commands. It is opt-in and is not downloaded or processed by the default tests. Its single-clip CLI evidence does not replace GUI, motion/audio, target-player, or Apple Silicon acceptance.
+
+## Current output-safety and field-signaling regressions
+
+The maintenance suite now has 33 tests plus three shell smoke checks. Tests include partial and invalid-success encoder output, TERM in every final encode route, final-concat cancellation, existing file/symlink/directory preservation, same-name publication races and distinct concurrent destinations. Frame tests check decoded BFF/TFF/progressive flags and an extracted raw H.264 stream, independently of container tags. Synthetic tests are separate from the [new train CLI receipt](audit/2026-11-13/maintenance-output-verification.json). GUI and player acceptance remain manual; hard-link publication is tested on the local filesystem, not certified on every removable/network volume.
