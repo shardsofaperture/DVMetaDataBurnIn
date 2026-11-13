@@ -12,11 +12,12 @@ Licensed under the BSD 3-Clause License.
 See dvrescue_LICENSE.txt or:
 https://mediaarea.net/DVRescue
 
-UAV OSD Font, by Nicholas Kruse
-Distributed as free for personal and commercial use by the author.
+UAV OSD Mono and UAV OSD Sans Mono, by Nicholas Kruse
+Used and redistributed by DVMetaDataBurnIn with express written permission
+from Nicholas Kruse, granted November 13, 2026. The correspondence is privately
+retained by the maintainer. This permission applies to this project; it is not
+an OFL license, a public-domain dedication, or permission for unrelated projects.
 Source: https://www.dafont.com/uav-osd.font
-
-
 Author page: https://nicholaskruse.com/work/uavosd
 
 VCR OSD Mono Font, by Riciery Leal

@@ -33,9 +33,13 @@ Maintenance runtime `2802355` passes 33 synthetic regressions and three shell ch
 
 The original official DVRescue 24.07 package now matches the distributed executable byte for byte. Twelve verified notice texts are preserved in [the supplement](audit/2026-11-13/DVRESCUE-NOTICES.txt) and appended to the existing bundled notice. [Provenance](audit/2026-11-13/dvrescue-provenance.json) also identifies remaining DeckLink/build-manifest uncertainty; #195 is not closed by partial notice repair. The [release integrity gate](../scripts/verify_release.py) rejects mismatched tags, manifests, built versions and hashes. The historical 1.0.4beta ZIP remains unchanged and labeled as containing version 1.0.3; its actual runtime provenance is not inferred from either label.
 
+## UAV font permission update — November 13, 2026
+
+On November 13, 2026, Nicholas Kruse, the original author of UAV OSD Mono and UAV OSD Sans Mono, granted DVMetaDataBurnIn express written permission to use and redistribute both fonts. The correspondence is privately retained by the maintainer. This project-specific permission resolves the UAV redistribution concern in [#196](https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/196); it is not an OFL license, a public-domain dedication, or blanket permission for unrelated projects. Existing copyright attribution and source links are retained. Issue #196 remains open only for VCR OSD Mono by Riciery Leal.
+
 ## Outstanding work
 
-Application submission evidence is materially improved, but **complete distribution readiness cannot yet be claimed**. Exact FFmpeg corresponding source/build materials and dependency notices (#194), DVRescue DeckLink SDK/build mapping (#195), and explicit font redistribution/embedding evidence (#196) remain external evidence dependencies. See the [distribution audit](THIRD_PARTY_DISTRIBUTION_AUDIT.md) for exact findings. Application MIT terms and authorship remain unchanged.
+Application submission evidence is materially improved, but **complete distribution readiness cannot yet be claimed**. Exact FFmpeg corresponding source/build materials and dependency notices (#194), DVRescue DeckLink SDK/build mapping (#195), and explicit VCR OSD Mono redistribution/embedding evidence (#196) remain external evidence dependencies. See the [distribution audit](THIRD_PARTY_DISTRIBUTION_AUDIT.md) for exact findings. Application MIT terms and authorship remain unchanged.
 
 Accepting the entire 1.0.7 release is not required to complete documentation, notice repair or the packaging gate. Before promoting 1.0.7, complete GUI queues/Stop, player subtitle/motion/audio review, broader real-camera cases and platform acceptance. #197 remains open for its explicit moving-picture/player criterion after the automated field-signaling fix. #198 concerns publication safety, with GUI acceptance tracked separately. Use the [community validation guide](COMMUNITY_VALIDATION.md). Direct DV/Digital8 and HDV capture remain [planned](ROADMAP.md).
 
@@ -51,5 +55,6 @@ the publisher archive and delivered CLI subset produced identical binaries.
 
 The [active maintenance report](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/maintenance/1.0.7/docs/MAINTENANCE_1.0.7.md)
 contains the current evidence and GUI/player/Apple Silicon limits. Main remains
-the stable 1.0.6 application. Historical #194–196 remain open for the old bytes;
+the stable 1.0.6 application. Historical #194–196 remain open for the old bytes
+(with #196 now limited to VCR OSD Mono);
 replacement provenance is not claimed to repair those historical obligations.
