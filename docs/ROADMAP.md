@@ -10,7 +10,7 @@ The goal is accurate, accessible preservation of legacy digital recordings and t
 
 ## In progress: complete the 1.0.7 maintenance release
 
-Implementation remains on `maintenance/1.0.7`, separate from `main`. Subtitle-tail timing, scratch isolation, cancellation cleanup, and failure propagation have synthetic/CLI evidence. The train clip adds bounded real-footage evidence, including a field-flag mismatch in deinterlacing-off H.264 output.
+The current source includes the 1.0.7 maintenance implementation; completing acceptance and promoting an application release remain separate steps. Subtitle-tail timing, scratch isolation, cancellation cleanup, and failure propagation have synthetic/CLI evidence. The train clip adds bounded real-footage evidence, including a field-flag mismatch in deinterlacing-off H.264 output.
 
 Acceptance: match extracted recording dates to overlays/subtitle events across real fixtures; verify safe folder queues and Stop at every processing stage; demonstrate independent concurrent workspaces; reject failed or partial final outputs without overwriting valid owner exports; show useful progress and actionable errors. Confirm these through GUI and player checks, not only shell tests. Retain current-plus-rollback builds. See the [maintenance report](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/maintenance/1.0.7/docs/MAINTENANCE_1.0.7.md).
 
