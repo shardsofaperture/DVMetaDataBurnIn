@@ -4,9 +4,9 @@ Successful tests and discrepancies are both useful. This guide separates applica
 
 ## 1. Choose the application and record your environment
 
-Download [1.0.6 beta](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/1.0.6beta) for the retained application, or [1.0.7 Maintenance Preview 1](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.1) to test maintenance changes. Keep them separately identified. The preview release includes a manifest and SHA256SUMS; verify the ZIP before extracting. Its source is `5f7e13e0b9f94b98bfef32c5d828aae614265583`. Report the package/tag and archive hash; if building locally, also report `git rev-parse HEAD` and whether the tree was modified.
+Download [1.0.6 beta](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/1.0.6beta) for the retained application, or [1.0.7 Maintenance Preview 2](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.2) to test the current field-signaling and output-safety corrections. Keep them separately identified. The preview release includes a manifest and SHA256SUMS; verify the ZIP before extracting. Preview 2’s source is `1735e101881f5fe725c2d1ed539bc3c22bbf8e52`. The original Preview 1 and published train derivatives remain historical comparisons and do not include the correction. Report the package/tag and archive hash; if building locally, also report `git rev-parse HEAD` and whether the tree was modified.
 
-Current packages declare macOS 12 minimum. Stable 1.0.6 has an Intel/Apple Silicon app executable with Intel-only bundled tools; preview 1.0.7 is Intel-only throughout. Apple Silicon/native or Rosetta acceptance is still open. The preview is ad-hoc signed and not notarized. Use macOS's normal controls for opening software you trust. [Distribution evidence gaps](THIRD_PARTY_DISTRIBUTION_AUDIT.md) remain public.
+Current packages declare macOS 12 minimum. Stable 1.0.6 has an Intel/Apple Silicon app executable with Intel-only bundled tools; maintenance previews are Intel-only throughout. Apple Silicon/native or Rosetta acceptance is still open. The preview is ad-hoc signed and not notarized. Use macOS's normal controls for opening software you trust. [Distribution evidence gaps](THIRD_PARTY_DISTRIBUTION_AUDIT.md) remain public.
 
 Record Mac model, macOS version, Intel/Apple Silicon and any translation used. Do not include serial numbers, hardware UUIDs, usernames or full personal paths.
 
@@ -62,13 +62,13 @@ Expected bounded results:
 | Recorded date/time | 2025-11-11 08:29:35 through 08:29:43. This is the stored camera clock, not independently verified historical time. |
 | Second transitions | Zero-based source frames 24, 54, 84, 114, 144, 174, 204, 234. Inspect both sides of each transition; in 60p use frames 2*n-1 and 2*n. |
 | ASS subtitles | Nine positive, nonoverlapping intervals; final interval 7.80–7.95 s covers the final video packet ending near 7.941 s. Compare text with the [original ASS](examples/train-dv/train-01-maintenance-timestamps.ass). |
-| H.264/AAC derivatives | Lossy viewing copies; no original-audio identity claim. Deinterlacing-off combing/progressive-flag mismatch is known ([#197](https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/197)). |
+| H.264/AAC derivatives | Lossy viewing copies; no original-audio identity claim. The original Preview 1 derivatives retain the known deinterlacing-off combing/progressive-flag mismatch. Preview 2 corrects the flags; [#197](https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/197) retains manual player acceptance for stable promotion. |
 
 ## 4. Test the application or reproduce CLI processing
 
 **GUI test:** open the chosen application, select the downloaded original AVI, choose a new output directory, and record every setting. Test DV-copy MOV with timestamps off, burn-in MP4 with deinterlacing off or 60p, or MKV with switchable subtitles. Compare the new output with the reference using the verifier **without `--manifest`**, because your derivative is not an existing published asset. Compare measured properties and dates; do not require byte-identical newly encoded MP4/MKV files.
 
-**CLI reproduction:** the four historical command argument lists are in [processing-commands.json](examples/train-dv/processing-commands.json). They use the preview source checkout, not main's 1.0.6 scripts. For a single MOV reproduction from the extracted preview app, run this in the download directory after replacing `APP_RES`:
+**CLI reproduction:** the four historical command argument lists are in [processing-commands.json](examples/train-dv/processing-commands.json). They use the original Preview 1 source checkout, not main's 1.0.6 scripts. For current Preview 2 commands and automated results, use its [verification record](https://github.com/shardsofaperture/DVMetaDataBurnIn/blob/1735e101881f5fe725c2d1ed539bc3c22bbf8e52/docs/audit/2026-11-13/dependency-builds/train-output-verification.json). For a historical single MOV reproduction from the extracted Preview 1 app, run this in the download directory after replacing `APP_RES`:
 
 ```sh
 APP_RES=/path/to/DVMetaDataBurnIn.app/Contents/Resources
@@ -82,7 +82,7 @@ Use separate destinations for concurrent runs and keep originals untouched. Scra
 
 ## 5. Observe playback and report the result
 
-Manual checks require a player, viewing and listening: report player/version, subtitle visibility and toggling (including the final frame), timestamp placement, moving train cadence/field order, audio quality and apparent A/V sync. Still images and decode success cannot answer those questions. Record pass/fail/not tested separately for each mode and player.
+Issue #197 records the remaining stable-promotion acceptance, not an unresolved coding task or a block on experimental prereleases. Test newly generated Preview 2 outputs as well as the original/reference; the historical derivatives cannot establish acceptance of the correction. Manual checks require a player, viewing and listening: report player/version, subtitle visibility and toggling (including the final frame), timestamp placement, moving train cadence/field order, audio quality and apparent A/V sync. Still images and decode success cannot answer those questions. Record pass/fail/not tested separately for each mode and player.
 
 Open a [real-camera validation report](https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/new?template=real-camera-validation.yml). If the form is not yet on the default branch, use [the template fields](../.github/ISSUE_TEMPLATE/real-camera-validation.yml) in a [blank issue](https://github.com/shardsofaperture/DVMetaDataBurnIn/issues/new). A successful test is useful; state exactly what passed and what was not exercised. Include version/commit or package identity, hardware/OS, source hash, modes/settings, expected/actual results and reproducible steps. Link the existing public sample instead of uploading another copy.
 
