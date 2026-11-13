@@ -20,9 +20,17 @@ an OFL license, a public-domain dedication, or permission for unrelated projects
 Source: https://www.dafont.com/uav-osd.font
 Author page: https://nicholaskruse.com/work/uavosd
 
-VCR OSD Mono Font, by Riciery Leal
-Distributed as free for personal and commercial use per the author’s comments.
+VCR OSD Mono Font, by Riciery Leal (MrManet)
+The author confirmed commercial use is permitted in his February 24, 2017
+DaFont comment. DaFont classifies the font as 100% Free; catalog classifications
+are not independent author grants of redistribution or embedding permission.
+Explicit author permission for redistribution and embedding remains unconfirmed.
+The maintainer has decided to retain the font with its existing attribution in
+stable and earlier distributions while awaiting clarification from the author.
+The maintainer has requested clarification and will update the project if the
+author responds; absence of a reply does not establish additional permission.
 Source: https://www.dafont.com/font-comment.php?file=vcr_osd_mono
+Font page: https://www.dafont.com/vcr-osd-mono.font
 
 
 DVRescue 24.07 distribution notice supplement — 2026-11-13
