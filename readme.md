@@ -1,5 +1,7 @@
 # DVMetaDataBurnIn
 
+> **Maintenance work in progress:** Additional bug fixes and testing are continuing on [`maintenance/1.0.7`](https://github.com/shardsofaperture/DVMetaDataBurnIn/tree/maintenance/1.0.7) before merging into `main`. [v1.0.7 Maintenance Preview 1](https://github.com/shardsofaperture/DVMetaDataBurnIn/releases/tag/v1.0.7-maintenance.1) is available for testing.
+
 **DVMetaDataBurnIn** is a free, open source macOS utility for burning original DV/Digital8 camcorder date/time metadata directly into video files. It’s powered by `dvrescue` and `ffmpeg`, which prior to this involved me banging my head running terminal scripts to get the same result. I wanted a beter way for myself outside of apple script. This is my attempt to make DV timestamp burning actually useable for batchwork. 
 ---
 
